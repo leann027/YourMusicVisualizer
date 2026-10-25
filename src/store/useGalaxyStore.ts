@@ -22,6 +22,8 @@ interface GalaxyState {
   lastFlightDurationMs: number;
   cameraDistance: number;
   minAffinityFilter: number;
+  searchQuery: string;
+  isSleeveCollapsed: boolean;
   perfStats: RenderPerfStats;
 
   // Actions
@@ -33,6 +35,8 @@ interface GalaxyState {
   setFlightState: (isFlying: boolean, durationMs?: number) => void;
   setCameraDistance: (distance: number) => void;
   setMinAffinityFilter: (minAffinity: number) => void;
+  setSearchQuery: (query: string) => void;
+  toggleSleeveCollapsed: () => void;
   updatePerfStats: (stats: RenderPerfStats) => void;
 }
 
@@ -47,6 +51,8 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   lastFlightDurationMs: 750,
   cameraDistance: 33.1,
   minAffinityFilter: 0,
+  searchQuery: '',
+  isSleeveCollapsed: false,
   perfStats: {
     fps: 60,
     drawCalls: 0,
@@ -77,6 +83,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       selectedNode: node,
       selectedSectorId: sectorId,
       cameraMode: mode,
+      isSleeveCollapsed: false,
+      minAffinityFilter:
+        node.affinity < state.minAffinityFilter ? 0 : state.minAffinityFilter,
       flightVersion: state.flightVersion + 1,
     }));
   },
@@ -89,6 +98,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       selectedSectorId: genreId,
       selectedNode: genre,
       cameraMode: 'sector',
+      isSleeveCollapsed: false,
       flightVersion: state.flightVersion + 1,
     }));
   },
@@ -125,6 +135,11 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   setCameraDistance: (cameraDistance) => set({ cameraDistance }),
 
   setMinAffinityFilter: (minAffinityFilter) => set({ minAffinityFilter }),
+
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
+
+  toggleSleeveCollapsed: () =>
+    set((state) => ({ isSleeveCollapsed: !state.isSleeveCollapsed })),
 
   updatePerfStats: (perfStats) => set({ perfStats }),
 }));

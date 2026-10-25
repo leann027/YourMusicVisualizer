@@ -22,7 +22,11 @@ export interface ArtistNode {
   songCount: number;
   affinity: number; // 0 to 1
   position: [number, number, number];
-  portraitUrl?: string;
+  catalogCode: string;
+  origin: string;
+  bio: string;
+  sleeveBg: string;
+  sleeveAccent: string;
 }
 
 export interface SongNode {
@@ -31,6 +35,7 @@ export interface SongNode {
   artistId: string;
   genreId: string;
   title: string;
+  album: string;
   duration: number; // in seconds
   affinity: number; // 0 to 1
   position: [number, number, number];

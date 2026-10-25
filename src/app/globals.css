@@ -69,3 +69,28 @@ body {
       border-color 120ms ease-out;
   }
 }
+
+/* Typographic wrapping & accessible screen-reader utility */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}
