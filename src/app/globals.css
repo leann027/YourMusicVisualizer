@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050508;
+  --foreground: #F2F4F8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-syne: var(--font-syne);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-jetbrains-mono), monospace;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+}
