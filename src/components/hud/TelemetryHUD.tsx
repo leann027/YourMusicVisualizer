@@ -18,6 +18,7 @@ import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StellarSearchBar } from './StellarSearchBar';
 import { ArtistSleeveCard } from './ArtistSleeveCard';
 import { DataSourceModal } from './DataSourceModal';
+import { FFTSpectrumDock } from './FFTSpectrumDock';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
 
 const AFFINITY_THRESHOLDS = [
@@ -452,12 +453,8 @@ export const TelemetryHUD: React.FC = () => {
             <span>Galaxia</span>
           </button>
 
-          {activeSongTitle && (
-            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-[#CCFF00] border-l border-[#00F5D4]/20 pl-3">
-              <Volume2 className="h-3 w-3 text-[#CCFF00]" strokeWidth={2} />
-              <span className="truncate max-w-[180px] font-semibold">{activeSongTitle}</span>
-            </div>
-          )}
+          {/* Upgraded Cyber-Galactic 24-Band FFT Audio Visualizer Dock */}
+          <FFTSpectrumDock />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

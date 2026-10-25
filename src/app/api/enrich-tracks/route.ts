@@ -528,7 +528,7 @@ async function resolveArtistClassification(
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as { tracks?: EnrichTrackRequestItem[] };
-    const tracks = Array.isArray(body.tracks) ? body.tracks.slice(0, 500) : [];
+    const tracks = Array.isArray(body.tracks) ? body.tracks.slice(0, 3000) : [];
 
     if (tracks.length === 0) {
       return NextResponse.json({ results: [] });

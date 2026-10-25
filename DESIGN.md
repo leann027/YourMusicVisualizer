@@ -49,6 +49,14 @@ colors:
   cian-electrico-bg: "#071E24"
   fucsia-cuantico: "#D946EF"
   fucsia-cuantico-bg: "#250B27"
+  verde-neon: "#22C55E"
+  verde-neon-bg: "#06200F"
+  cobre-astral: "#F97316"
+  cobre-astral-bg: "#241006"
+  menta-cosmica: "#2DD4BF"
+  menta-cosmica-bg: "#061F1B"
+  rubi-interestelar: "#E11D48"
+  rubi-interestelar-bg: "#23080F"
 typography:
   display:
     fontFamily: "Syne, sans-serif"

@@ -5,6 +5,7 @@ import {
   RawLibraryTrackInput,
 } from '../importers/libraryImporter';
 import { MusicGalaxyData, SpotifyUserProfile } from '../../types/music';
+import { classifyUniversalMusic } from '../music/genreClassifier';
 
 /**
  * Spotify OAuth 2.0 PKCE & Saved Tracks Analyzer (`spotifyClient.ts`).
@@ -420,10 +421,16 @@ export async function fetchSpotifyLikedSongsGalaxy(
     const artistId = item.track.artists[0]?.id;
     const details = artistId ? artistDetailsMap.get(artistId) : undefined;
 
+    const fastClass = classifyUniversalMusic(
+      primaryArtist,
+      details?.genres?.[0] || enriched?.rawGenre,
+      item.track.name
+    );
+
     const candidateGenre = (
       enriched?.genre ||
       details?.genres?.[0] ||
-      'ROCK CLÁSICO & PSICODELIA'
+      fastClass.genre
     ).toUpperCase();
 
     if (!artistPrimaryGenre.has(primaryArtist)) {
@@ -437,10 +444,10 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
   });
 
-  // Keep up to 14 distinct musical genre constellations so large 500-song galaxies span a rich spectrum
+  // Keep up to 20 distinct musical genre constellations so large 2,000-3,000 song galaxies span a rich spectrum
   const topGenres = Array.from(genreFrequency.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 14)
+    .slice(0, 20)
     .map(([g]) => g);
 
   const rawTracks: RawLibraryTrackInput[] = validItems.map((item, idx) => {
@@ -457,14 +464,18 @@ export async function fetchSpotifyLikedSongsGalaxy(
     const key = `${track.id || idx}`;
     const enriched = enrichmentMap.get(key);
 
+    const fallbackClass = classifyUniversalMusic(
+      primaryArtist.name,
+      artistDetail?.genres?.[0],
+      track.name
+    );
+
     const artistGenre =
       artistPrimaryGenre.get(primaryArtist.name) ||
       enriched?.genre ||
-      'ROCK CLÁSICO & PSICODELIA';
+      fallbackClass.genre;
 
-    const matchedGenre = topGenres.includes(artistGenre)
-      ? artistGenre
-      : topGenres[idx % Math.max(1, topGenres.length)] || artistGenre;
+    const matchedGenre = artistGenre;
 
     const likedCountForArtist =
       artistLikedCount.get(primaryArtist.name) || 1;

@@ -7,6 +7,7 @@ import {
   MusicLink,
   SongNode,
 } from '../../types/music';
+import { classifyUniversalMusic } from '../music/genreClassifier';
 
 /**
  * Data Ingestion & Spatial Layout Engine (`libraryImporter.ts`).
@@ -42,22 +43,26 @@ export interface RawLibraryPayload {
 }
 
 const SECTOR_PALETTE = [
-  { color: '#00F5D4', bg: '#081D1A', center: [-24, 7, -18] as [number, number, number] }, // 1. Turquesa Espacial
+  { color: '#00F5D4', bg: '#081D1A', center: [-24, 6, -18] as [number, number, number] }, // 1. Turquesa Espacial
   { color: '#FF2A85', bg: '#200C1D', center: [24, -6, -16] as [number, number, number] }, // 2. Magenta Cósmico
   { color: '#CCFF00', bg: '#141C0A', center: [-14, -14, 22] as [number, number, number] }, // 3. Verde Radiactivo
   { color: '#38BDF8', bg: '#0B1A2C', center: [20, 15, 18] as [number, number, number] }, // 4. Azul Zafiro / Hielo
-  { color: '#A855F7', bg: '#1A0C2B', center: [0, 20, -28] as [number, number, number] }, // 5. Violeta Púlsar
-  { color: '#F59E0B', bg: '#261708', center: [-30, -8, 10] as [number, number, number] }, // 6. Ámbar Supernova
-  { color: '#EC4899', bg: '#260B1C', center: [30, 8, 8] as [number, number, number] }, // 7. Rosa Nebular
-  { color: '#10B981', bg: '#071F18', center: [0, -18, -24] as [number, number, number] }, // 8. Esmeralda Interestelar
+  { color: '#A855F7', bg: '#1A0C2B', center: [0, 22, -26] as [number, number, number] }, // 5. Violeta Púlsar
+  { color: '#F59E0B', bg: '#261708', center: [-28, -7, 12] as [number, number, number] }, // 6. Ámbar Supernova
+  { color: '#EC4899', bg: '#260B1C', center: [28, 8, 8] as [number, number, number] }, // 7. Rosa Nebular
+  { color: '#10B981', bg: '#071F18', center: [0, -20, -22] as [number, number, number] }, // 8. Esmeralda Interestelar
   { color: '#6366F1', bg: '#0E112B', center: [-18, 18, 14] as [number, number, number] }, // 9. Índigo Profundo
   { color: '#F43F5E', bg: '#260B14', center: [16, -18, 16] as [number, number, number] }, // 10. Carmesí Gigante Roja
-  { color: '#14B8A6', bg: '#061E1D', center: [-32, 5, -22] as [number, number, number] }, // 11. Cian Acuático
-  { color: '#EAB308', bg: '#231C06', center: [32, -4, -22] as [number, number, number] }, // 12. Oro Estelar
-  { color: '#8B5CF6', bg: '#160D2A', center: [-10, 4, 30] as [number, number, number] }, // 13. Lavanda Astral
-  { color: '#FB7185', bg: '#270E15', center: [12, -3, -32] as [number, number, number] }, // 14. Coral Solar
-  { color: '#06B6D4', bg: '#071E24', center: [-22, -15, -12] as [number, number, number] }, // 15. Cian Eléctrico
+  { color: '#14B8A6', bg: '#061E1D', center: [-32, 5, -20] as [number, number, number] }, // 11. Cian Acuático
+  { color: '#EAB308', bg: '#231C06', center: [30, -5, -22] as [number, number, number] }, // 12. Oro Estelar
+  { color: '#8B5CF6', bg: '#160D2A', center: [-10, 5, 28] as [number, number, number] }, // 13. Lavanda Astral
+  { color: '#FB7185', bg: '#270E15', center: [12, -4, -30] as [number, number, number] }, // 14. Coral Solar
+  { color: '#06B6D4', bg: '#071E24', center: [-22, -16, -12] as [number, number, number] }, // 15. Cian Eléctrico
   { color: '#D946EF', bg: '#250B27', center: [22, 12, -26] as [number, number, number] }, // 16. Fucsia Cuántico
+  { color: '#22C55E', bg: '#06200F', center: [-12, -22, -10] as [number, number, number] }, // 17. Verde Neón
+  { color: '#F97316', bg: '#241006', center: [26, -15, 2] as [number, number, number] }, // 18. Cobre Astral
+  { color: '#2DD4BF', bg: '#061F1B', center: [-8, 24, -4] as [number, number, number] }, // 19. Menta Cósmica
+  { color: '#E11D48', bg: '#23080F', center: [10, 22, -12] as [number, number, number] }, // 20. Rubí Interestelar
 ];
 
 function hashString(str: string): number {
@@ -251,9 +256,22 @@ export function buildMusicGalaxyFromPayload(
 
   for (const rawTrack of payload.tracks) {
     if (!rawTrack.title || !rawTrack.artist) continue;
-    const genreName = (rawTrack.genre || 'CONSTELACIÓN INDEPENDIENTE')
-      .trim()
-      .toUpperCase();
+
+    // Use instant 0ms universal music classification for accurate genre clustering
+    const classification = classifyUniversalMusic(
+      rawTrack.artist,
+      rawTrack.genre,
+      rawTrack.title
+    );
+    const genreName = (
+      rawTrack.genre && rawTrack.genre !== 'CONSTELACIÓN INDEPENDIENTE'
+        ? rawTrack.genre
+        : classification.genre
+    ).trim().toUpperCase();
+
+    if (!rawTrack.secondaryGenre) {
+      rawTrack.secondaryGenre = classification.secondaryGenre;
+    }
 
     if (!genreBuckets.has(genreName)) {
       genreBuckets.set(genreName, {
@@ -306,21 +324,17 @@ export function buildMusicGalaxyFromPayload(
     let artistIdx = 0;
     const artistCount = gBucket.artists.size;
 
+    const goldenAngle = 2.3999632; // Golden-Ratio angle (Phyllotaxis spiral)
     for (const [, aBucket] of gBucket.artists) {
       const artistId = `artist-${slugify(aBucket.name)}`;
-      const ringIndex = Math.floor(artistIdx / 6);
-      const itemsInRing = Math.min(6, Math.max(1, artistCount - ringIndex * 6));
-      const posInRing = artistIdx % 6;
-      const angle =
-        (posInRing / itemsInRing) * Math.PI * 2 +
-        genreIdx * 0.75 +
-        ringIndex * 0.52;
-      const radius = 7.5 + ringIndex * 4.2 + (artistIdx % 2) * 1.4;
-      const ax = Number((gx + Math.cos(angle) * radius).toFixed(2));
+      // Gravitational Golden-Spiral ensures tight clustering inside the sector nebula (capped radius)
+      const spiralRadius = 3.6 + Math.sqrt(artistIdx + 0.5) * 1.65;
+      const angle = artistIdx * goldenAngle + genreIdx * 0.85;
+      const ax = Number((gx + Math.cos(angle) * spiralRadius).toFixed(2));
       const ay = Number(
-        (gy + Math.sin(angle * 1.5 + ringIndex) * (3.4 + ringIndex * 1.1)).toFixed(2)
+        (gy + Math.sin(artistIdx * 1.35) * 1.4 + (artistIdx % 3 - 1) * 0.75).toFixed(2)
       );
-      const az = Number((gz + Math.sin(angle) * radius).toFixed(2));
+      const az = Number((gz + Math.sin(angle) * spiralRadius).toFixed(2));
 
       const trackItems = aBucket.tracks;
       const avgAffinity =
@@ -390,13 +404,14 @@ export function buildMusicGalaxyFromPayload(
 
       trackItems.forEach((t, tIdx) => {
         const songId = `song-${slugify(aBucket.name)}-${slugify(t.title)}-${tIdx}`;
-        const sAngle = (tIdx / Math.max(1, trackItems.length)) * Math.PI * 2;
-        const sRadius = 1.85 + Math.floor(tIdx / 5) * 0.75;
-        const sx = Number((ax + Math.cos(sAngle) * sRadius).toFixed(2));
+        // Planetary orbital disk around parent artist star
+        const goldenSongAngle = tIdx * 2.3999632;
+        const sRadius = 0.95 + Math.sqrt(tIdx + 0.3) * 0.42;
+        const sx = Number((ax + Math.cos(goldenSongAngle) * sRadius).toFixed(2));
         const sy = Number(
-          (ay + (tIdx % 2 === 0 ? 0.95 : -0.85) + Math.sin(sAngle) * 0.35).toFixed(2)
+          (ay + Math.sin(tIdx * 1.7) * 0.32 + (tIdx % 2 === 0 ? 0.35 : -0.35)).toFixed(2)
         );
-        const sz = Number((az + Math.sin(sAngle) * sRadius).toFixed(2));
+        const sz = Number((az + Math.sin(goldenSongAngle) * sRadius).toFixed(2));
         const songAff = Number(
           Math.min(0.99, Math.max(0.6, t.affinity ?? avgAffinity)).toFixed(2)
         );

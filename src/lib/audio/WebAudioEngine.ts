@@ -18,7 +18,7 @@ export interface AudioFFTFrame {
   midHarmonic: number; // 0.0 - 1.0 (140 - 2000 Hz)
   highShimmer: number; // 0.0 - 1.0 (2000 - 12000 Hz)
   energy: number;      // 0.0 - 1.0 weighted RMS energy
-  bins: Uint8Array;    // 16 downsampled bars (0 - 255) for HUD visualizer
+  bins: Uint8Array;    // 24 downsampled bars (0 - 255) for HUD visualizer
 }
 
 const MAX_CACHED_BUFFERS = 4;
@@ -32,7 +32,7 @@ class WebAudioEngine {
 
   private bufferCache = new Map<string, AudioBuffer>();
   private fftData = new Uint8Array(64);
-  private hudBars = new Uint8Array(16);
+  private hudBars = new Uint8Array(24);
 
   private currentTrackId: string | null = null;
   private playing = false;
@@ -357,6 +357,9 @@ class WebAudioEngine {
   public sampleFFT(): AudioFFTFrame {
     if (!this.playing || !this.analyser) {
       // Smooth decay to zero when paused
+      for (let i = 0; i < 24; i++) {
+        this.hudBars[i] = Math.max(0, Math.round(this.hudBars[i] * 0.86));
+      }
       this.currentFrame.subBass *= 0.85;
       this.currentFrame.midHarmonic *= 0.85;
       this.currentFrame.highShimmer *= 0.85;
@@ -378,17 +381,12 @@ class WebAudioEngine {
     for (let i = 24; i < 56; i++) highSum += this.fftData[i];
     const highShimmer = highSum / (32 * 255);
 
-    // Downsample 64 bins into 16 HUD spectrum bars in-place
-    for (let b = 0; b < 16; b++) {
-      const start = b * 3;
+    // Downsample 64 frequency bins into 24 high-resolution HUD spectrum bars in-place
+    for (let b = 0; b < 24; b++) {
+      const idx = Math.min(62, Math.floor(b * 2.5));
       this.hudBars[b] = Math.min(
         255,
-        Math.round(
-          (this.fftData[start] +
-            this.fftData[start + 1] +
-            this.fftData[start + 2]) /
-            3
-        )
+        Math.round((this.fftData[idx] + this.fftData[idx + 1]) / 2)
       );
     }
 

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Activity,
   ArrowUpRight,
   ChevronRight,
   Eye,
@@ -194,36 +193,6 @@ export const ArtistSleeveCard: React.FC = () => {
       setIsDismissed(false);
     }
   }, [selectedNode]);
-
-  const barRefs = useRef<(HTMLSpanElement | null)[]>([]);
-
-  // Animate the 16 FFT spectrum bars directly via DOM refs without triggering React re-renders
-  useEffect(() => {
-    if (!isAudioPlaying) {
-      barRefs.current.forEach((el) => {
-        if (el) el.style.height = '18%';
-      });
-      return;
-    }
-
-    let rafId = 0;
-    const tick = () => {
-      const fft = webAudioEngine.sampleFFT();
-      for (let i = 0; i < 16; i++) {
-        const el = barRefs.current[i];
-        if (el) {
-          const pct = Math.max(16, Math.round((fft.bins[i] / 255) * 100));
-          el.style.height = `${pct}%`;
-        }
-      }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-    };
-  }, [isAudioPlaying]);
 
   const selectedMetrics = useMemo(
     () => (selectedNode ? calculateStarVisualMetrics(selectedNode) : null),
@@ -571,43 +540,6 @@ export const ArtistSleeveCard: React.FC = () => {
                   );
                 })}
               </ol>
-
-              {/* Real-time 16-bar Web Audio FFT Spectrum Analyzer Readout */}
-              <div className="mt-2.5 rounded-xl border border-[#00F5D4]/25 bg-[#050508]/85 p-2">
-                <div className="flex items-center justify-between text-[10px] text-[#B8DCE8] mb-1.5">
-                  <span className="flex items-center gap-1.5 font-semibold text-[#F2F4F8]">
-                    <Activity
-                      className="h-3 w-3 text-[#00F5D4]"
-                      strokeWidth={2}
-                    />
-                    <span>ESPECTRO FFT</span>
-                  </span>
-                  <span className="text-[#00F5D4] font-bold">
-                    {isAudioPlaying ? 'PULSO ACTIVO' : 'EN ESPERA'}
-                  </span>
-                </div>
-                <div
-                  aria-hidden="true"
-                  className="flex h-6 items-end gap-1 px-1"
-                >
-                  {Array.from({ length: 16 }, (_, i) => (
-                    <span
-                      key={i}
-                      ref={(el) => {
-                        barRefs.current[i] = el;
-                      }}
-                      style={{ height: '18%' }}
-                      className={`flex-1 rounded-t transition-[height] duration-75 ${
-                        i < 4
-                          ? 'bg-[#FF2A85]'
-                          : i < 11
-                          ? 'bg-[#00F5D4]'
-                          : 'bg-[#CCFF00]'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
