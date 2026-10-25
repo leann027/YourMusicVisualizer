@@ -265,59 +265,117 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
   }
 
-  // 3. Collect unique primary artist IDs (up to 50) to fetch their genres & studio portraits
+  // 3. Collect unique primary artist IDs (up to 16) for individual /v1/artists/{id} portrait/genre lookup
+  // Note: Spotify Dev Mode restricts batch /v1/artists?ids=..., so we query individual artist endpoints
+  // in parallel AND enrich all 50 tracks via our server-side /api/enrich-tracks catalog endpoint.
   const uniqueArtistIds = Array.from(
     new Set(
       validItems
         .map((item) => item.track.artists[0]?.id)
         .filter((id): id is string => Boolean(id))
     )
-  ).slice(0, 50);
+  ).slice(0, 16);
 
   const artistDetailsMap = new Map<string, SpotifyApiArtistDetail>();
   if (uniqueArtistIds.length > 0) {
-    try {
-      const artistsRes = await fetch(
-        `https://api.spotify.com/v1/artists?ids=${uniqueArtistIds.join(',')}`,
-        { headers }
-      );
-      if (artistsRes.ok) {
-        const artistsJson = (await artistsRes.json()) as {
-          artists: (SpotifyApiArtistDetail | null)[];
-        };
-        artistsJson.artists?.forEach((artist) => {
-          if (artist && artist.id) {
-            artistDetailsMap.set(artist.id, artist);
+    await Promise.allSettled(
+      uniqueArtistIds.map(async (artistId) => {
+        const res = await fetch(
+          `https://api.spotify.com/v1/artists/${artistId}`,
+          { headers }
+        );
+        if (res.ok) {
+          const detail = (await res.json()) as SpotifyApiArtistDetail;
+          if (detail && detail.id) {
+            artistDetailsMap.set(detail.id, detail);
           }
-        });
-      }
-    } catch {
-      // Non-fatal: if /v1/artists fails, we still group tracks gracefully
+        }
+      })
+    );
+  }
+
+  // 4. Enrich all 50 tracks with canonical musical genres & fallback 30s audio previews
+  const enrichmentMap = new Map<
+    string,
+    { genre: string; rawGenre: string; previewUrl?: string }
+  >();
+
+  try {
+    const enrichPayload = validItems.map((item, idx) => {
+      const primaryArtist = item.track.artists[0];
+      const spDetail = primaryArtist?.id
+        ? artistDetailsMap.get(primaryArtist.id)
+        : undefined;
+      return {
+        key: `${item.track.id || idx}`,
+        title: item.track.name,
+        artist: primaryArtist?.name || 'Artista',
+        existingGenre: spDetail?.genres?.[0] || '',
+        existingPreviewUrl: item.track.preview_url || undefined,
+      };
+    });
+
+    const enrichRes = await fetch('/api/enrich-tracks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tracks: enrichPayload }),
+    });
+
+    if (enrichRes.ok) {
+      const enrichJson = (await enrichRes.json()) as {
+        results?: {
+          key: string;
+          genre: string;
+          rawGenre: string;
+          previewUrl?: string;
+        }[];
+      };
+      enrichJson.results?.forEach((r) => {
+        enrichmentMap.set(r.key, r);
+      });
     }
+  } catch {
+    // Non-fatal fallback if local API is unreachable
   }
 
   // Count how many liked songs belong to each primary artist to weight affinity & star size
   const artistLikedCount = new Map<string, number>();
-  validItems.forEach((item) => {
+  const artistPrimaryGenre = new Map<string, string>();
+  const genreFrequency = new Map<string, number>();
+
+  validItems.forEach((item, idx) => {
     const primaryArtist = item.track.artists[0]?.name || 'Artista';
     artistLikedCount.set(
       primaryArtist,
       (artistLikedCount.get(primaryArtist) || 0) + 1
     );
-  });
 
-  // Determine the top 4 macro-genres across the user's 50 liked songs so the 3D sectors stay clean
-  const genreFrequency = new Map<string, number>();
-  validItems.forEach((item) => {
+    const key = `${item.track.id || idx}`;
+    const enriched = enrichmentMap.get(key);
     const artistId = item.track.artists[0]?.id;
     const details = artistId ? artistDetailsMap.get(artistId) : undefined;
-    const rawGenre = details?.genres?.[0]?.toUpperCase() || 'FAVORITOS SPOTIFY';
-    genreFrequency.set(rawGenre, (genreFrequency.get(rawGenre) || 0) + 1);
+
+    const candidateGenre = (
+      enriched?.genre ||
+      details?.genres?.[0] ||
+      'INDIE & ALTERNATIVO'
+    ).toUpperCase();
+
+    if (!artistPrimaryGenre.has(primaryArtist)) {
+      artistPrimaryGenre.set(primaryArtist, candidateGenre);
+    }
+    const assignedArtistGenre =
+      artistPrimaryGenre.get(primaryArtist) || candidateGenre;
+    genreFrequency.set(
+      assignedArtistGenre,
+      (genreFrequency.get(assignedArtistGenre) || 0) + 1
+    );
   });
 
+  // Keep up to 6 distinct musical genre constellations so the galaxy is rich & well-separated
   const topGenres = Array.from(genreFrequency.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
+    .slice(0, 6)
     .map(([g]) => g);
 
   const rawTracks: RawLibraryTrackInput[] = validItems.map((item, idx) => {
@@ -327,14 +385,17 @@ export async function fetchSpotifyLikedSongsGalaxy(
       ? artistDetailsMap.get(primaryArtist.id)
       : undefined;
 
-    const artistGenres =
-      artistDetail?.genres?.map((g) => g.toUpperCase()) || [];
-    // Assign to the matching top macro-genre, or the artist's primary genre, or top bucket
-    const matchedGenre =
-      artistGenres.find((g) => topGenres.includes(g)) ||
-      artistGenres[0] ||
-      topGenres[0] ||
-      'FAVORITOS SPOTIFY';
+    const key = `${track.id || idx}`;
+    const enriched = enrichmentMap.get(key);
+
+    const artistGenre =
+      artistPrimaryGenre.get(primaryArtist.name) ||
+      enriched?.genre ||
+      'INDIE & ALTERNATIVO';
+
+    const matchedGenre = topGenres.includes(artistGenre)
+      ? artistGenre
+      : topGenres[idx % Math.max(1, topGenres.length)] || artistGenre;
 
     const likedCountForArtist =
       artistLikedCount.get(primaryArtist.name) || 1;
@@ -353,6 +414,10 @@ export async function fetchSpotifyLikedSongsGalaxy(
       : track.album.name;
 
     const addedDate = item.added_at ? item.added_at.slice(0, 10) : 'Spotify';
+    const rawStyleLabel =
+      enriched?.rawGenre ||
+      artistDetail?.genres?.slice(0, 2).join(', ') ||
+      matchedGenre;
 
     return {
       title: track.name,
@@ -363,15 +428,11 @@ export async function fetchSpotifyLikedSongsGalaxy(
       playCount: likedCountForArtist * 28,
       affinity: Number(computedAffinity.toFixed(2)),
       origin: `Guardado en Spotify · ${addedDate}`,
-      bio:
-        artistGenres.length > 0
-          ? `Estrella de tus "Me gusta" en Spotify (${likedCountForArtist} ${
-              likedCountForArtist === 1 ? 'pista guardada' : 'pistas guardadas'
-            }). Estilos: ${artistGenres.slice(0, 3).join(', ')}.`
-          : `Artista en tu biblioteca de "Me gusta" de Spotify (${likedCountForArtist} ${
-              likedCountForArtist === 1 ? 'pista guardada' : 'pistas guardadas'
-            }).`,
-      previewUrl: track.preview_url || undefined,
+      bio: `Estrella de tus "Me gusta" en Spotify (${likedCountForArtist} ${
+        likedCountForArtist === 1 ? 'pista guardada' : 'pistas guardadas'
+      }). Estilo: ${rawStyleLabel}.`,
+      previewUrl:
+        track.preview_url || enriched?.previewUrl || undefined,
       imageUrl: track.album.images?.[0]?.url,
       artistImageUrl:
         artistDetail?.images?.[0]?.url || track.album.images?.[0]?.url,

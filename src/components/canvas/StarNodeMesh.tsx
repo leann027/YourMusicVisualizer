@@ -113,7 +113,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     if (cameraMode === 'galaxy') {
       return (
         node.type === 'genre' ||
-        (node.type === 'artist' && node.affinity >= 0.92)
+        (node.type === 'artist' && node.affinity >= 0.78)
       );
     }
 

@@ -40,10 +40,14 @@ export interface RawLibraryPayload {
 }
 
 const SECTOR_PALETTE = [
-  { color: '#00F5D4', bg: '#0E1726', center: [-14, 4, -8] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [15, -3, -6] as [number, number, number] },
-  { color: '#CCFF00', bg: '#141B0B', center: [-6, -9, 12] as [number, number, number] },
-  { color: '#38BDF8', bg: '#0B192C', center: [10, 9, 10] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [-17, 5, -9] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [17, -3.5, -7] as [number, number, number] },
+  { color: '#CCFF00', bg: '#141B0B', center: [-8, -10, 13] as [number, number, number] },
+  { color: '#38BDF8', bg: '#0B192C', center: [13, 9.5, 11] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [0, 12, -16] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [-19, -5.5, 5] as [number, number, number] },
+  { color: '#CCFF00', bg: '#141B0B', center: [19, 5.5, 5] as [number, number, number] },
+  { color: '#38BDF8', bg: '#0B192C', center: [0, -12.5, -13] as [number, number, number] },
 ];
 
 function hashString(str: string): number {
@@ -285,20 +289,32 @@ export function buildMusicGalaxyFromPayload(
 
     for (const [, aBucket] of gBucket.artists) {
       const artistId = `artist-${slugify(aBucket.name)}`;
-      const angle = (artistIdx / Math.max(1, artistCount)) * Math.PI * 2 + genreIdx * 0.6;
-      const radius = 3.2 + (artistIdx % 2) * 1.4;
+      const ringIndex = Math.floor(artistIdx / 6);
+      const itemsInRing = Math.min(6, Math.max(1, artistCount - ringIndex * 6));
+      const posInRing = artistIdx % 6;
+      const angle =
+        (posInRing / itemsInRing) * Math.PI * 2 +
+        genreIdx * 0.75 +
+        ringIndex * 0.52;
+      const radius = 5.2 + ringIndex * 3.4 + (artistIdx % 2) * 1.35;
       const ax = Number((gx + Math.cos(angle) * radius).toFixed(2));
-      const ay = Number((gy + Math.sin(angle * 1.3) * 2.1).toFixed(2));
+      const ay = Number(
+        (gy + Math.sin(angle * 1.5 + ringIndex) * (2.6 + ringIndex * 0.9)).toFixed(2)
+      );
       const az = Number((gz + Math.sin(angle) * radius).toFixed(2));
 
       const trackItems = aBucket.tracks;
       const avgAffinity =
         trackItems.reduce((acc, t) => acc + (t.affinity ?? 0.88), 0) /
         trackItems.length;
-      const totalArtistSongs = trackItems.reduce(
-        (acc, t) => acc + (t.playCount ? Math.min(60, Math.round(t.playCount / 2)) : 12),
-        0
-      );
+      const totalArtistSongs =
+        payload.source === 'spotify'
+          ? trackItems.length
+          : trackItems.reduce(
+              (acc, t) =>
+                acc + (t.playCount ? Math.min(60, Math.round(t.playCount / 2)) : 12),
+              0
+            );
 
       genreSongTotal += totalArtistSongs;
       genreAffinitySum += avgAffinity;
