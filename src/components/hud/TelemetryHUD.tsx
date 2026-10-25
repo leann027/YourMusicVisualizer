@@ -47,6 +47,42 @@ export const TelemetryHUD: React.FC = () => {
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
   const toggleBloom = useGalaxyStore((s) => s.toggleBloom);
 
+  const syncAudioWithSector = (targetGenreId: string) => {
+    if (!isAudioPlaying) return;
+    const sectorSong =
+      data.songs.find((s) => s.genreId === targetGenreId && s.previewUrl) ||
+      data.songs.find((s) => s.genreId === targetGenreId);
+    if (sectorSong) {
+      webAudioEngine.playTrack(
+        sectorSong.id,
+        sectorSong.title,
+        sectorSong.affinity,
+        sectorSong.previewUrl
+      );
+      setAudioPlayback(sectorSong.id, true);
+    } else {
+      webAudioEngine.stopCurrentSource();
+      setAudioPlayback(null, false);
+    }
+  };
+
+  const handleSelectSector = (genreId: string) => {
+    selectSector(genreId);
+    syncAudioWithSector(genreId);
+  };
+
+  const handleFlyToNeighbor = () => {
+    if (!data.genres.length) return;
+    const currentIndex = data.genres.findIndex((g) => g.id === selectedSectorId);
+    const nextIndex =
+      (currentIndex + 1 + data.genres.length) % data.genres.length;
+    const nextGenre = data.genres[nextIndex];
+    flyToNeighborSector(1);
+    if (nextGenre) {
+      syncAudioWithSector(nextGenre.id);
+    }
+  };
+
   const handleToggleMasterAudio = () => {
     if (isAudioPlaying) {
       webAudioEngine.stopCurrentSource();
@@ -54,13 +90,25 @@ export const TelemetryHUD: React.FC = () => {
       return;
     }
 
-    // Pick selected song, or first song of selected artist, or first song in galaxy
+    // Pick selected song, or first song of selected artist/genre, or first song in galaxy
     let targetSong =
       selectedNode?.type === 'song'
         ? selectedNode
         : selectedNode?.type === 'artist'
-        ? data.songs.find((s) => s.artistId === selectedNode.id)
+        ? data.songs.find(
+            (s) => s.artistId === selectedNode.id && s.previewUrl
+          ) || data.songs.find((s) => s.artistId === selectedNode.id)
+        : selectedNode?.type === 'genre'
+        ? data.songs.find(
+            (s) => s.genreId === selectedNode.id && s.previewUrl
+          ) || data.songs.find((s) => s.genreId === selectedNode.id)
         : undefined;
+    if (!targetSong && selectedSectorId) {
+      targetSong =
+        data.songs.find(
+          (s) => s.genreId === selectedSectorId && s.previewUrl
+        ) || data.songs.find((s) => s.genreId === selectedSectorId);
+    }
     if (!targetSong) {
       targetSong = data.songs[0];
     }
@@ -138,37 +186,39 @@ export const TelemetryHUD: React.FC = () => {
               Constelaciones por Estilo
             </h2>
 
-            {data.genres.map((genre) => {
-              const isActive =
-                selectedSectorId === genre.id && cameraMode !== 'galaxy';
-              const affinityPct = Math.round(genre.affinity * 100);
-              return (
-                <button
-                  key={genre.id}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => selectSector(genre.id)}
-                  className={`min-h-9 flex items-center justify-between px-3 py-2 text-left text-xs transition-transform duration-150 rounded border ${
-                    isActive
-                      ? 'bg-[#131826] border-[#CCFF00] text-[#F2F4F8] translate-x-1'
-                      : 'bg-[#050508]/85 border-[#00F5D4]/20 text-[#B8DCE8] hover:border-[#00F5D4]/60 hover:text-[#F2F4F8]'
-                  }`}
-                >
-                  <span className="flex items-center gap-2 truncate pr-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: genre.color }}
-                    />
-                    <span className="truncate font-semibold">
-                      {genre.name.split('&')[0].trim()}
+            <div className="flex flex-col gap-1.5 max-h-[38vh] overflow-y-auto pr-1">
+              {data.genres.map((genre) => {
+                const isActive =
+                  selectedSectorId === genre.id && cameraMode !== 'galaxy';
+                const affinityPct = Math.round(genre.affinity * 100);
+                return (
+                  <button
+                    key={genre.id}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => handleSelectSector(genre.id)}
+                    className={`min-h-9 flex items-center justify-between px-3 py-2 text-left text-xs transition-transform duration-150 rounded border ${
+                      isActive
+                        ? 'bg-[#131826] border-[#CCFF00] text-[#F2F4F8] translate-x-1'
+                        : 'bg-[#050508]/85 border-[#00F5D4]/20 text-[#B8DCE8] hover:border-[#00F5D4]/60 hover:text-[#F2F4F8]'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 truncate pr-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: genre.color }}
+                      />
+                      <span className="truncate font-semibold">
+                        {genre.name.split('&')[0].trim()}
+                      </span>
                     </span>
-                  </span>
-                  <span className="text-[11px] tabular-nums text-[#CCFF00] shrink-0">
-                    {genre.songCount}p · {affinityPct}%
-                  </span>
-                </button>
-              );
-            })}
+                    <span className="text-[11px] tabular-nums text-[#CCFF00] shrink-0">
+                      {genre.songCount}p · {affinityPct}%
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
             <button
               type="button"
@@ -307,7 +357,7 @@ export const TelemetryHUD: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => flyToNeighborSector(1)}
+            onClick={handleFlyToNeighbor}
             className="min-h-9 flex items-center gap-1.5 rounded bg-[#00F5D4] px-3.5 py-1.5 text-xs font-bold text-[#050508] hover:bg-[#CCFF00] transition-colors duration-150"
           >
             <span>Volar a Constelación Vecina</span>

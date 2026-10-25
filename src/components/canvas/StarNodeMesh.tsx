@@ -21,6 +21,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   const meshRef = useRef<THREE.Mesh>(null);
   const coronaRef = useRef<THREE.Mesh>(null);
 
+  const data = useGalaxyStore((s) => s.data);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const hoveredNode = useGalaxyStore((s) => s.hoveredNode);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
@@ -199,6 +200,22 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
               node.previewUrl
             );
             setAudioPlayback(node.id, true);
+          } else if (isAudioPlaying) {
+            const matchSong =
+              node.type === 'artist'
+                ? data.songs.find((s) => s.artistId === node.id && s.previewUrl) ||
+                  data.songs.find((s) => s.artistId === node.id)
+                : data.songs.find((s) => s.genreId === node.id && s.previewUrl) ||
+                  data.songs.find((s) => s.genreId === node.id);
+            if (matchSong) {
+              webAudioEngine.playTrack(
+                matchSong.id,
+                matchSong.title,
+                matchSong.affinity,
+                matchSong.previewUrl
+              );
+              setAudioPlayback(matchSong.id, true);
+            }
           }
         }}
         onPointerOver={(e) => {

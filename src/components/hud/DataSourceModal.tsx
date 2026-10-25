@@ -22,6 +22,9 @@ import {
   clearSpotifySession,
   fetchSpotifyLikedSongsGalaxy,
   getStoredAccessToken,
+  getStoredTrackLimit,
+  setStoredTrackLimit,
+  SPOTIFY_TRACK_LIMIT_OPTIONS,
   startSpotifyLogin,
 } from '../../lib/spotify/spotifyClient';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
@@ -37,6 +40,9 @@ export const DataSourceModal: React.FC = () => {
   const restoreDefaultGalaxy = useGalaxyStore((s) => s.restoreDefaultGalaxy);
 
   const [selectedPreset, setSelectedPreset] = useState<'default' | 'streaming'>('default');
+  const [spotifyTrackLimit, setSpotifyTrackLimit] = useState<number>(() =>
+    getStoredTrackLimit()
+  );
   const [statusMsg, setStatusMsg] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isSyncingSpotify, setIsSyncingSpotify] = useState(false);
@@ -44,6 +50,7 @@ export const DataSourceModal: React.FC = () => {
   const openModal = () => {
     setErrorMsg('');
     setStatusMsg('');
+    setSpotifyTrackLimit(getStoredTrackLimit());
     dialogRef.current?.showModal();
   };
 
@@ -51,24 +58,30 @@ export const DataSourceModal: React.FC = () => {
     dialogRef.current?.close();
   };
 
+  const handleSelectTrackLimit = (limit: number) => {
+    setSpotifyTrackLimit(limit);
+    setStoredTrackLimit(limit);
+  };
+
   const handleSpotifyConnect = async () => {
     setErrorMsg('');
     setStatusMsg('');
     webAudioEngine.stopCurrentSource();
+    setStoredTrackLimit(spotifyTrackLimit);
 
     const existingToken = getStoredAccessToken();
     if (existingToken) {
       setIsSyncingSpotify(true);
       try {
-        const { galaxy, user, analyzedCount } =
-          await fetchSpotifyLikedSongsGalaxy(existingToken);
+        const { galaxy, user, analyzedCount, totalAvailable } =
+          await fetchSpotifyLikedSongsGalaxy(existingToken, spotifyTrackLimit);
         loadCustomGalaxyData(
           galaxy,
-          `Spotify · ${user.displayName} (${analyzedCount} Me gusta)`,
+          `Spotify · ${user.displayName} (${analyzedCount} de ${totalAvailable} Me gusta)`,
           user
         );
         setStatusMsg(
-          `Sincronizado con Spotify (${user.displayName}): ${analyzedCount} canciones en "Me gusta" analizadas.`
+          `Sincronizado con Spotify (${user.displayName}): ${analyzedCount} canciones analizadas en ${galaxy.genres.length} constelaciones.`
         );
         setTimeout(() => closeModal(), 400);
         return;
@@ -192,12 +205,14 @@ export const DataSourceModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Story 1: Real Spotify OAuth 2.0 PKCE Login & 50 Liked Songs Analyzer */}
+        {/* Story 1: Real Spotify OAuth 2.0 PKCE Login & Multi-Page Liked Songs Analyzer */}
         <div className="mt-4 flex flex-col gap-2.5 rounded border border-[#CCFF00]/45 bg-[#050508] p-3.5">
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-xs font-bold text-[#CCFF00]">
               <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
-              <span>Cuenta Oficial de Spotify (Últimos 50 &quot;Me gusta&quot;)</span>
+              <span>
+                Cuenta Oficial de Spotify (Hasta {spotifyTrackLimit} &quot;Me gusta&quot;)
+              </span>
             </span>
             {spotifyUser && (
               <span className="rounded bg-[#CCFF00] px-2 py-0.5 text-[10px] font-bold text-[#050508]">
@@ -207,10 +222,34 @@ export const DataSourceModal: React.FC = () => {
           </div>
 
           <p className="text-[11px] text-[#B8DCE8]">
-            Conecta tu cuenta mediante OAuth 2.0 PKCE para analizar tus últimas 50
-            canciones en &quot;Me gusta&quot;, agrupar tus artistas por afinidad y
-            reproducir sus previews con el analizador FFT.
+            Elige cuántas canciones de tus &quot;Me gusta&quot; deseas analizar para
+            expandir tus constelaciones de géneros musicales, artistas y previews FFT:
           </p>
+
+          <div
+            role="group"
+            aria-label="Cantidad de canciones de Spotify a analizar"
+            className="grid grid-cols-4 gap-1.5"
+          >
+            {SPOTIFY_TRACK_LIMIT_OPTIONS.map((limit) => {
+              const active = spotifyTrackLimit === limit;
+              return (
+                <button
+                  key={limit}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => handleSelectTrackLimit(limit)}
+                  className={`min-h-8 rounded border py-1 px-2 text-xs font-bold tabular-nums transition-colors ${
+                    active
+                      ? 'border-[#CCFF00] bg-[#CCFF00] text-[#050508]'
+                      : 'border-[#00F5D4]/30 bg-[#090B12] text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8]'
+                  }`}
+                >
+                  {limit} pistas
+                </button>
+              );
+            })}
+          </div>
 
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <button
@@ -222,10 +261,10 @@ export const DataSourceModal: React.FC = () => {
               <Radio className="h-3.5 w-3.5" strokeWidth={2.2} />
               <span>
                 {isSyncingSpotify
-                  ? 'Analizando tus 50 "Me gusta"...'
+                  ? `Analizando hasta ${spotifyTrackLimit} "Me gusta"...`
                   : spotifyUser
-                  ? `Re-sincronizar 50 "Me gusta" (${spotifyUser.displayName})`
-                  : 'Iniciar sesión con Spotify (50 "Me gusta")'}
+                  ? `Sincronizar ${spotifyTrackLimit} "Me gusta" (${spotifyUser.displayName})`
+                  : `Iniciar sesión con Spotify (${spotifyTrackLimit} "Me gusta")`}
               </span>
             </button>
 

@@ -42,15 +42,15 @@ export default function SpotifyCallbackPage() {
 
         if (cancelled) return;
         setStatusText(
-          'Leyendo tus últimas 50 canciones en "Me gusta" y calculando constelaciones por afinidad...'
+          'Leyendo tus canciones en "Me gusta" y calculando constelaciones por género y afinidad...'
         );
-        const { galaxy, user, analyzedCount } =
+        const { galaxy, user, analyzedCount, totalAvailable } =
           await fetchSpotifyLikedSongsGalaxy(token);
 
         if (cancelled) return;
         loadCustomGalaxyData(
           galaxy,
-          `Spotify · ${user.displayName} (${analyzedCount} Me gusta)`,
+          `Spotify · ${user.displayName} (${analyzedCount} de ${totalAvailable} Me gusta)`,
           user
         );
 

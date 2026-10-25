@@ -24,7 +24,23 @@ const STORAGE_KEYS = {
   ACCESS_TOKEN: 'ymv_spotify_access_token',
   TOKEN_EXPIRY: 'ymv_spotify_token_expiry',
   CLIENT_ID: 'ymv_spotify_client_id',
+  TRACK_LIMIT: 'ymv_spotify_track_limit',
 };
+
+export const SPOTIFY_TRACK_LIMIT_OPTIONS = [50, 150, 300, 500] as const;
+
+export function getStoredTrackLimit(): number {
+  if (typeof window === 'undefined') return 150;
+  const raw = Number(localStorage.getItem(STORAGE_KEYS.TRACK_LIMIT) || '150');
+  if (raw >= 50 && raw <= 500) return raw;
+  return 150;
+}
+
+export function setStoredTrackLimit(limit: number): void {
+  if (typeof window === 'undefined') return;
+  const clamped = Math.max(50, Math.min(500, Math.round(limit)));
+  localStorage.setItem(STORAGE_KEYS.TRACK_LIMIT, String(clamped));
+}
 
 function generateRandomVerifier(length = 64): string {
   const possible =
@@ -203,16 +219,20 @@ interface SpotifyApiArtistDetail {
 }
 
 /**
- * Fetches the authenticated listener's profile and their latest 50 Liked Songs (`GET /v1/me/tracks?limit=50`),
- * enriches artist genres & portraits, and constructs a 3D `MusicGalaxyData` starfield.
+ * Fetches the authenticated listener's profile and their latest N Liked Songs
+ * (`GET /v1/me/tracks?limit=50&offset=...` across multiple pages up to `maxTracks`),
+ * enriches artist genres & previews, and constructs a 3D `MusicGalaxyData` starfield.
  */
 export async function fetchSpotifyLikedSongsGalaxy(
-  accessToken: string
+  accessToken: string,
+  requestedLimit?: number
 ): Promise<{
   galaxy: MusicGalaxyData;
   user: SpotifyUserProfile;
   analyzedCount: number;
+  totalAvailable: number;
 }> {
+  const maxTracks = requestedLimit ?? getStoredTrackLimit();
   const headers = {
     Authorization: `Bearer ${accessToken}`,
   };
@@ -239,25 +259,59 @@ export async function fetchSpotifyLikedSongsGalaxy(
     product: meJson.product,
   };
 
-  // 2. Fetch the latest 50 Liked Songs (Saved Tracks)
-  const tracksRes = await fetch(
-    'https://api.spotify.com/v1/me/tracks?limit=50',
+  // 2. Fetch the first page (offset=0, limit=50) of Liked Songs (Saved Tracks)
+  const firstPageRes = await fetch(
+    'https://api.spotify.com/v1/me/tracks?limit=50&offset=0',
     { headers }
   );
-  if (!tracksRes.ok) {
+  if (!firstPageRes.ok) {
     throw new Error(
-      `No se pudieron leer tus canciones en "Me gusta" (HTTP ${tracksRes.status}).`
+      `No se pudieron leer tus canciones en "Me gusta" (HTTP ${firstPageRes.status}).`
     );
   }
 
-  const tracksJson = (await tracksRes.json()) as {
+  const firstPageJson = (await firstPageRes.json()) as {
     items: SpotifyApiSavedTrackItem[];
+    total?: number;
   };
 
-  const validItems = (tracksJson.items || []).filter(
-    (item): item is SpotifyApiSavedTrackItem & { track: NonNullable<SpotifyApiSavedTrackItem['track']> } =>
-      Boolean(item.track && item.track.name && item.track.artists?.length)
-  );
+  const totalAvailable = firstPageJson.total ?? (firstPageJson.items?.length || 0);
+  const allItems: SpotifyApiSavedTrackItem[] = [...(firstPageJson.items || [])];
+
+  // Fetch additional pages of 50 tracks in parallel if requestedLimit > 50 and user has more tracks
+  const targetTotal = Math.min(maxTracks, totalAvailable);
+  if (targetTotal > 50) {
+    const offsets: number[] = [];
+    for (let offset = 50; offset < targetTotal; offset += 50) {
+      offsets.push(offset);
+    }
+
+    const pageResponses = await Promise.allSettled(
+      offsets.map(async (offset) => {
+        const res = await fetch(
+          `https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`,
+          { headers }
+        );
+        if (!res.ok) return [];
+        const data = (await res.json()) as { items?: SpotifyApiSavedTrackItem[] };
+        return data.items || [];
+      })
+    );
+
+    pageResponses.forEach((result) => {
+      if (result.status === 'fulfilled' && result.value.length > 0) {
+        allItems.push(...result.value);
+      }
+    });
+  }
+
+  const validItems = allItems
+    .slice(0, maxTracks)
+    .filter(
+      (item): item is SpotifyApiSavedTrackItem & {
+        track: NonNullable<SpotifyApiSavedTrackItem['track']>;
+      } => Boolean(item.track && item.track.name && item.track.artists?.length)
+    );
 
   if (validItems.length === 0) {
     throw new Error(
@@ -372,10 +426,10 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
   });
 
-  // Keep up to 6 distinct musical genre constellations so the galaxy is rich & well-separated
+  // Keep up to 8 distinct musical genre constellations so the galaxy is rich & well-separated
   const topGenres = Array.from(genreFrequency.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
+    .slice(0, 8)
     .map(([g]) => g);
 
   const rawTracks: RawLibraryTrackInput[] = validItems.map((item, idx) => {
@@ -453,5 +507,6 @@ export async function fetchSpotifyLikedSongsGalaxy(
     galaxy,
     user,
     analyzedCount: validItems.length,
+    totalAvailable,
   };
 }

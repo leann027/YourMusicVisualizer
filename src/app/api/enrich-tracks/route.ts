@@ -17,6 +17,7 @@ interface EnrichTrackResultItem {
 }
 
 const memoryCache = new Map<string, EnrichTrackResultItem>();
+const artistGenreCache = new Map<string, string>();
 
 /**
  * Maps raw genre labels from Spotify / Apple Music / iTunes into clean,
@@ -203,7 +204,8 @@ async function lookupTrackMetadata(
     };
   }
 
-  let rawGenre = item.existingGenre || '';
+  const artistKey = item.artist.trim().toLowerCase();
+  let rawGenre = item.existingGenre || artistGenreCache.get(artistKey) || '';
   let previewUrl = item.existingPreviewUrl;
 
   try {
@@ -227,10 +229,9 @@ async function lookupTrackMetadata(
       };
 
       const results = data.results || [];
-      const artistLower = item.artist.toLowerCase();
       const bestMatch =
         results.find((r) =>
-          r.artistName?.toLowerCase().includes(artistLower)
+          r.artistName?.toLowerCase().includes(artistKey)
         ) || results[0];
 
       if (bestMatch) {
@@ -266,6 +267,10 @@ async function lookupTrackMetadata(
     // Graceful fallback if external lookup times out
   }
 
+  if (rawGenre) {
+    artistGenreCache.set(artistKey, rawGenre);
+  }
+
   const normalizedGenre = normalizeMacroGenre(rawGenre, item.artist);
   const result: EnrichTrackResultItem = {
     key: item.key,
@@ -281,14 +286,14 @@ async function lookupTrackMetadata(
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as { tracks?: EnrichTrackRequestItem[] };
-    const tracks = Array.isArray(body.tracks) ? body.tracks.slice(0, 60) : [];
+    const tracks = Array.isArray(body.tracks) ? body.tracks.slice(0, 500) : [];
 
     if (tracks.length === 0) {
       return NextResponse.json({ results: [] });
     }
 
-    // Process in concurrent batches of 10 so 50 tracks finish in ~400-700ms
-    const batchSize = 10;
+    // Process in concurrent batches of 20 so even 150-500 tracks finish rapidly
+    const batchSize = 20;
     const enrichedResults: EnrichTrackResultItem[] = [];
 
     for (let i = 0; i < tracks.length; i += batchSize) {

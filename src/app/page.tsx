@@ -35,10 +35,10 @@ export default function HomePage() {
     if (!token || spotifyUser) return;
 
     fetchSpotifyLikedSongsGalaxy(token)
-      .then(({ galaxy, user, analyzedCount }) => {
+      .then(({ galaxy, user, analyzedCount, totalAvailable }) => {
         loadCustomGalaxyData(
           galaxy,
-          `Spotify · ${user.displayName} (${analyzedCount} Me gusta)`,
+          `Spotify · ${user.displayName} (${analyzedCount} de ${totalAvailable} Me gusta)`,
           user
         );
       })
