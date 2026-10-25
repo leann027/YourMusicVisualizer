@@ -15,8 +15,9 @@ interface DistantSongsCloudProps {
  * Distant Songs Particle Cloud (`DistantSongsCloud`).
  *
  * Renders thousands of non-focused background songs in a single GPU draw call using `THREE.Points`.
- * Eliminates DOM portal overhead and ensures steady 60 FPS even when the music library contains
- * 2,000 to 3,000+ tracks.
+ * Uses a hardware-accelerated GLSL circular fragment shader with radial quadratic glow falloff,
+ * completely eliminating untextured square artifacts and guaranteeing steady 60 FPS even when
+ * the music library scales to 2,000–3,000+ tracks.
  */
 export const DistantSongsCloud: React.FC<DistantSongsCloudProps> = ({
   songs,
@@ -53,24 +54,53 @@ export const DistantSongsCloud: React.FC<DistantSongsCloudProps> = ({
     return { geometry: geom, count: backgroundSongs.length };
   }, [songs, genreColorMap, activeSongIds, minAffinityFilter]);
 
+  // GPU-level circular star shader material: mathematically prevents any square artifacts
+  const material = useMemo(() => {
+    const mat = new THREE.PointsMaterial({
+      size: 1.15,
+      vertexColors: true,
+      transparent: true,
+      opacity: Math.min(0.85, Math.max(0.18, stellarBrightness * 2.4)),
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+
+    mat.customProgramCacheKey = () => 'distant-songs-circular-point';
+
+    mat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_particle_fragment>',
+        `
+        #include <map_particle_fragment>
+        vec2 ptCoord = gl_PointCoord - vec2(0.5);
+        float dist = length(ptCoord);
+        if (dist > 0.5) discard;
+        // Concentrated stellar core with soft diffraction halo
+        float falloff = pow(clamp(1.0 - dist * 2.0, 0.0, 1.0), 2.4);
+        diffuseColor.a *= falloff;
+        `
+      );
+    };
+
+    return mat;
+  }, []);
+
+  // Synchronize material opacity when stellarBrightness changes
+  useEffect(() => {
+    material.opacity = Math.min(0.85, Math.max(0.18, stellarBrightness * 2.4));
+  }, [material, stellarBrightness]);
+
   useEffect(() => {
     return () => {
       geometry.dispose();
+      material.dispose();
     };
-  }, [geometry]);
+  }, [geometry, material]);
 
   if (count === 0) return null;
 
   return (
-    <points geometry={geometry}>
-      <pointsMaterial
-        size={3.2}
-        vertexColors
-        transparent
-        opacity={Math.min(0.85, Math.max(0.18, stellarBrightness * 2.4))}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-      />
-    </points>
+    <points geometry={geometry} material={material} />
   );
 };

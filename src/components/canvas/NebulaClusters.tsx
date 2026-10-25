@@ -13,45 +13,6 @@ import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
  */
 const UNIT_HAZE_GEOMETRY = new THREE.SphereGeometry(1, 16, 16);
 
-/**
- * Cached programmatic radial gradient texture.
- * Generates an ultra-soft atmospheric luminance profile without requiring external image assets.
- */
-let sharedNebulaTexture: THREE.CanvasTexture | null = null;
-
-function getSharedNebulaTexture(): THREE.Texture | null {
-  if (typeof document === 'undefined') return null;
-  if (sharedNebulaTexture) return sharedNebulaTexture;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-
-  // Multi-stop radial gradient for natural interstellar gas falloff
-  const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
-  gradient.addColorStop(0.18, 'rgba(255, 255, 255, 0.78)');
-  gradient.addColorStop(0.42, 'rgba(255, 255, 255, 0.32)');
-  gradient.addColorStop(0.72, 'rgba(255, 255, 255, 0.08)');
-  gradient.addColorStop(1, 'rgba(255, 255, 255, 0.0)');
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 128, 128);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.generateMipmaps = false;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.needsUpdate = true;
-
-  sharedNebulaTexture = texture;
-  return sharedNebulaTexture;
-}
-
 function hashStr(str: string): number {
   let h = 0;
   for (let i = 0; i < str.length; i++) {
@@ -71,13 +32,9 @@ function createPRNG(seed: number) {
 
 interface SectorNebulaClusterProps {
   genre: GenreNode;
-  texture: THREE.Texture | null;
 }
 
-const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({
-  genre,
-  texture,
-}) => {
+const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
   const groupRef = useRef<THREE.Group>(null);
   const innerPointsRef = useRef<THREE.Points>(null);
   const outerPointsRef = useRef<THREE.Points>(null);
@@ -147,30 +104,66 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({
     return geom;
   }, [seed]);
 
-  // 3. Materials with AdditiveBlending and soft celestial tinting
+  // 3. Materials with AdditiveBlending and GPU-level circular fragment discard (zero square artifacts)
   const innerMaterial = useMemo(() => {
-    return new THREE.PointsMaterial({
-      size: 15.0,
-      map: texture || undefined,
+    const mat = new THREE.PointsMaterial({
+      size: 14.0,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       color: new THREE.Color(genre.color),
       opacity: 0.08,
+      sizeAttenuation: true,
     });
-  }, [genre.color, texture]);
+
+    mat.customProgramCacheKey = () => 'nebula-cluster-inner-point';
+    mat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_particle_fragment>',
+        `
+        #include <map_particle_fragment>
+        vec2 ptCoord = gl_PointCoord - vec2(0.5);
+        float dist = length(ptCoord);
+        if (dist > 0.5) discard;
+        // Volumetric gas puff with cosine bell curve falloff
+        float smoke = cos(dist * 3.14159265);
+        diffuseColor.a *= (smoke * smoke);
+        `
+      );
+    };
+
+    return mat;
+  }, [genre.color]);
 
   const outerMaterial = useMemo(() => {
-    return new THREE.PointsMaterial({
-      size: 26.0,
-      map: texture || undefined,
+    const mat = new THREE.PointsMaterial({
+      size: 24.0,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       color: new THREE.Color(genre.color),
       opacity: 0.05,
+      sizeAttenuation: true,
     });
-  }, [genre.color, texture]);
+
+    mat.customProgramCacheKey = () => 'nebula-cluster-outer-point';
+    mat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_particle_fragment>',
+        `
+        #include <map_particle_fragment>
+        vec2 ptCoord = gl_PointCoord - vec2(0.5);
+        float dist = length(ptCoord);
+        if (dist > 0.5) discard;
+        // Volumetric gas puff with cosine bell curve falloff
+        float smoke = cos(dist * 3.14159265);
+        diffuseColor.a *= (smoke * smoke);
+        `
+      );
+    };
+
+    return mat;
+  }, [genre.color]);
 
   const hazeMaterial = useMemo(() => {
     return new THREE.MeshBasicMaterial({
@@ -232,7 +225,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({
 
     const selectionBoost = isSelected ? 1.3 : 1.0;
 
-    // Calibrated soft opacity ranges (0.05 to 0.15) modulated by stellarBrightness
+    // Calibrated soft opacity ranges modulated by stellarBrightness
     const targetInnerOpacity = THREE.MathUtils.clamp(
       (0.085 * stellarBrightness * selectionBoost) + (audioKick * stellarBrightness * 0.8),
       0.01,
@@ -320,18 +313,13 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({
  */
 export const NebulaClusters: React.FC = () => {
   const genres = useGalaxyStore((s) => s.data.genres);
-  const texture = useMemo(() => getSharedNebulaTexture(), []);
 
   if (!genres || genres.length === 0) return null;
 
   return (
     <group name="galactic-nebula-clusters">
       {genres.map((genre) => (
-        <SectorNebulaCluster
-          key={genre.id}
-          genre={genre}
-          texture={texture}
-        />
+        <SectorNebulaCluster key={genre.id} genre={genre} />
       ))}
     </group>
   );
