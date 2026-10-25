@@ -6,6 +6,7 @@ import {
   Gauge,
   Orbit,
   Sparkles,
+  Sun,
   ChevronRight,
   SlidersHorizontal,
   Volume2,
@@ -27,6 +28,7 @@ const AFFINITY_THRESHOLDS = [
 
 export const TelemetryHUD: React.FC = () => {
   const sliderId = useId();
+  const brightnessSliderId = useId();
   const data = useGalaxyStore((s) => s.data);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
@@ -34,6 +36,7 @@ export const TelemetryHUD: React.FC = () => {
   const lastFlightDurationMs = useGalaxyStore((s) => s.lastFlightDurationMs);
   const cameraDistance = useGalaxyStore((s) => s.cameraDistance);
   const minAffinityFilter = useGalaxyStore((s) => s.minAffinityFilter);
+  const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
@@ -44,6 +47,7 @@ export const TelemetryHUD: React.FC = () => {
   const resetToGalaxyView = useGalaxyStore((s) => s.resetToGalaxyView);
   const flyToNeighborSector = useGalaxyStore((s) => s.flyToNeighborSector);
   const setMinAffinityFilter = useGalaxyStore((s) => s.setMinAffinityFilter);
+  const setStellarBrightness = useGalaxyStore((s) => s.setStellarBrightness);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
   const toggleBloom = useGalaxyStore((s) => s.toggleBloom);
 
@@ -288,6 +292,66 @@ export const TelemetryHUD: React.FC = () => {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Slider Configurable de Brillo y Resplandor Estelar */}
+            <div className="mt-3 border-t border-[#00F5D4]/20 pt-2.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  htmlFor={brightnessSliderId}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#F2F4F8]"
+                >
+                  <Sun className="h-3.5 w-3.5 text-[#CCFF00]" strokeWidth={2} />
+                  <span>Brillo Estelar</span>
+                </label>
+                <span className="text-[11px] tabular-nums text-[#00F5D4] font-bold">
+                  {Math.round(stellarBrightness * 100)}%
+                </span>
+              </div>
+
+              <input
+                id={brightnessSliderId}
+                name="stellarBrightnessSlider"
+                type="range"
+                min={10}
+                max={150}
+                step={5}
+                value={Math.round(stellarBrightness * 100)}
+                onChange={(e) =>
+                  setStellarBrightness(Number(e.target.value) / 100)
+                }
+                className="w-full h-6 mb-2 accent-[#CCFF00] cursor-pointer"
+              />
+
+              <div
+                role="group"
+                aria-label="Preajustes rápidos de brillo estelar"
+                className="grid grid-cols-3 gap-1.5"
+              >
+                {[
+                  { label: 'Sutil', val: 0.3 },
+                  { label: 'Medio', val: 0.65 },
+                  { label: 'Intenso', val: 1.0 },
+                ].map((preset) => {
+                  const active =
+                    Math.abs(stellarBrightness - preset.val) < 0.05;
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setStellarBrightness(preset.val)}
+                      className={`min-h-7 py-1 px-1 text-[10px] font-semibold rounded border transition-colors ${
+                        active
+                          ? 'bg-[#00F5D4] text-[#050508] border-[#00F5D4]'
+                          : 'bg-[#050508] text-[#B8DCE8] border-[#00F5D4]/25 hover:border-[#00F5D4]'
+                      }`}
+                    >
+                      {preset.label} ({Math.round(preset.val * 100)}%)
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </nav>

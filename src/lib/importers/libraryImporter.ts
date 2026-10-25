@@ -42,20 +42,20 @@ export interface RawLibraryPayload {
 }
 
 const SECTOR_PALETTE = [
-  { color: '#00F5D4', bg: '#0E1726', center: [-11, 3.5, -6] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [11, -2.5, -5] as [number, number, number] },
-  { color: '#CCFF00', bg: '#141B0B', center: [-5, -7, 9] as [number, number, number] },
-  { color: '#38BDF8', bg: '#0B192C', center: [9, 6.5, 8] as [number, number, number] },
-  { color: '#00F5D4', bg: '#0E1726', center: [0, 8.5, -12] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [-14, -4, 4] as [number, number, number] },
-  { color: '#CCFF00', bg: '#141B0B', center: [14, 4, 4] as [number, number, number] },
-  { color: '#38BDF8', bg: '#0B192C', center: [0, -8.5, -10] as [number, number, number] },
-  { color: '#00F5D4', bg: '#0E1726', center: [-8, 9, 5] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [8, -9, 6] as [number, number, number] },
-  { color: '#CCFF00', bg: '#141B0B', center: [-15, 2, -12] as [number, number, number] },
-  { color: '#38BDF8', bg: '#0B192C', center: [15, -2, -12] as [number, number, number] },
-  { color: '#00F5D4', bg: '#0E1726', center: [-4, 1, 14] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [5, -1, -15] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [-24, 7, -18] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [24, -6, -16] as [number, number, number] },
+  { color: '#CCFF00', bg: '#141B0B', center: [-14, -14, 22] as [number, number, number] },
+  { color: '#38BDF8', bg: '#0B192C', center: [20, 15, 18] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [0, 20, -28] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [-30, -8, 10] as [number, number, number] },
+  { color: '#CCFF00', bg: '#141B0B', center: [30, 8, 8] as [number, number, number] },
+  { color: '#38BDF8', bg: '#0B192C', center: [0, -18, -24] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [-18, 18, 14] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [16, -18, 16] as [number, number, number] },
+  { color: '#CCFF00', bg: '#141B0B', center: [-32, 5, -22] as [number, number, number] },
+  { color: '#38BDF8', bg: '#0B192C', center: [32, -4, -22] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [-10, 4, 30] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [12, -3, -32] as [number, number, number] },
 ];
 
 function hashString(str: string): number {
@@ -306,17 +306,17 @@ export function buildMusicGalaxyFromPayload(
 
     for (const [, aBucket] of gBucket.artists) {
       const artistId = `artist-${slugify(aBucket.name)}`;
-      const ringIndex = Math.floor(artistIdx / 7);
-      const itemsInRing = Math.min(7, Math.max(1, artistCount - ringIndex * 7));
-      const posInRing = artistIdx % 7;
+      const ringIndex = Math.floor(artistIdx / 6);
+      const itemsInRing = Math.min(6, Math.max(1, artistCount - ringIndex * 6));
+      const posInRing = artistIdx % 6;
       const angle =
         (posInRing / itemsInRing) * Math.PI * 2 +
         genreIdx * 0.75 +
         ringIndex * 0.52;
-      const radius = 3.8 + ringIndex * 2.5 + (artistIdx % 2) * 0.95;
+      const radius = 7.5 + ringIndex * 4.2 + (artistIdx % 2) * 1.4;
       const ax = Number((gx + Math.cos(angle) * radius).toFixed(2));
       const ay = Number(
-        (gy + Math.sin(angle * 1.5 + ringIndex) * (1.8 + ringIndex * 0.65)).toFixed(2)
+        (gy + Math.sin(angle * 1.5 + ringIndex) * (3.4 + ringIndex * 1.1)).toFixed(2)
       );
       const az = Number((gz + Math.sin(angle) * radius).toFixed(2));
 
@@ -389,9 +389,11 @@ export function buildMusicGalaxyFromPayload(
       trackItems.forEach((t, tIdx) => {
         const songId = `song-${slugify(aBucket.name)}-${slugify(t.title)}-${tIdx}`;
         const sAngle = (tIdx / Math.max(1, trackItems.length)) * Math.PI * 2;
-        const sRadius = 1.45 + Math.floor(tIdx / 6) * 0.65;
+        const sRadius = 1.85 + Math.floor(tIdx / 5) * 0.75;
         const sx = Number((ax + Math.cos(sAngle) * sRadius).toFixed(2));
-        const sy = Number((ay + (tIdx % 2 === 0 ? 0.85 : -0.75)).toFixed(2));
+        const sy = Number(
+          (ay + (tIdx % 2 === 0 ? 0.95 : -0.85) + Math.sin(sAngle) * 0.35).toFixed(2)
+        );
         const sz = Number((az + Math.sin(sAngle) * sRadius).toFixed(2));
         const songAff = Number(
           Math.min(0.99, Math.max(0.6, t.affinity ?? avgAffinity)).toFixed(2)
@@ -477,53 +479,29 @@ export function buildMusicGalaxyFromPayload(
     });
   };
 
-  // 1. Galactic Constellation Backbone: link adjacent genre cores so sectors form a connected cosmos
+  // 1. Galactic Constellation Backbone: single clean ring connecting neighboring genre cores
   for (let i = 0; i < genres.length; i++) {
     const g1 = genres[i];
     const g2 = genres[(i + 1) % genres.length];
-    addUniqueInfluenceLink(g1.id, g2.id, 0.85);
-    if (genres.length > 3) {
-      const g3 = genres[(i + 2) % genres.length];
-      addUniqueInfluenceLink(g1.id, g3.id, 0.74);
-    }
+    addUniqueInfluenceLink(g1.id, g2.id, 0.88);
   }
 
-  // 2. Real Song & Artist Collaborations (e.g. featured artists across same or different genres)
+  // 2. Real Song & Artist Collaborations (e.g. featured artists across genres)
   for (const edge of collaborationEdges) {
     const collabArtist = artistByNameMap.get(edge.collaboratorName);
     if (collabArtist && collabArtist.id !== edge.primaryArtistId) {
       addUniqueInfluenceLink(edge.primaryArtistId, collabArtist.id, 0.94);
-      addUniqueInfluenceLink(edge.songId, collabArtist.id, 0.88);
     }
   }
 
-  // 3. Cross-Genre Secondary Style Bridges: connect artists to their secondary genre & peers
-  const artistsByGenreId = new Map<string, ArtistNode[]>();
-  artists.forEach((a) => {
-    const list = artistsByGenreId.get(a.genreId) || [];
-    list.push(a);
-    artistsByGenreId.set(a.genreId, list);
-  });
-
-  artists.forEach((artist, idx) => {
+  // 3. Cross-Genre Secondary Style Bridges: connect top-affinity artists (affinity >= 0.88) to secondary genre
+  artists.forEach((artist) => {
+    if (artist.affinity < 0.88) return;
     const secGenreName = artistSecondaryGenreMap.get(artist.id);
     const secGenreNode = secGenreName ? genreByNameMap.get(secGenreName) : undefined;
 
     if (secGenreNode && secGenreNode.id !== artist.genreId) {
-      const peerList = artistsByGenreId.get(secGenreNode.id) || [];
-      if (peerList.length > 0) {
-        const peer = peerList[idx % peerList.length];
-        addUniqueInfluenceLink(artist.id, peer.id, 0.84);
-      }
-      // Also link top-affinity artists directly to their secondary genre hub
-      if (artist.affinity >= 0.86) {
-        addUniqueInfluenceLink(artist.id, secGenreNode.id, 0.79);
-      }
-    } else if (artists.length > 2) {
-      const fallbackPeer = artists[(idx + 3) % artists.length];
-      if (fallbackPeer.genreId !== artist.genreId) {
-        addUniqueInfluenceLink(artist.id, fallbackPeer.id, 0.76);
-      }
+      addUniqueInfluenceLink(artist.id, secGenreNode.id, 0.82);
     }
   });
 

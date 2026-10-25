@@ -29,6 +29,7 @@ interface GalaxyState {
   playingTrackId: string | null;
   isAudioPlaying: boolean;
   bloomEnabled: boolean;
+  stellarBrightness: number;
   perfStats: RenderPerfStats;
 
   // Actions
@@ -40,6 +41,7 @@ interface GalaxyState {
   setFlightState: (isFlying: boolean, durationMs?: number) => void;
   setCameraDistance: (distance: number) => void;
   setMinAffinityFilter: (minAffinity: number) => void;
+  setStellarBrightness: (brightness: number) => void;
   setSearchQuery: (query: string) => void;
   toggleSleeveCollapsed: () => void;
   setAudioPlayback: (trackId: string | null, isPlaying: boolean) => void;
@@ -71,6 +73,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   playingTrackId: null,
   isAudioPlaying: false,
   bloomEnabled: true,
+  stellarBrightness: 0.65,
   perfStats: {
     fps: 60,
     drawCalls: 0,
@@ -153,6 +156,11 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   setCameraDistance: (cameraDistance) => set({ cameraDistance }),
 
   setMinAffinityFilter: (minAffinityFilter) => set({ minAffinityFilter }),
+
+  setStellarBrightness: (stellarBrightness) =>
+    set({
+      stellarBrightness: Math.max(0.1, Math.min(1.5, stellarBrightness)),
+    }),
 
   setSearchQuery: (searchQuery) => set({ searchQuery }),
 

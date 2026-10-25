@@ -29,6 +29,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   const minAffinityFilter = useGalaxyStore((s) => s.minAffinityFilter);
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
+  const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
   const selectNode = useGalaxyStore((s) => s.selectNode);
   const hoverNode = useGalaxyStore((s) => s.hoverNode);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
@@ -149,17 +150,22 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
 
   return (
     <group position={node.position} visible={!isFilteredOut}>
-      {/* Outer Bioluminescent Corona (scaled by affinity^1.6) */}
-      <mesh ref={coronaRef} geometry={UNIT_SPHERE_GEOMETRY} scale={metrics.coronaRadius}>
+      {/* Outer Bioluminescent Corona (scaled by affinity^1.6 & stellarBrightness) */}
+      <mesh
+        ref={coronaRef}
+        geometry={UNIT_SPHERE_GEOMETRY}
+        scale={metrics.coronaRadius * (0.8 + 0.3 * stellarBrightness)}
+        visible={stellarBrightness > 0.12}
+      >
         <meshBasicMaterial
           color={starColor}
           transparent
           opacity={
-            isSelected
-              ? Math.min(0.48, metrics.coronaOpacity + 0.16)
+            (isSelected
+              ? Math.min(0.38, metrics.coronaOpacity + 0.12)
               : isHovered
-              ? Math.min(0.38, metrics.coronaOpacity + 0.1)
-              : metrics.coronaOpacity
+              ? Math.min(0.28, metrics.coronaOpacity + 0.08)
+              : metrics.coronaOpacity) * stellarBrightness
           }
           blending={THREE.AdditiveBlending}
           depthWrite={false}
@@ -177,7 +183,9 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             color={isSelected ? '#CCFF00' : starColor}
             side={THREE.DoubleSide}
             transparent
-            opacity={isSelected ? 0.65 : 0.3 * node.affinity}
+            opacity={
+              (isSelected ? 0.55 : 0.25 * node.affinity) * stellarBrightness
+            }
             blending={THREE.AdditiveBlending}
             depthWrite={false}
           />

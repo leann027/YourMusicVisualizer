@@ -92,13 +92,13 @@ export function calculateStarRadius(
   const safeSongs = Math.max(1, songCount);
 
   if (type === 'genre') {
-    return 0.62 + Math.log(1 + safeSongs) * 0.11 + Math.pow(clampedAffinity, 1.3) * 0.22;
+    return 0.44 + Math.log(1 + safeSongs) * 0.075 + Math.pow(clampedAffinity, 1.3) * 0.16;
   }
   if (type === 'artist') {
-    return 0.18 + Math.log(1 + safeSongs) * 0.085 + Math.pow(clampedAffinity, 1.5) * 0.26;
+    return 0.13 + Math.log(1 + safeSongs) * 0.048 + Math.pow(clampedAffinity, 1.5) * 0.16;
   }
   // type === 'song'
-  return 0.09 + Math.pow(clampedAffinity, 1.4) * 0.11;
+  return 0.055 + Math.pow(clampedAffinity, 1.4) * 0.065;
 }
 
 /**
@@ -114,15 +114,15 @@ export function calculateStarVisualMetrics(node: MusicNode): StarVisualMetrics {
 
   const coronaMultiplier =
     node.type === 'genre'
-      ? 1.45 + affinityCurve * 0.45
+      ? 1.35 + affinityCurve * 0.35
       : node.type === 'artist'
-      ? 1.35 + affinityCurve * 0.55
-      : 1.25 + affinityCurve * 0.4;
+      ? 1.25 + affinityCurve * 0.35
+      : 1.15 + affinityCurve * 0.25;
 
   const coronaRadius = coreRadius * coronaMultiplier;
-  const emissiveIntensity = 0.55 + affinityCurve * 2.05;
-  const coronaOpacity = 0.12 + affinityCurve * 0.28;
-  const pulseFrequency = 1.1 + affinity * 1.8;
+  const emissiveIntensity = 0.4 + affinityCurve * 1.2;
+  const coronaOpacity = 0.06 + affinityCurve * 0.14;
+  const pulseFrequency = 1.0 + affinity * 1.5;
 
   let spectralClass: SpectralClass = 'K-SUBDWARF';
   if (affinity >= 0.92) spectralClass = 'O-SUPERGIANT';

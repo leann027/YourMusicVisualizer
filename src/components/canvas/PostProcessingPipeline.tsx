@@ -96,6 +96,7 @@ export const PostProcessingPipeline: React.FC = () => {
     const bloomPass = bloomPassRef.current;
 
     if (!bloomEnabled || !composer || !bloomPass) {
+      gl.render(scene, camera);
       return;
     }
 

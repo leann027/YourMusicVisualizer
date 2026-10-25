@@ -63,11 +63,11 @@ export const CameraFlightController: React.FC = () => {
     controls.getTarget(startTarget);
 
     const endTarget = new THREE.Vector3(0, 0, 0);
-    const endEye = new THREE.Vector3(0, 10, 36);
+    const endEye = new THREE.Vector3(0, 24, 72);
 
     if (cameraMode === 'galaxy' || !selectedNode) {
       endTarget.set(0, 0, 0);
-      endEye.set(0, 10, 36);
+      endEye.set(0, 24, 72);
     } else {
       const [nx, ny, nz] = selectedNode.position;
       endTarget.set(nx, ny, nz);
@@ -79,13 +79,13 @@ export const CameraFlightController: React.FC = () => {
         radial.normalize();
 
         endEye.set(
-          nx + radial.x * 4.5 + 1.8,
-          ny + 4.2,
-          nz + 13.5
+          nx + radial.x * 6.5 + 2.0,
+          ny + 5.5,
+          nz + 18.5
         );
       } else if (cameraMode === 'artist') {
         // Offset slightly right of target so the selected star & its songs sit clear of the right HUD card
-        endEye.set(nx + 1.6, ny + 1.4, nz + 8.0);
+        endEye.set(nx + 1.8, ny + 1.6, nz + 9.5);
       } else {
         // 'song' micro satellite close-up
         endEye.set(nx + 0.9, ny + 0.7, nz + 4.6);
@@ -184,7 +184,7 @@ export const CameraFlightController: React.FC = () => {
       ref={controlsRef}
       makeDefault
       minDistance={2.8}
-      maxDistance={85}
+      maxDistance={150}
       smoothTime={0.18}
       draggingSmoothTime={0.08}
       azimuthRotateSpeed={0.65}
