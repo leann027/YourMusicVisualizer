@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T20:34:30Z",
+  "title": "Design System: YourMusicVisualizer",
+  "extensions": {
+    "colorMeta": {
+      "void-carbon": {
+        "role": "neutral",
+        "displayName": "Void Carbon",
+        "canonical": "#050508",
+        "tonalRamp": ["#050508", "#090B12", "#0E1320", "#161E31", "#24304C", "#425680", "#8197BF", "#DCE5F5"]
+      },
+      "bioluminescent-cyan": {
+        "role": "primary",
+        "displayName": "Bioluminescent Cyan",
+        "canonical": "#00F5D4",
+        "tonalRamp": ["#002B25", "#004D42", "#007565", "#00A38D", "#00CCAFF", "#00F5D4", "#66FFE9", "#CCFFF7"]
+      },
+      "infrared-magenta": {
+        "role": "secondary",
+        "displayName": "Infrared Magenta",
+        "canonical": "#FF2A85",
+        "tonalRamp": ["#330016", "#5C0028", "#8F003E", "#C70056", "#FF2A85", "#FF66A7", "#FF99C4", "#FFD6E7"]
+      },
+      "acid-lime": {
+        "role": "tertiary",
+        "displayName": "Acid Lime",
+        "canonical": "#CCFF00",
+        "tonalRamp": ["#222B00", "#3D4D00", "#607800", "#88AA00", "#AAD500", "#CCFF00", "#E0FF66", "#F4FFCC"]
+      },
+      "starlight-white": {
+        "role": "neutral",
+        "displayName": "Starlight White",
+        "canonical": "#F2F4F8",
+        "tonalRamp": ["#12151C", "#242A36", "#3E4759", "#5E6B85", "#8694B0", "#B4C0D9", "#DCE3F0", "#F2F4F8"]
+      },
+      "nebula-mist": {
+        "role": "neutral",
+        "displayName": "Nebula Mist",
+        "canonical": "#B8DCE8",
+        "tonalRamp": ["#0D1C22", "#193540", "#285363", "#3B778C", "#569EB8", "#82BFD4", "#B8DCE8", "#E3F3F8"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display (Syne ExtraBold)",
+        "purpose": "Active artist and track titles leading the archival record-sleeve card."
+      },
+      "headline": {
+        "displayName": "Headline (Syne ExtraBold)",
+        "purpose": "Top telemetry masthead and modal headers."
+      },
+      "title": {
+        "displayName": "Title (Syne Bold)",
+        "purpose": "HUD dock headers and tracklist section titles."
+      },
+      "body": {
+        "displayName": "Body (JetBrains Mono Regular)",
+        "purpose": "Archival artist biographies and constellation descriptions."
+      },
+      "label": {
+        "displayName": "Label (JetBrains Mono SemiBold Tabular)",
+        "purpose": "Catalog stamps, spectral classes, FPS/DC counters, and song durations."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sleeve-elevation",
+        "value": "0 16px 42px rgba(5, 5, 8, 0.9)",
+        "purpose": "Separates the archival record-sleeve placard from glowing 3D star coronas."
+      },
+      {
+        "name": "combobox-elevation",
+        "value": "0 18px 40px rgba(5, 5, 8, 0.92)",
+        "purpose": "Elevates the stellar search results listbox over the WebGL canvas."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "GSAP camera flight deceleration and HUD panel transitions."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Telemetry Action Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-contrast cyan action trigger used for flying to neighbor constellations and submitting data presets.",
+      "html": "<button class=\"ds-btn-primary\"><span>Volar a Constelación Vecina</span><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m9 18 6-6-6-6\"/></svg></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; background: #00F5D4; color: #050508; padding: 6px 14px; border-radius: 4px; border: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; cursor: pointer; transition: background-color 150ms ease-out; } .ds-btn-primary:hover { background: #CCFF00; } .ds-btn-primary:focus-visible { outline: 2px solid #00F5D4; outline-offset: 2px; }"
+    },
+    {
+      "name": "Constellation Sector Pill",
+      "kind": "nav",
+      "refersTo": "button-sector",
+      "description": "Left-dock sector navigation button displaying genre color dot, song volume, and user affinity percentage.",
+      "html": "<button class=\"ds-btn-sector\"><span class=\"ds-sector-left\"><span class=\"ds-dot\"></span><span>SYNTHWAVE</span></span><span class=\"ds-sector-meta\">168p · 97%</span></button>",
+      "css": ".ds-btn-sector { display: flex; width: 260px; min-height: 36px; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(5, 5, 8, 0.85); color: #B8DCE8; border: 1px solid rgba(0, 245, 212, 0.25); border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer; transition: transform 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out; } .ds-btn-sector:hover { border-color: #00F5D4; color: #F2F4F8; transform: translateX(4px); } .ds-sector-left { display: flex; align-items: center; gap: 8px; font-weight: 600; } .ds-dot { width: 10px; height: 10px; border-radius: 9999px; background: #00F5D4; } .ds-sector-meta { font-size: 11px; color: #CCFF00; }"
+    },
+    {
+      "name": "Stellar Search Combobox",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Top-bar keyboard-accessible search input with '/' and Cmd+K shortcut badge.",
+      "html": "<div class=\"ds-search-wrap\"><input class=\"ds-input-search\" type=\"search\" placeholder=\"Buscar artista, pista o sector... [/]\" /><kbd class=\"ds-kbd\">/ · ⌘K</kbd></div>",
+      "css": ".ds-search-wrap { position: relative; display: flex; align-items: center; width: 320px; } .ds-input-search { width: 100%; min-height: 36px; background: #090B12; color: #F2F4F8; border: 1px solid rgba(0, 245, 212, 0.35); border-radius: 4px; padding: 6px 56px 6px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; } .ds-input-search:focus { outline: 2px solid #00F5D4; outline-offset: 2px; background: #050508; } .ds-kbd { position: absolute; right: 8px; background: #050508; color: #B8DCE8; border: 1px solid rgba(0, 245, 212, 0.3); border-radius: 4px; padding: 2px 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; }"
+    },
+    {
+      "name": "Archival Record-Sleeve Placard",
+      "kind": "card",
+      "refersTo": "card-sleeve",
+      "description": "Right-docked artist inspection card combining Syne display typography, catalog badges, and logarithmic star metrics.",
+      "html": "<aside class=\"ds-card-sleeve\"><h2 class=\"ds-sleeve-title\">Daft Punk</h2><div class=\"ds-badges\"><span class=\"ds-badge-aff\">AFINIDAD 99%</span><span class=\"ds-badge-cat\">CAT. FR-DP-909</span><span class=\"ds-badge-spec\">O-SUPERGIANT</span></div></aside>",
+      "css": ".ds-card-sleeve { width: 340px; background: rgba(10, 12, 20, 0.95); color: #F2F4F8; border: 1px solid rgba(255, 42, 133, 0.55); border-radius: 4px; padding: 16px; box-shadow: 0 16px 42px rgba(5, 5, 8, 0.9); font-family: 'JetBrains Mono', monospace; } .ds-sleeve-title { margin: 0; font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: #F2F4F8; } .ds-badges { display: flex; gap: 6px; margin-top: 8px; font-size: 11px; font-variant-numeric: tabular-nums; } .ds-badge-aff { background: #FF2A85; color: #050508; font-weight: 700; padding: 2px 8px; border-radius: 4px; } .ds-badge-cat { background: #050508; color: #F2F4F8; border: 1px solid rgba(242, 244, 248, 0.25); padding: 2px 8px; border-radius: 4px; } .ds-badge-spec { background: #050508; color: #00F5D4; border: 1px solid rgba(0, 245, 212, 0.4); padding: 2px 8px; border-radius: 4px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Pulso Estelar Generativo (Audiovisual Stage Rig)",
+    "overview": "YourMusicVisualizer rejects flat streaming tables and generic dark-mode SaaS sidebars in favor of a live TouchDesigner audiovisual stage rig and volumetric 3D starfield. Every musical entity—genre constellation, artist star, and satellite track—is rendered as a luminous celestial body whose core radius scales logarithmically with song volume and whose bioluminescent corona scales non-linearly with listener affinity.",
+    "keyCharacteristics": [
+      "Full-bleed 100vw × 100dvh 3D WebGL starfield over deep void carbon (#050508).",
+      "Perimeter-docked technical HUD with pointer-events-none passthrough over the central 3D canvas.",
+      "Archival Yé-Yé Pop / record-sleeve artist inspection placards with square catalog portraits, spectral metrics, and Side-A tracklists.",
+      "Real-time 64-bin Web Audio FFT spectrum analysis driving 3D star respiration, cross-genre filament waves, and UnrealBloomPass intensity."
+    ],
+    "rules": [
+      {
+        "name": "The Zero-Dead-Gray Rule",
+        "body": "Never place untinted neutral gray text (#888888, #999999) on dark cosmic surfaces; always use cyan-tinted Nebula Mist (#B8DCE8) so secondary readouts harmonize with the starfield and exceed 4.5:1 WCAG AA contrast.",
+        "section": "colors"
+      },
+      {
+        "name": "The Heading-Leads Rule",
+        "body": "Never place an eyebrow or kicker label above an h1, h2, or h3. The heading leads directly; catalog codes, affinity percentages, and spectral badges sit immediately below the heading.",
+        "section": "typography"
+      },
+      {
+        "name": "The 1px Hairline Frame Rule",
+        "body": "HUD panels are delineated by crisp 1px translucent cyan or magenta borders—never thick colored border-left stripes or heavy multi-layered drop shadows.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do scale every 3D star's radius logarithmically from song count (ln(1 + songCount)) and non-linearly from user affinity (affinity^1.5).",
+      "Do keep HUD panels docked to the viewport perimeter with pointer-events-none on wrapper containers so the central 3D cosmos remains directly draggable and clickable.",
+      "Do provide full keyboard navigation ('/' or Cmd+K search focus, ArrowUp/ArrowDown combobox traversal, Enter camera flight, Escape dismissal) and prefers-reduced-motion support.",
+      "Do dispose Web Audio nodes (stop(), disconnect()) and UnrealBloomPass render targets on track changes and component teardown."
+    ],
+    "donts": [
+      "Don't place kickers or eyebrows above h1, h2, or h3 headings; place metadata badges below the heading.",
+      "Don't use decorative section numbers (01 //, 02 //), thick colored border-left bars (> 1px), or unicode characters as substitutes for proper Lucide SVG icons.",
+      "Don't use Three.js <Html distanceFactor={...}> on 3D star labels, which causes giant perspective text scaling that collides with the 2D HUD."
+    ]
+  }
+}

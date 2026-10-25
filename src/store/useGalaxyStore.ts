@@ -13,6 +13,7 @@ export interface RenderPerfStats {
 
 interface GalaxyState {
   data: MusicGalaxyData;
+  dataSourceLabel: string;
   selectedNode: MusicNode | null;
   hoveredNode: MusicNode | null;
   selectedSectorId: string | null;
@@ -42,11 +43,14 @@ interface GalaxyState {
   toggleSleeveCollapsed: () => void;
   setAudioPlayback: (trackId: string | null, isPlaying: boolean) => void;
   toggleBloom: () => void;
+  loadCustomGalaxyData: (data: MusicGalaxyData, sourceLabel: string) => void;
+  restoreDefaultGalaxy: () => void;
   updatePerfStats: (stats: RenderPerfStats) => void;
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   data: mockMusicGalaxy,
+  dataSourceLabel: ' Universo Base (42 Nodos)',
   selectedNode: mockMusicGalaxy.artists[0], // Daft Punk initial focus
   hoveredNode: null,
   selectedSectorId: 'genre-electro',
@@ -154,6 +158,34 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
 
   toggleBloom: () =>
     set((state) => ({ bloomEnabled: !state.bloomEnabled })),
+
+  loadCustomGalaxyData: (data, dataSourceLabel) =>
+    set((state) => ({
+      data,
+      dataSourceLabel,
+      selectedNode: data.artists[0] || data.genres[0] || null,
+      selectedSectorId: data.genres[0]?.id || null,
+      cameraMode: 'galaxy',
+      minAffinityFilter: 0,
+      searchQuery: '',
+      playingTrackId: null,
+      isAudioPlaying: false,
+      flightVersion: state.flightVersion + 1,
+    })),
+
+  restoreDefaultGalaxy: () =>
+    set((state) => ({
+      data: mockMusicGalaxy,
+      dataSourceLabel: 'Universo Base (42 Nodos)',
+      selectedNode: mockMusicGalaxy.artists[0],
+      selectedSectorId: 'genre-electro',
+      cameraMode: 'galaxy',
+      minAffinityFilter: 0,
+      searchQuery: '',
+      playingTrackId: null,
+      isAudioPlaying: false,
+      flightVersion: state.flightVersion + 1,
+    })),
 
   updatePerfStats: (perfStats) => set({ perfStats }),
 }));

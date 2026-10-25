@@ -216,8 +216,12 @@ export const StellarSearchBar: React.FC = () => {
         <input
           ref={inputRef}
           id={inputId}
+          name="stellarSearch"
           type="search"
           role="combobox"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           aria-autocomplete="list"
           aria-expanded={isOpen}
           aria-controls={listboxId}

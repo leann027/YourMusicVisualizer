@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 import {
   Compass,
   Gauge,
@@ -15,6 +15,7 @@ import {
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StellarSearchBar } from './StellarSearchBar';
 import { ArtistSleeveCard } from './ArtistSleeveCard';
+import { DataSourceModal } from './DataSourceModal';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
 
 const AFFINITY_THRESHOLDS = [
@@ -25,6 +26,7 @@ const AFFINITY_THRESHOLDS = [
 ];
 
 export const TelemetryHUD: React.FC = () => {
+  const sliderId = useId();
   const data = useGalaxyStore((s) => s.data);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
@@ -182,24 +184,43 @@ export const TelemetryHUD: React.FC = () => {
             </button>
           </div>
 
-          {/* Affinity Filter Control */}
+          {/* Affinity Filter Control (Story 8: Presets + Continuous Slider) */}
           <div className="bg-[#090B12]/90 border border-[#00F5D4]/20 p-3.5 rounded">
             <div className="flex items-center justify-between mb-2">
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-[#F2F4F8]">
+              <label
+                htmlFor={sliderId}
+                className="flex items-center gap-1.5 text-xs font-semibold text-[#F2F4F8]"
+              >
                 <SlidersHorizontal className="h-3.5 w-3.5 text-[#00F5D4]" strokeWidth={2} />
                 <span>Umbral de Afinidad</span>
-              </span>
-              <span className="text-[11px] tabular-nums text-[#CCFF00]">
+              </label>
+              <span className="text-[11px] tabular-nums text-[#CCFF00] font-bold">
                 {Math.round(minAffinityFilter * 100)}% mín
               </span>
             </div>
+
+            <input
+              id={sliderId}
+              name="minAffinityThreshold"
+              type="range"
+              min={0}
+              max={95}
+              step={1}
+              value={Math.round(minAffinityFilter * 100)}
+              onChange={(e) =>
+                setMinAffinityFilter(Number(e.target.value) / 100)
+              }
+              className="w-full h-6 mb-2 accent-[#00F5D4] cursor-pointer"
+            />
+
             <div
               role="group"
-              aria-label="Filtrar estrellas por umbral mínimo de afinidad"
+              aria-label="Preajustes rápidos de umbral mínimo de afinidad"
               className="grid grid-cols-4 gap-1.5"
             >
               {AFFINITY_THRESHOLDS.map((item) => {
-                const active = minAffinityFilter === item.value;
+                const active =
+                  Math.abs(minAffinityFilter - item.value) < 0.005;
                 return (
                   <button
                     key={item.label}
@@ -236,6 +257,9 @@ export const TelemetryHUD: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Story 8: Streaming / Local Data Importer Dialog */}
+          <DataSourceModal />
+
           <button
             type="button"
             aria-pressed={isAudioPlaying}
