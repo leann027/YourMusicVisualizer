@@ -24,6 +24,9 @@ interface GalaxyState {
   minAffinityFilter: number;
   searchQuery: string;
   isSleeveCollapsed: boolean;
+  playingTrackId: string | null;
+  isAudioPlaying: boolean;
+  bloomEnabled: boolean;
   perfStats: RenderPerfStats;
 
   // Actions
@@ -37,6 +40,8 @@ interface GalaxyState {
   setMinAffinityFilter: (minAffinity: number) => void;
   setSearchQuery: (query: string) => void;
   toggleSleeveCollapsed: () => void;
+  setAudioPlayback: (trackId: string | null, isPlaying: boolean) => void;
+  toggleBloom: () => void;
   updatePerfStats: (stats: RenderPerfStats) => void;
 }
 
@@ -53,6 +58,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   minAffinityFilter: 0,
   searchQuery: '',
   isSleeveCollapsed: false,
+  playingTrackId: null,
+  isAudioPlaying: false,
+  bloomEnabled: true,
   perfStats: {
     fps: 60,
     drawCalls: 0,
@@ -140,6 +148,12 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
 
   toggleSleeveCollapsed: () =>
     set((state) => ({ isSleeveCollapsed: !state.isSleeveCollapsed })),
+
+  setAudioPlayback: (playingTrackId, isAudioPlaying) =>
+    set({ playingTrackId, isAudioPlaying }),
+
+  toggleBloom: () =>
+    set((state) => ({ bloomEnabled: !state.bloomEnabled })),
 
   updatePerfStats: (perfStats) => set({ perfStats }),
 }));

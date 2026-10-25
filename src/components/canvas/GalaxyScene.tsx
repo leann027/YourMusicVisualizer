@@ -6,6 +6,7 @@ import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { ConstellationLinks } from './ConstellationLinks';
 import { CameraFlightController } from './CameraFlightController';
+import { PostProcessingPipeline } from './PostProcessingPipeline';
 
 export const GalaxyScene: React.FC = () => {
   const data = useGalaxyStore((s) => s.data);
@@ -58,6 +59,9 @@ export const GalaxyScene: React.FC = () => {
 
       {/* Calibrated GSAP + CameraControls Trajectory Controller */}
       <CameraFlightController />
+
+      {/* Deferred UnrealBloomPass Post-Processing modulated by Web Audio FFT */}
+      <PostProcessingPipeline />
     </>
   );
 };

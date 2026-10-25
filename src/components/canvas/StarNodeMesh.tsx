@@ -6,6 +6,7 @@ import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { MusicNode, calculateStarVisualMetrics } from '../../types/music';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
+import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
 
 interface StarNodeMeshProps {
   node: MusicNode;
@@ -25,11 +26,21 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
   const minAffinityFilter = useGalaxyStore((s) => s.minAffinityFilter);
+  const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
+  const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
   const selectNode = useGalaxyStore((s) => s.selectNode);
   const hoverNode = useGalaxyStore((s) => s.hoverNode);
+  const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
 
   const isSelected = selectedNode?.id === node.id;
   const isHovered = hoveredNode?.id === node.id;
+  const isPlayingNode =
+    isAudioPlaying &&
+    (playingTrackId === node.id ||
+      (node.type === 'artist' &&
+        selectedNode?.type === 'song' &&
+        selectedNode.artistId === node.id &&
+        playingTrackId === selectedNode.id));
   const isFilteredOut = node.affinity < minAffinityFilter;
 
   const songCount = 'songCount' in node ? node.songCount : 1;
@@ -53,24 +64,41 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // Calibrated stellar respiration & corona shimmer (disabled under prefers-reduced-motion)
+  // Calibrated stellar respiration & FFT audio-reactive corona shimmer (disabled under prefers-reduced-motion)
   useFrame((state) => {
     if (prefersReducedMotion || isFilteredOut) return;
     const t = state.clock.getElapsedTime();
+    const fft = webAudioEngine.sampleFFT();
+
+    const audioKick =
+      fft.isPlaying && (isPlayingNode || isSelected)
+        ? fft.subBass * 0.42 + fft.energy * 0.25
+        : fft.isPlaying
+        ? fft.subBass * 0.08 * node.affinity
+        : 0;
 
     if (meshRef.current) {
       const amp = isSelected ? 0.12 : isHovered ? 0.08 : 0.035 * node.affinity;
       const s =
         metrics.coreRadius *
-        (1 + Math.sin(t * metrics.pulseFrequency + node.position[0]) * amp);
+        (1 +
+          Math.sin(t * metrics.pulseFrequency + node.position[0]) * amp +
+          audioKick);
       meshRef.current.scale.setScalar(s);
     }
 
     if (coronaRef.current) {
+      const coronaAudioBoost =
+        fft.isPlaying && (isPlayingNode || isSelected)
+          ? fft.midHarmonic * 0.65 + fft.highShimmer * 0.45
+          : fft.isPlaying
+          ? fft.energy * 0.14
+          : 0;
       const coronaScale =
         metrics.coronaRadius *
         ((isSelected ? 1.25 : isHovered ? 1.12 : 1.0) +
-          Math.cos(t * (metrics.pulseFrequency * 0.7) + node.position[1]) * 0.05);
+          Math.cos(t * (metrics.pulseFrequency * 0.7) + node.position[1]) * 0.05 +
+          coronaAudioBoost);
       coronaRef.current.scale.setScalar(coronaScale);
     }
   });
@@ -163,6 +191,10 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         onClick={(e) => {
           e.stopPropagation();
           selectNode(node);
+          if (node.type === 'song') {
+            webAudioEngine.playTrack(node.id, node.title, node.affinity);
+            setAudioPlayback(node.id, true);
+          }
         }}
         onPointerOver={(e) => {
           e.stopPropagation();

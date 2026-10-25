@@ -8,10 +8,14 @@ import {
   Sparkles,
   ChevronRight,
   SlidersHorizontal,
+  Volume2,
+  VolumeX,
+  Zap,
 } from 'lucide-react';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StellarSearchBar } from './StellarSearchBar';
 import { ArtistSleeveCard } from './ArtistSleeveCard';
+import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
 
 const AFFINITY_THRESHOLDS = [
   { label: 'Todas', value: 0 },
@@ -28,12 +32,50 @@ export const TelemetryHUD: React.FC = () => {
   const lastFlightDurationMs = useGalaxyStore((s) => s.lastFlightDurationMs);
   const cameraDistance = useGalaxyStore((s) => s.cameraDistance);
   const minAffinityFilter = useGalaxyStore((s) => s.minAffinityFilter);
+  const selectedNode = useGalaxyStore((s) => s.selectedNode);
+  const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
+  const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
+  const bloomEnabled = useGalaxyStore((s) => s.bloomEnabled);
   const perfStats = useGalaxyStore((s) => s.perfStats);
 
   const selectSector = useGalaxyStore((s) => s.selectSector);
   const resetToGalaxyView = useGalaxyStore((s) => s.resetToGalaxyView);
   const flyToNeighborSector = useGalaxyStore((s) => s.flyToNeighborSector);
   const setMinAffinityFilter = useGalaxyStore((s) => s.setMinAffinityFilter);
+  const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
+  const toggleBloom = useGalaxyStore((s) => s.toggleBloom);
+
+  const handleToggleMasterAudio = () => {
+    if (isAudioPlaying) {
+      webAudioEngine.stopCurrentSource();
+      setAudioPlayback(null, false);
+      return;
+    }
+
+    // Pick selected song, or first song of selected artist, or first song in galaxy
+    let targetSong =
+      selectedNode?.type === 'song'
+        ? selectedNode
+        : selectedNode?.type === 'artist'
+        ? data.songs.find((s) => s.artistId === selectedNode.id)
+        : undefined;
+    if (!targetSong) {
+      targetSong = data.songs[0];
+    }
+    if (targetSong) {
+      webAudioEngine.playTrack(
+        targetSong.id,
+        targetSong.title,
+        targetSong.affinity
+      );
+      setAudioPlayback(targetSong.id, true);
+    }
+  };
+
+  const activeSongTitle = useMemo(() => {
+    if (!playingTrackId) return null;
+    return data.songs.find((s) => s.id === playingTrackId)?.title || null;
+  }, [data.songs, playingTrackId]);
 
   const visibleCounts = useMemo(() => {
     const genres = data.genres.filter((g) => g.affinity >= minAffinityFilter).length;
@@ -182,23 +224,71 @@ export const TelemetryHUD: React.FC = () => {
         <ArtistSleeveCard />
       </div>
 
-      {/* Bottom Dock: Scale Formula Telemetry & Sector Flight Trigger */}
-      <footer className="pointer-events-auto flex flex-wrap items-center justify-between gap-4 border border-[#00F5D4]/25 bg-[#050508]/90 px-4 md:px-5 py-2.5 rounded text-xs text-[#B8DCE8]">
+      {/* Bottom Dock: Scale Formula Telemetry, Audio FFT Pulse & Bloom Controls */}
+      <footer className="pointer-events-auto flex flex-wrap items-center justify-between gap-3 border border-[#00F5D4]/25 bg-[#050508]/90 px-4 md:px-5 py-2.5 rounded text-xs text-[#B8DCE8]">
         <div className="flex flex-wrap items-center gap-4 tabular-nums">
           <span className="text-[#F2F4F8] font-semibold">
             ESCALA LOGARÍTMICA:
           </span>
-          <span>R = r₀ + w₁·ln(1 + canciones) + w₂·afinidad¹·⁵</span>
+          <span className="hidden lg:inline">
+            R = r₀ + w₁·ln(1 + canciones) + w₂·afinidad¹·⁵
+          </span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => flyToNeighborSector(1)}
-          className="min-h-9 flex items-center gap-1.5 rounded bg-[#00F5D4] px-3.5 py-1.5 text-xs font-bold text-[#050508] hover:bg-[#CCFF00] transition-colors duration-150"
-        >
-          <span>Volar a Constelación Vecina</span>
-          <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            aria-pressed={isAudioPlaying}
+            onClick={handleToggleMasterAudio}
+            className={`min-h-9 flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+              isAudioPlaying
+                ? 'border-[#CCFF00] bg-[#131826] text-[#CCFF00]'
+                : 'border-[#00F5D4]/40 bg-[#050508] text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8]'
+            }`}
+          >
+            {isAudioPlaying ? (
+              <>
+                <Volume2 className="h-3.5 w-3.5 text-[#CCFF00]" strokeWidth={2} />
+                <span>
+                  FFT ACTIVO{activeSongTitle ? `: ${activeSongTitle}` : ''}
+                </span>
+              </>
+            ) : (
+              <>
+                <VolumeX className="h-3.5 w-3.5 text-[#00F5D4]" strokeWidth={2} />
+                <span>Activar Pulso FFT</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            aria-pressed={bloomEnabled}
+            onClick={toggleBloom}
+            className={`min-h-9 flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+              bloomEnabled
+                ? 'border-[#FF2A85] bg-[#131826] text-[#F2F4F8]'
+                : 'border-[#00F5D4]/30 bg-[#050508] text-[#B8DCE8] hover:border-[#FF2A85]'
+            }`}
+          >
+            <Zap
+              className={`h-3.5 w-3.5 ${
+                bloomEnabled ? 'text-[#FF2A85]' : 'text-[#B8DCE8]'
+              }`}
+              strokeWidth={2}
+            />
+            <span>Bloom {bloomEnabled ? 'ON' : 'OFF'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => flyToNeighborSector(1)}
+            className="min-h-9 flex items-center gap-1.5 rounded bg-[#00F5D4] px-3.5 py-1.5 text-xs font-bold text-[#050508] hover:bg-[#CCFF00] transition-colors duration-150"
+          >
+            <span>Volar a Constelación Vecina</span>
+            <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+          </button>
+        </div>
       </footer>
     </div>
   );

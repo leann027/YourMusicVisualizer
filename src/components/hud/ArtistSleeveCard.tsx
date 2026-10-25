@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
+  Activity,
   ChevronRight,
   Disc3,
   Eye,
@@ -9,9 +10,12 @@ import {
   MapPin,
   Mic2,
   Orbit,
+  Pause,
+  Play,
   Radio,
 } from 'lucide-react';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
+import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
 import {
   ArtistNode,
   calculateStarVisualMetrics,
@@ -155,9 +159,42 @@ export const ArtistSleeveCard: React.FC = () => {
   const data = useGalaxyStore((s) => s.data);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const isSleeveCollapsed = useGalaxyStore((s) => s.isSleeveCollapsed);
+  const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
+  const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
   const selectNode = useGalaxyStore((s) => s.selectNode);
   const selectSector = useGalaxyStore((s) => s.selectSector);
   const toggleSleeveCollapsed = useGalaxyStore((s) => s.toggleSleeveCollapsed);
+  const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
+
+  const barRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  // Animate the 16 FFT spectrum bars directly via DOM refs without triggering React re-renders
+  useEffect(() => {
+    if (!isAudioPlaying) {
+      barRefs.current.forEach((el) => {
+        if (el) el.style.height = '18%';
+      });
+      return;
+    }
+
+    let rafId = 0;
+    const tick = () => {
+      const fft = webAudioEngine.sampleFFT();
+      for (let i = 0; i < 16; i++) {
+        const el = barRefs.current[i];
+        if (el) {
+          const pct = Math.max(16, Math.round((fft.bins[i] / 255) * 100));
+          el.style.height = `${pct}%`;
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+    };
+  }, [isAudioPlaying]);
 
   const selectedMetrics = useMemo(
     () => (selectedNode ? calculateStarVisualMetrics(selectedNode) : null),
@@ -185,13 +222,36 @@ export const ArtistSleeveCard: React.FC = () => {
     ? data.songs.filter((s) => s.artistId === activeArtist.id)
     : [];
 
+  // Related cross-genre artists connected via 'influence' links (Story 6)
+  const crossGenreInfluences = useMemo(() => {
+    const focusId = activeArtist ? activeArtist.id : selectedNode.id;
+    const relatedIds = new Set<string>();
+    data.links.forEach((link) => {
+      if (link.type === 'influence') {
+        if (link.source === focusId) relatedIds.add(link.target);
+        if (link.target === focusId) relatedIds.add(link.source);
+      }
+    });
+    return data.artists.filter((a) => relatedIds.has(a.id));
+  }, [data.links, data.artists, activeArtist, selectedNode.id]);
+
+  const handleToggleSongPreview = (song: SongNode) => {
+    selectNode(song);
+    const nowPlaying = webAudioEngine.toggleTrack(
+      song.id,
+      song.title,
+      song.affinity
+    );
+    setAudioPlayback(nowPlaying ? song.id : null, nowPlaying);
+  };
+
   const nodeTitle =
     'name' in selectedNode ? selectedNode.name : selectedNode.title;
 
   return (
     <aside
       aria-label="Ficha discográfica de inspección estelar"
-      className="pointer-events-auto w-full md:w-96 rounded border border-[#FF2A85]/55 bg-[#0A0C14]/95 p-4 md:p-5 shadow-[0_16px_42px_rgba(5,5,8,0.9)] hud-transition"
+      className="pointer-events-auto w-full md:w-96 max-h-[calc(100dvh-9.5rem)] overflow-y-auto rounded border border-[#FF2A85]/55 bg-[#0A0C14]/95 p-4 shadow-[0_16px_42px_rgba(5,5,8,0.9)] hud-transition"
     >
       {/* Heading row: Heading leads directly without any eyebrow above it */}
       <div className="flex items-start justify-between gap-3">
@@ -246,29 +306,29 @@ export const ArtistSleeveCard: React.FC = () => {
 
       {!isSleeveCollapsed && (
         <div className="mt-4 flex flex-col gap-3.5">
-          {/* Archival Vinyl Record-Sleeve Studio Portrait + Origin & Bio for Artist or Song */}
+          {/*Archival Vinyl Record-Sleeve Studio Portrait + Origin & Bio for Artist or Song */}
           {activeArtist && (
-            <div className="flex items-start gap-3.5 rounded border border-[#00F5D4]/20 bg-[#050508]/90 p-3">
+            <div className="flex items-start gap-3 rounded border border-[#00F5D4]/20 bg-[#050508]/90 p-2.5">
               <ArchivalStudioPortrait
                 artist={activeArtist}
                 spectralClass={selectedMetrics.spectralClass}
               />
 
-              <div className="flex flex-col gap-1.5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-1.5 text-[11px] text-[#00F5D4] font-semibold">
                   <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
                   <span className="truncate">{activeArtist.origin}</span>
                 </div>
 
                 {selectedNode.type === 'song' && (
-                  <div className="rounded border border-[#CCFF00]/35 bg-[#090B12] px-2 py-1 text-[11px] text-[#CCFF00]">
+                  <div className="rounded border border-[#CCFF00]/35 bg-[#090B12] px-2 py-0.5 text-[11px] text-[#CCFF00]">
                     Álbum: <strong>{selectedNode.album}</strong> ·{' '}
                     {Math.floor(selectedNode.duration / 60)}:
                     {(selectedNode.duration % 60).toString().padStart(2, '0')}
                   </div>
                 )}
 
-                <p className="text-xs text-[#B8DCE8] leading-relaxed">
+                <p className="text-xs text-[#B8DCE8] leading-snug line-clamp-3">
                   {activeArtist.bio}
                 </p>
               </div>
@@ -370,14 +430,19 @@ export const ArtistSleeveCard: React.FC = () => {
                 {artistSongs.map((song, idx) => {
                   const isCurrentSong =
                     selectedNode.type === 'song' && selectedNode.id === song.id;
+                  const isTrackPlaying =
+                    isAudioPlaying && playingTrackId === song.id;
                   return (
                     <li key={song.id}>
                       <button
                         type="button"
-                        onClick={() => selectNode(song)}
+                        onClick={() => handleToggleSongPreview(song)}
                         aria-current={isCurrentSong ? 'true' : undefined}
+                        aria-pressed={isTrackPlaying}
                         className={`w-full min-h-9 flex items-center justify-between gap-2 py-1.5 px-2.5 rounded border text-left transition-colors duration-150 tabular-nums ${
-                          isCurrentSong
+                          isTrackPlaying
+                            ? 'border-[#00F5D4] bg-[#131826] text-[#F2F4F8]'
+                            : isCurrentSong
                             ? 'border-[#CCFF00] bg-[#131826] text-[#F2F4F8]'
                             : 'border-[#00F5D4]/20 bg-[#050508] hover:border-[#FF2A85] text-[#F2F4F8]'
                         }`}
@@ -386,10 +451,17 @@ export const ArtistSleeveCard: React.FC = () => {
                           <span className="text-[11px] font-bold text-[#B8DCE8] w-5 shrink-0">
                             A{idx + 1}
                           </span>
-                          <Disc3
-                            className="h-3.5 w-3.5 text-[#FF2A85] shrink-0"
-                            strokeWidth={2}
-                          />
+                          {isTrackPlaying ? (
+                            <Pause
+                              className="h-3.5 w-3.5 text-[#00F5D4] shrink-0"
+                              strokeWidth={2.2}
+                            />
+                          ) : (
+                            <Play
+                              className="h-3.5 w-3.5 text-[#FF2A85] shrink-0"
+                              strokeWidth={2}
+                            />
+                          )}
                           <span className="truncate font-semibold">
                             {song.title}
                           </span>
@@ -409,6 +481,65 @@ export const ArtistSleeveCard: React.FC = () => {
                   );
                 })}
               </ol>
+
+              {/* Real-time 16-bar Web Audio FFT Spectrum Analyzer Readout */}
+              <div className="mt-2.5 rounded border border-[#00F5D4]/25 bg-[#050508] p-2">
+                <div className="flex items-center justify-between text-[10px] text-[#B8DCE8] mb-1.5">
+                  <span className="flex items-center gap-1.5 font-semibold text-[#F2F4F8]">
+                    <Activity
+                      className="h-3 w-3 text-[#00F5D4]"
+                      strokeWidth={2}
+                    />
+                    <span>ESPECTRO FFT WEB AUDIO</span>
+                  </span>
+                  <span className="text-[#00F5D4] font-bold">
+                    {isAudioPlaying ? 'PULSO ACTIVO · 64 BINS' : 'EN ESPERA (CLIC EN PISTA)'}
+                  </span>
+                </div>
+                <div
+                  aria-hidden="true"
+                  className="flex h-7 items-end gap-1 px-1"
+                >
+                  {Array.from({ length: 16 }, (_, i) => (
+                    <span
+                      key={i}
+                      ref={(el) => {
+                        barRefs.current[i] = el;
+                      }}
+                      style={{ height: '18%' }}
+                      className={`flex-1 rounded-t transition-[height] duration-75 ${
+                        i < 4
+                          ? 'bg-[#FF2A85]'
+                          : i < 11
+                          ? 'bg-[#00F5D4]'
+                          : 'bg-[#CCFF00]'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cross-Genre Relational Filaments Section (Story 6) */}
+          {crossGenreInfluences.length > 0 && (
+            <div className="border-t border-[#00F5D4]/20 pt-2.5">
+              <div className="text-[11px] font-semibold text-[#B8DCE8] mb-1.5">
+                Puentes Inter-Estelares (Afinidad Cruzada):
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {crossGenreInfluences.map((relArtist) => (
+                  <button
+                    key={relArtist.id}
+                    type="button"
+                    onClick={() => selectNode(relArtist)}
+                    className="min-h-7 flex items-center gap-1 rounded border border-[#FF2A85]/45 bg-[#050508] px-2.5 py-1 text-[11px] font-semibold text-[#F2F4F8] hover:border-[#CCFF00] hover:text-[#CCFF00] transition-colors"
+                  >
+                    <Orbit className="h-3 w-3 text-[#FF2A85]" strokeWidth={2} />
+                    <span>{relArtist.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
