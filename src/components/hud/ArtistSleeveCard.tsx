@@ -239,18 +239,53 @@ export const ArtistSleeveCard: React.FC = () => {
     ? data.songs.filter((s) => s.artistId === activeArtist.id)
     : [];
 
-  // Related cross-genre artists connected via 'influence' links (Story 6)
-  const crossGenreInfluences = useMemo(() => {
-    const focusId = activeArtist ? activeArtist.id : selectedNode.id;
+  // Related cross-genre artists & sister genres connected via 'influence' links (Story 6)
+  const { crossGenreInfluences, crossGenreSectors } = useMemo(() => {
+    const focusIds = new Set<string>([selectedNode.id]);
+    if (activeArtist) focusIds.add(activeArtist.id);
+    if (activeGenre) focusIds.add(activeGenre.id);
+
     const relatedIds = new Set<string>();
     data.links.forEach((link) => {
       if (link.type === 'influence') {
-        if (link.source === focusId) relatedIds.add(link.target);
-        if (link.target === focusId) relatedIds.add(link.source);
+        if (focusIds.has(link.source)) relatedIds.add(link.target);
+        if (focusIds.has(link.target)) relatedIds.add(link.source);
       }
     });
-    return data.artists.filter((a) => relatedIds.has(a.id));
-  }, [data.links, data.artists, activeArtist, selectedNode.id]);
+
+    const relArtists = data.artists
+      .filter((a) => relatedIds.has(a.id) && a.id !== activeArtist?.id)
+      .slice(0, 6);
+    const relGenres = data.genres
+      .filter((g) => relatedIds.has(g.id) && g.id !== activeGenre?.id)
+      .slice(0, 4);
+
+    return {
+      crossGenreInfluences: relArtists,
+      crossGenreSectors: relGenres,
+    };
+  }, [data.links, data.artists, data.genres, activeArtist, activeGenre, selectedNode.id]);
+
+  const handleJumpToBridgeNode = (target: ArtistNode | GenreNode) => {
+    selectNode(target);
+    if (isAudioPlaying) {
+      const nextSong =
+        target.type === 'artist'
+          ? data.songs.find((s) => s.artistId === target.id && s.previewUrl) ||
+            data.songs.find((s) => s.artistId === target.id)
+          : data.songs.find((s) => s.genreId === target.id && s.previewUrl) ||
+            data.songs.find((s) => s.genreId === target.id);
+      if (nextSong) {
+        webAudioEngine.playTrack(
+          nextSong.id,
+          nextSong.title,
+          nextSong.affinity,
+          nextSong.previewUrl
+        );
+        setAudioPlayback(nextSong.id, true);
+      }
+    }
+  };
 
   const handleToggleSongPreview = (song: SongNode) => {
     selectNode(song);
@@ -561,23 +596,47 @@ export const ArtistSleeveCard: React.FC = () => {
           )}
 
           {/* Cross-Genre Relational Filaments Section (Story 6) */}
-          {crossGenreInfluences.length > 0 && (
+          {(crossGenreInfluences.length > 0 || crossGenreSectors.length > 0) && (
             <div className="border-t border-[#00F5D4]/20 pt-2.5">
               <div className="text-[11px] font-semibold text-[#B8DCE8] mb-1.5">
-                Puentes Inter-Estelares (Afinidad Cruzada):
+                Puentes Inter-Estelares (Géneros y Artistas Relacionados):
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {crossGenreInfluences.map((relArtist) => (
+                {crossGenreSectors.map((relGenre) => (
                   <button
-                    key={relArtist.id}
+                    key={relGenre.id}
                     type="button"
-                    onClick={() => selectNode(relArtist)}
-                    className="min-h-7 flex items-center gap-1 rounded border border-[#FF2A85]/45 bg-[#050508] px-2.5 py-1 text-[11px] font-semibold text-[#F2F4F8] hover:border-[#CCFF00] hover:text-[#CCFF00] transition-colors"
+                    onClick={() => handleJumpToBridgeNode(relGenre)}
+                    className="min-h-7 flex items-center gap-1 rounded border border-[#00F5D4]/45 bg-[#050508] px-2.5 py-1 text-[11px] font-bold text-[#00F5D4] hover:border-[#CCFF00] hover:text-[#CCFF00] transition-colors"
                   >
-                    <Orbit className="h-3 w-3 text-[#FF2A85]" strokeWidth={2} />
-                    <span>{relArtist.name}</span>
+                    <Orbit className="h-3 w-3 text-[#00F5D4]" strokeWidth={2} />
+                    <span>{relGenre.name.split('&')[0].trim()}</span>
                   </button>
                 ))}
+                {crossGenreInfluences.map((relArtist) => {
+                  const relGenreObj = data.genres.find(
+                    (g) => g.id === relArtist.genreId
+                  );
+                  const shortGenre = relGenreObj
+                    ? relGenreObj.name.split('&')[0].trim()
+                    : '';
+                  return (
+                    <button
+                      key={relArtist.id}
+                      type="button"
+                      onClick={() => handleJumpToBridgeNode(relArtist)}
+                      className="min-h-7 flex items-center gap-1 rounded border border-[#FF2A85]/45 bg-[#050508] px-2.5 py-1 text-[11px] font-semibold text-[#F2F4F8] hover:border-[#CCFF00] hover:text-[#CCFF00] transition-colors"
+                    >
+                      <Orbit className="h-3 w-3 text-[#FF2A85]" strokeWidth={2} />
+                      <span>{relArtist.name}</span>
+                      {shortGenre && (
+                        <span className="text-[10px] text-[#B8DCE8]">
+                          · {shortGenre}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

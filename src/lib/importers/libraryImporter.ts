@@ -20,6 +20,8 @@ export interface RawLibraryTrackInput {
   title: string;
   artist: string;
   genre?: string;
+  secondaryGenre?: string;
+  collaborators?: string[];
   album?: string;
   durationSec?: number;
   playCount?: number;
@@ -40,14 +42,20 @@ export interface RawLibraryPayload {
 }
 
 const SECTOR_PALETTE = [
-  { color: '#00F5D4', bg: '#0E1726', center: [-17, 5, -9] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [17, -3.5, -7] as [number, number, number] },
-  { color: '#CCFF00', bg: '#141B0B', center: [-8, -10, 13] as [number, number, number] },
-  { color: '#38BDF8', bg: '#0B192C', center: [13, 9.5, 11] as [number, number, number] },
-  { color: '#00F5D4', bg: '#0E1726', center: [0, 12, -16] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [-19, -5.5, 5] as [number, number, number] },
-  { color: '#CCFF00', bg: '#141B0B', center: [19, 5.5, 5] as [number, number, number] },
-  { color: '#38BDF8', bg: '#0B192C', center: [0, -12.5, -13] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [-11, 3.5, -6] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [11, -2.5, -5] as [number, number, number] },
+  { color: '#CCFF00', bg: '#141B0B', center: [-5, -7, 9] as [number, number, number] },
+  { color: '#38BDF8', bg: '#0B192C', center: [9, 6.5, 8] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [0, 8.5, -12] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [-14, -4, 4] as [number, number, number] },
+  { color: '#CCFF00', bg: '#141B0B', center: [14, 4, 4] as [number, number, number] },
+  { color: '#38BDF8', bg: '#0B192C', center: [0, -8.5, -10] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [-8, 9, 5] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [8, -9, 6] as [number, number, number] },
+  { color: '#CCFF00', bg: '#141B0B', center: [-15, 2, -12] as [number, number, number] },
+  { color: '#38BDF8', bg: '#0B192C', center: [15, -2, -12] as [number, number, number] },
+  { color: '#00F5D4', bg: '#0E1726', center: [-4, 1, 14] as [number, number, number] },
+  { color: '#FF2A85', bg: '#1F0C1D', center: [5, -1, -15] as [number, number, number] },
 ];
 
 function hashString(str: string): number {
@@ -276,6 +284,15 @@ export function buildMusicGalaxyFromPayload(
   const songs: SongNode[] = [];
   const links: MusicLink[] = [];
 
+  const artistByNameMap = new Map<string, ArtistNode>();
+  const artistSecondaryGenreMap = new Map<string, string>();
+  const genreByNameMap = new Map<string, GenreNode>();
+  const collaborationEdges: Array<{
+    primaryArtistId: string;
+    songId: string;
+    collaboratorName: string;
+  }> = [];
+
   let genreIdx = 0;
   for (const [, gBucket] of genreBuckets) {
     const palette = SECTOR_PALETTE[genreIdx % SECTOR_PALETTE.length];
@@ -289,17 +306,17 @@ export function buildMusicGalaxyFromPayload(
 
     for (const [, aBucket] of gBucket.artists) {
       const artistId = `artist-${slugify(aBucket.name)}`;
-      const ringIndex = Math.floor(artistIdx / 6);
-      const itemsInRing = Math.min(6, Math.max(1, artistCount - ringIndex * 6));
-      const posInRing = artistIdx % 6;
+      const ringIndex = Math.floor(artistIdx / 7);
+      const itemsInRing = Math.min(7, Math.max(1, artistCount - ringIndex * 7));
+      const posInRing = artistIdx % 7;
       const angle =
         (posInRing / itemsInRing) * Math.PI * 2 +
         genreIdx * 0.75 +
         ringIndex * 0.52;
-      const radius = 5.2 + ringIndex * 3.4 + (artistIdx % 2) * 1.35;
+      const radius = 3.8 + ringIndex * 2.5 + (artistIdx % 2) * 0.95;
       const ax = Number((gx + Math.cos(angle) * radius).toFixed(2));
       const ay = Number(
-        (gy + Math.sin(angle * 1.5 + ringIndex) * (2.6 + ringIndex * 0.9)).toFixed(2)
+        (gy + Math.sin(angle * 1.5 + ringIndex) * (1.8 + ringIndex * 0.65)).toFixed(2)
       );
       const az = Number((gz + Math.sin(angle) * radius).toFixed(2));
 
@@ -332,8 +349,15 @@ export function buildMusicGalaxyFromPayload(
       const firstTrackWithArtistUrl = trackItems.find(
         (t) => t.artistSpotifyUrl || t.spotifyUrl
       );
+      const firstTrackWithSecGenre = trackItems.find((t) => t.secondaryGenre);
+      if (firstTrackWithSecGenre?.secondaryGenre) {
+        artistSecondaryGenreMap.set(
+          artistId,
+          firstTrackWithSecGenre.secondaryGenre.toUpperCase()
+        );
+      }
 
-      artists.push({
+      const artistNode: ArtistNode = {
         id: artistId,
         name: aBucket.name,
         type: 'artist',
@@ -350,7 +374,10 @@ export function buildMusicGalaxyFromPayload(
         spotifyUrl:
           firstTrackWithArtistUrl?.artistSpotifyUrl ||
           firstTrackWithArtistUrl?.spotifyUrl,
-      });
+      };
+
+      artists.push(artistNode);
+      artistByNameMap.set(aBucket.name.toLowerCase(), artistNode);
 
       links.push({
         source: genreId,
@@ -362,12 +389,19 @@ export function buildMusicGalaxyFromPayload(
       trackItems.forEach((t, tIdx) => {
         const songId = `song-${slugify(aBucket.name)}-${slugify(t.title)}-${tIdx}`;
         const sAngle = (tIdx / Math.max(1, trackItems.length)) * Math.PI * 2;
-        const sx = Number((ax + Math.cos(sAngle) * 1.55).toFixed(2));
-        const sy = Number((ay + (tIdx % 2 === 0 ? 0.95 : -0.85)).toFixed(2));
-        const sz = Number((az + Math.sin(sAngle) * 1.55).toFixed(2));
+        const sRadius = 1.45 + Math.floor(tIdx / 6) * 0.65;
+        const sx = Number((ax + Math.cos(sAngle) * sRadius).toFixed(2));
+        const sy = Number((ay + (tIdx % 2 === 0 ? 0.85 : -0.75)).toFixed(2));
+        const sz = Number((az + Math.sin(sAngle) * sRadius).toFixed(2));
         const songAff = Number(
           Math.min(0.99, Math.max(0.6, t.affinity ?? avgAffinity)).toFixed(2)
         );
+
+        const resolvedPreviewUrl =
+          t.previewUrl ||
+          `/api/track-preview?artist=${encodeURIComponent(
+            aBucket.name
+          )}&title=${encodeURIComponent(t.title)}`;
 
         songs.push({
           id: songId,
@@ -379,7 +413,7 @@ export function buildMusicGalaxyFromPayload(
           affinity: songAff,
           duration: t.durationSec || 240,
           position: [sx, sy, sz],
-          previewUrl: t.previewUrl,
+          previewUrl: resolvedPreviewUrl,
           imageUrl: t.imageUrl,
           spotifyUrl: t.spotifyUrl,
         });
@@ -390,6 +424,16 @@ export function buildMusicGalaxyFromPayload(
           strength: songAff,
           type: 'artist-song',
         });
+
+        if (t.collaborators?.length) {
+          t.collaborators.forEach((collabName) => {
+            collaborationEdges.push({
+              primaryArtistId: artistId,
+              songId,
+              collaboratorName: collabName.trim().toLowerCase(),
+            });
+          });
+        }
       });
 
       artistIdx++;
@@ -399,7 +443,7 @@ export function buildMusicGalaxyFromPayload(
       Math.min(0.99, genreAffinitySum / Math.max(1, artistCount)).toFixed(2)
     );
 
-    genres.push({
+    const genreNode: GenreNode = {
       id: genreId,
       name: gBucket.name,
       type: 'genre',
@@ -411,24 +455,77 @@ export function buildMusicGalaxyFromPayload(
       description: `Sector constelar importado desde ${
         payload.profileName || 'biblioteca de usuario'
       } con ${artistCount} artistas en órbita.`,
-    });
+    };
+
+    genres.push(genreNode);
+    genreByNameMap.set(gBucket.name.toUpperCase(), genreNode);
 
     genreIdx++;
   }
 
-  // Create cross-genre bridges between the top artists of adjacent sectors
-  for (let i = 0; i < artists.length - 1; i++) {
-    const a1 = artists[i];
-    const a2 = artists[(i + 2) % artists.length];
-    if (a1.genreId !== a2.genreId) {
-      links.push({
-        source: a1.id,
-        target: a2.id,
-        strength: 0.78,
-        type: 'influence',
-      });
+  const addedEdgeKeys = new Set<string>();
+  const addUniqueInfluenceLink = (source: string, target: string, strength = 0.82) => {
+    if (source === target) return;
+    const key = source < target ? `${source}::${target}` : `${target}::${source}`;
+    if (addedEdgeKeys.has(key)) return;
+    addedEdgeKeys.add(key);
+    links.push({
+      source,
+      target,
+      strength,
+      type: 'influence',
+    });
+  };
+
+  // 1. Galactic Constellation Backbone: link adjacent genre cores so sectors form a connected cosmos
+  for (let i = 0; i < genres.length; i++) {
+    const g1 = genres[i];
+    const g2 = genres[(i + 1) % genres.length];
+    addUniqueInfluenceLink(g1.id, g2.id, 0.85);
+    if (genres.length > 3) {
+      const g3 = genres[(i + 2) % genres.length];
+      addUniqueInfluenceLink(g1.id, g3.id, 0.74);
     }
   }
+
+  // 2. Real Song & Artist Collaborations (e.g. featured artists across same or different genres)
+  for (const edge of collaborationEdges) {
+    const collabArtist = artistByNameMap.get(edge.collaboratorName);
+    if (collabArtist && collabArtist.id !== edge.primaryArtistId) {
+      addUniqueInfluenceLink(edge.primaryArtistId, collabArtist.id, 0.94);
+      addUniqueInfluenceLink(edge.songId, collabArtist.id, 0.88);
+    }
+  }
+
+  // 3. Cross-Genre Secondary Style Bridges: connect artists to their secondary genre & peers
+  const artistsByGenreId = new Map<string, ArtistNode[]>();
+  artists.forEach((a) => {
+    const list = artistsByGenreId.get(a.genreId) || [];
+    list.push(a);
+    artistsByGenreId.set(a.genreId, list);
+  });
+
+  artists.forEach((artist, idx) => {
+    const secGenreName = artistSecondaryGenreMap.get(artist.id);
+    const secGenreNode = secGenreName ? genreByNameMap.get(secGenreName) : undefined;
+
+    if (secGenreNode && secGenreNode.id !== artist.genreId) {
+      const peerList = artistsByGenreId.get(secGenreNode.id) || [];
+      if (peerList.length > 0) {
+        const peer = peerList[idx % peerList.length];
+        addUniqueInfluenceLink(artist.id, peer.id, 0.84);
+      }
+      // Also link top-affinity artists directly to their secondary genre hub
+      if (artist.affinity >= 0.86) {
+        addUniqueInfluenceLink(artist.id, secGenreNode.id, 0.79);
+      }
+    } else if (artists.length > 2) {
+      const fallbackPeer = artists[(idx + 3) % artists.length];
+      if (fallbackPeer.genreId !== artist.genreId) {
+        addUniqueInfluenceLink(artist.id, fallbackPeer.id, 0.76);
+      }
+    }
+  });
 
   return { genres, artists, songs, links };
 }

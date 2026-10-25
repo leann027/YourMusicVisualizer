@@ -348,10 +348,15 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
   }
 
-  // 4. Enrich all 50 tracks with canonical musical genres & fallback 30s audio previews
+  // 4. Enrich all tracks with canonical musical genres, secondary genres & on-demand 30s audio previews
   const enrichmentMap = new Map<
     string,
-    { genre: string; rawGenre: string; previewUrl?: string }
+    {
+      genre: string;
+      secondaryGenre?: string;
+      rawGenre: string;
+      previewUrl?: string;
+    }
   >();
 
   try {
@@ -365,6 +370,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
         title: item.track.name,
         artist: primaryArtist?.name || 'Artista',
         existingGenre: spDetail?.genres?.[0] || '',
+        existingSecondaryGenre: spDetail?.genres?.[1] || '',
         existingPreviewUrl: item.track.preview_url || undefined,
       };
     });
@@ -380,6 +386,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
         results?: {
           key: string;
           genre: string;
+          secondaryGenre?: string;
           rawGenre: string;
           previewUrl?: string;
         }[];
@@ -412,7 +419,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
     const candidateGenre = (
       enriched?.genre ||
       details?.genres?.[0] ||
-      'INDIE & ALTERNATIVO'
+      'ROCK CLÁSICO & PSICODELIA'
     ).toUpperCase();
 
     if (!artistPrimaryGenre.has(primaryArtist)) {
@@ -426,15 +433,19 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
   });
 
-  // Keep up to 8 distinct musical genre constellations so the galaxy is rich & well-separated
+  // Keep up to 14 distinct musical genre constellations so large 500-song galaxies span a rich spectrum
   const topGenres = Array.from(genreFrequency.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
+    .slice(0, 14)
     .map(([g]) => g);
 
   const rawTracks: RawLibraryTrackInput[] = validItems.map((item, idx) => {
     const track = item.track;
     const primaryArtist = track.artists[0];
+    const collaborators = track.artists
+      .slice(1)
+      .map((a) => a.name)
+      .filter(Boolean);
     const artistDetail = primaryArtist?.id
       ? artistDetailsMap.get(primaryArtist.id)
       : undefined;
@@ -445,7 +456,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
     const artistGenre =
       artistPrimaryGenre.get(primaryArtist.name) ||
       enriched?.genre ||
-      'INDIE & ALTERNATIVO';
+      'ROCK CLÁSICO & PSICODELIA';
 
     const matchedGenre = topGenres.includes(artistGenre)
       ? artistGenre
@@ -473,10 +484,20 @@ export async function fetchSpotifyLikedSongsGalaxy(
       artistDetail?.genres?.slice(0, 2).join(', ') ||
       matchedGenre;
 
+    const fallbackStreamUrl = `/api/track-preview?artist=${encodeURIComponent(
+      primaryArtist.name
+    )}&title=${encodeURIComponent(track.name)}${
+      track.preview_url
+        ? `&fallbackUrl=${encodeURIComponent(track.preview_url)}`
+        : ''
+    }`;
+
     return {
       title: track.name,
       artist: primaryArtist.name,
       genre: matchedGenre,
+      secondaryGenre: enriched?.secondaryGenre,
+      collaborators,
       album: albumLabel,
       durationSec: Math.max(1, Math.round(track.duration_ms / 1000)),
       playCount: likedCountForArtist * 28,
@@ -485,8 +506,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
       bio: `Estrella de tus "Me gusta" en Spotify (${likedCountForArtist} ${
         likedCountForArtist === 1 ? 'pista guardada' : 'pistas guardadas'
       }). Estilo: ${rawStyleLabel}.`,
-      previewUrl:
-        track.preview_url || enriched?.previewUrl || undefined,
+      previewUrl: enriched?.previewUrl || fallbackStreamUrl,
       imageUrl: track.album.images?.[0]?.url,
       artistImageUrl:
         artistDetail?.images?.[0]?.url || track.album.images?.[0]?.url,
