@@ -27,18 +27,18 @@ const STORAGE_KEYS = {
   TRACK_LIMIT: 'ymv_spotify_track_limit',
 };
 
-export const SPOTIFY_TRACK_LIMIT_OPTIONS = [50, 150, 300, 500] as const;
+export const SPOTIFY_TRACK_LIMIT_OPTIONS = [50, 150, 300, 500, 1000, 2000, 3000] as const;
 
 export function getStoredTrackLimit(): number {
   if (typeof window === 'undefined') return 150;
   const raw = Number(localStorage.getItem(STORAGE_KEYS.TRACK_LIMIT) || '150');
-  if (raw >= 50 && raw <= 500) return raw;
+  if (raw >= 50 && raw <= 3000) return raw;
   return 150;
 }
 
 export function setStoredTrackLimit(limit: number): void {
   if (typeof window === 'undefined') return;
-  const clamped = Math.max(50, Math.min(500, Math.round(limit)));
+  const clamped = Math.max(50, Math.min(3000, Math.round(limit)));
   localStorage.setItem(STORAGE_KEYS.TRACK_LIMIT, String(clamped));
 }
 
@@ -278,7 +278,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
   const totalAvailable = firstPageJson.total ?? (firstPageJson.items?.length || 0);
   const allItems: SpotifyApiSavedTrackItem[] = [...(firstPageJson.items || [])];
 
-  // Fetch additional pages of 50 tracks in parallel if requestedLimit > 50 and user has more tracks
+  // Fetch additional pages of 50 tracks in rate-limit safe concurrent chunks (6 pages at a time)
   const targetTotal = Math.min(maxTracks, totalAvailable);
   if (targetTotal > 50) {
     const offsets: number[] = [];
@@ -286,23 +286,27 @@ export async function fetchSpotifyLikedSongsGalaxy(
       offsets.push(offset);
     }
 
-    const pageResponses = await Promise.allSettled(
-      offsets.map(async (offset) => {
-        const res = await fetch(
-          `https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`,
-          { headers }
-        );
-        if (!res.ok) return [];
-        const data = (await res.json()) as { items?: SpotifyApiSavedTrackItem[] };
-        return data.items || [];
-      })
-    );
+    const chunkSize = 6;
+    for (let i = 0; i < offsets.length; i += chunkSize) {
+      const chunk = offsets.slice(i, i + chunkSize);
+      const chunkResponses = await Promise.allSettled(
+        chunk.map(async (offset) => {
+          const res = await fetch(
+            `https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`,
+            { headers }
+          );
+          if (!res.ok) return [];
+          const data = (await res.json()) as { items?: SpotifyApiSavedTrackItem[] };
+          return data.items || [];
+        })
+      );
 
-    pageResponses.forEach((result) => {
-      if (result.status === 'fulfilled' && result.value.length > 0) {
-        allItems.push(...result.value);
-      }
-    });
+      chunkResponses.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value.length > 0) {
+          allItems.push(...result.value);
+        }
+      });
+    }
   }
 
   const validItems = allItems

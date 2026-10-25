@@ -45,7 +45,7 @@ export const CameraFlightController: React.FC = () => {
     };
   }, [setFlightState]);
 
-  // Story 1: Cinematic Intro Warp-in Sequence upon entering the galaxy
+  // Story 1: Cinematic Intro Warp-in Sequence upon entering the galaxy (Helical / Orbital Descent)
   useEffect(() => {
     const controls = controlsRef.current;
     if (!controls) return;
@@ -59,25 +59,36 @@ export const CameraFlightController: React.FC = () => {
       return;
     }
 
-    // Start in deep outer space
-    controls.setLookAt(0, 78, 220, 0, 0, 0, false);
-    setFlightState(true, 2400);
+    // Start in deep outer cosmos with high orbital vantage angle
+    const startRadius = 245;
+    const startAngle = 0.92;
+    const startY = 112;
+    const initialX = Math.sin(startAngle) * startRadius;
+    const initialZ = Math.cos(startAngle) * startRadius;
+
+    controls.setLookAt(initialX, startY, initialZ, 0, 6, 0, false);
+    setFlightState(true, 4800);
 
     const proxy = { t: 0 };
     const introTween = gsap.to(proxy, {
       t: 1,
-      duration: 2.4,
-      delay: 0.15,
+      duration: 4.8,
+      delay: 0.1,
       ease: 'power3.out',
       onUpdate: () => {
         const p = proxy.t;
-        const curEyeX = THREE.MathUtils.lerp(0, 0, p);
-        const curEyeY = THREE.MathUtils.lerp(78, 24, p);
-        const curEyeZ = THREE.MathUtils.lerp(220, 72, p);
-        controls.setLookAt(curEyeX, curEyeY, curEyeZ, 0, 0, 0, false);
+        // Helical spiral curve easing into the galactic observation plane
+        const curY = THREE.MathUtils.lerp(startY, 24, p);
+        const curRadius = THREE.MathUtils.lerp(startRadius, 72, p);
+        const curAngle = startAngle * (1 - p);
+        const curEyeX = Math.sin(curAngle) * curRadius;
+        const curEyeZ = Math.cos(curAngle) * curRadius;
+        const curTargetY = THREE.MathUtils.lerp(6, 0, p);
+
+        controls.setLookAt(curEyeX, curY, curEyeZ, 0, curTargetY, 0, false);
       },
       onComplete: () => {
-        setFlightState(false, 2400);
+        setFlightState(false, 4800);
       },
     });
 

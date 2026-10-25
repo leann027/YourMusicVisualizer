@@ -3,7 +3,6 @@
 import React, { useId, useMemo, useState } from 'react';
 import {
   Compass,
-  Network,
   Orbit,
   Sparkles,
   Sun,
@@ -43,7 +42,6 @@ export const TelemetryHUD: React.FC = () => {
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
   const bloomEnabled = useGalaxyStore((s) => s.bloomEnabled);
-  const linksVisible = useGalaxyStore((s) => s.linksVisible);
 
   const selectSector = useGalaxyStore((s) => s.selectSector);
   const resetToGalaxyView = useGalaxyStore((s) => s.resetToGalaxyView);
@@ -52,7 +50,6 @@ export const TelemetryHUD: React.FC = () => {
   const setStellarBrightness = useGalaxyStore((s) => s.setStellarBrightness);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
   const toggleBloom = useGalaxyStore((s) => s.toggleBloom);
-  const toggleLinksVisible = useGalaxyStore((s) => s.toggleLinksVisible);
 
   const activeSectorGenre = useMemo(() => {
     return data.genres.find((g) => g.id === selectedSectorId) || null;
@@ -147,9 +144,9 @@ export const TelemetryHUD: React.FC = () => {
   }, [data, minAffinityFilter]);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-between p-4 md:p-6 text-[#F2F4F8] font-mono select-none">
+    <div className="pointer-events-none fixed inset-0 z-20 text-[#F2F4F8] font-mono select-none">
       {/* Top Floating Glass Header + Stellar Search Combobox */}
-      <header className="pointer-events-auto flex flex-wrap items-center justify-between gap-3 border border-[#00F5D4]/25 bg-[#080A14]/80 backdrop-blur-xl px-4 md:px-5 py-2 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.6)] transition-all duration-300">
+      <header className="pointer-events-auto fixed top-3 md:top-4 left-3 md:left-6 right-3 md:right-6 z-30 flex flex-wrap items-center justify-between gap-3 border border-[#00F5D4]/25 bg-[#080A14]/85 backdrop-blur-xl px-4 md:px-5 py-2 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.6)]">
         <div className="flex items-center gap-2.5">
           <div className="relative flex items-center justify-center">
             <Orbit className="h-5 w-5 text-[#00F5D4] shrink-0 drop-shadow-[0_0_8px_rgba(0,245,212,0.6)]" strokeWidth={2} />
@@ -187,13 +184,11 @@ export const TelemetryHUD: React.FC = () => {
         </div>
       </header>
 
-      {/* Middle Workspace: Left Floating Glass Capsules & Right Archival Record-Sleeve Card */}
-      <div className="my-auto flex flex-col md:flex-row items-start justify-between gap-4 pointer-events-none py-3">
-        {/* Left Floating Capsule Controls: Constellations Drawer & Cosmic Filters */}
-        <nav
-          aria-label="Controles estelares flotantes"
-          className="pointer-events-auto flex flex-col gap-2.5 z-30"
-        >
+      {/* Left Floating Capsule Controls: Constellations Drawer & Cosmic Filters */}
+      <nav
+        aria-label="Controles estelares flotantes"
+        className="pointer-events-auto fixed top-18 md:top-20 left-3 md:left-6 z-30 flex flex-col gap-2.5"
+      >
           {/* Constellations Capsule & Drawer */}
           <div className="relative">
             <button
@@ -440,10 +435,9 @@ export const TelemetryHUD: React.FC = () => {
 
         {/* Story 4: Right Active Star Inspection Placard (Archival Record-Sleeve Aesthetic) */}
         <ArtistSleeveCard />
-      </div>
 
       {/* Bottom Floating Glass Dock */}
-      <footer className="pointer-events-auto flex flex-wrap items-center justify-between gap-2.5 border border-[#00F5D4]/25 bg-[#080A14]/80 backdrop-blur-xl px-4 md:px-5 py-2 rounded-2xl text-xs text-[#B8DCE8] shadow-[0_12px_40px_rgba(0,0,0,0.65)]">
+      <footer className="pointer-events-auto fixed bottom-3 md:bottom-4 left-3 md:left-6 right-3 md:right-6 z-30 flex flex-wrap items-center justify-between gap-2.5 border border-[#00F5D4]/25 bg-[#080A14]/85 backdrop-blur-xl px-4 md:px-5 py-2 rounded-2xl text-xs text-[#B8DCE8] shadow-[0_12px_40px_rgba(0,0,0,0.65)]">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -492,22 +486,6 @@ export const TelemetryHUD: React.FC = () => {
                 <span>Pulso FFT</span>
               </>
             )}
-          </button>
-
-          {/* Story 5: Constellation Links Toggle */}
-          <button
-            type="button"
-            aria-pressed={linksVisible}
-            onClick={toggleLinksVisible}
-            aria-label={linksVisible ? 'Ocultar líneas de constelación' : 'Mostrar líneas de constelación'}
-            className={`min-h-8 flex items-center gap-1.5 rounded-xl border px-3 py-1 text-xs font-semibold transition-all duration-150 active:scale-95 ${
-              linksVisible
-                ? 'border-[#00F5D4] bg-[#131826] text-[#00F5D4] shadow-[0_0_12px_rgba(0,245,212,0.25)]'
-                : 'border-[#00F5D4]/30 bg-[#050508]/80 text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8]'
-            }`}
-          >
-            <Network className={`h-3.5 w-3.5 ${linksVisible ? 'text-[#00F5D4]' : 'text-[#B8DCE8]'}`} strokeWidth={2} />
-            <span>Líneas {linksVisible ? 'ON' : 'OFF'}</span>
           </button>
 
           {/* Bloom Post-Processing Toggle */}

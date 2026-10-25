@@ -229,7 +229,7 @@ export const DataSourceModal: React.FC = () => {
           <div
             role="group"
             aria-label="Cantidad de canciones de Spotify a analizar"
-            className="grid grid-cols-4 gap-1.5"
+            className="grid grid-cols-4 sm:grid-cols-7 gap-1.5"
           >
             {SPOTIFY_TRACK_LIMIT_OPTIONS.map((limit) => {
               const active = spotifyTrackLimit === limit;

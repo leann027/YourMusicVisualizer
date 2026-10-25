@@ -76,7 +76,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   isAudioPlaying: false,
   bloomEnabled: true,
   linksVisible: true,
-  stellarBrightness: 0.65,
+  stellarBrightness: 0.25,
   perfStats: {
     fps: 60,
     drawCalls: 0,
@@ -202,6 +202,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       selectedNode: mockMusicGalaxy.artists[0],
       selectedSectorId: 'genre-electro',
       cameraMode: 'galaxy',
+      stellarBrightness: 0.25,
       minAffinityFilter: 0,
       searchQuery: '',
       playingTrackId: null,

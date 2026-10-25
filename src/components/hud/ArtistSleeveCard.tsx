@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   ArrowUpRight,
@@ -184,6 +184,17 @@ export const ArtistSleeveCard: React.FC = () => {
   const toggleSleeveCollapsed = useGalaxyStore((s) => s.toggleSleeveCollapsed);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
 
+  const [isDismissed, setIsDismissed] = useState(false);
+  const prevSelectedNodeIdRef = useRef<string | null>(null);
+
+  // Automatically reopen sleeve card when the user clicks or focuses a different musical node
+  useEffect(() => {
+    if (selectedNode && selectedNode.id !== prevSelectedNodeIdRef.current) {
+      prevSelectedNodeIdRef.current = selectedNode.id;
+      setIsDismissed(false);
+    }
+  }, [selectedNode]);
+
   const barRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
   // Animate the 16 FFT spectrum bars directly via DOM refs without triggering React re-renders
@@ -312,10 +323,27 @@ export const ArtistSleeveCard: React.FC = () => {
   const nodeTitle =
     'name' in selectedNode ? selectedNode.name : selectedNode.title;
 
+  if (isDismissed) {
+    return (
+      <div className="pointer-events-auto fixed top-18 md:top-20 right-3 md:right-6 z-30">
+        <button
+          type="button"
+          onClick={() => setIsDismissed(false)}
+          aria-label={`Reabrir ficha discográfica de ${nodeTitle}`}
+          className="min-h-9 flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#FF2A85]/40 bg-[#080A14]/90 backdrop-blur-xl text-xs font-semibold text-[#F2F4F8] shadow-[0_8px_24px_rgba(0,0,0,0.5)] hover:border-[#FF2A85] hover:shadow-[0_0_12px_rgba(255,42,133,0.3)] transition-all active:scale-95"
+        >
+          <span className="h-2 w-2 rounded-full bg-[#FF2A85] animate-pulse" />
+          <span className="truncate max-w-[130px]">{nodeTitle}</span>
+          <span className="text-[10px] text-[#00F5D4] font-mono">Ficha ▾</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <aside
       aria-label="Ficha discográfica de inspección estelar"
-      className="pointer-events-auto w-full sm:w-80 md:w-84 max-h-[calc(100dvh-9.5rem)] overflow-y-auto rounded-2xl border border-[#FF2A85]/35 bg-[#080A14]/80 backdrop-blur-xl p-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.7)] hud-transition"
+      className="pointer-events-auto fixed top-18 md:top-20 right-3 md:right-6 z-30 w-full sm:w-80 md:w-84 max-h-[calc(100dvh-10.5rem)] overflow-y-auto rounded-2xl border border-[#FF2A85]/35 bg-[#080A14]/85 backdrop-blur-xl p-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.7)] hud-transition"
     >
       {/* Heading row with title, minimize and close button */}
       <div className="flex items-start justify-between gap-2">
@@ -343,7 +371,7 @@ export const ArtistSleeveCard: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => selectNode(null)}
+            onClick={() => setIsDismissed(true)}
             aria-label="Cerrar ficha para despejar la vista estelar"
             className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#FF2A85]/40 bg-[#050508]/80 text-[#FF2A85] hover:bg-[#FF2A85]/20 hover:border-[#FF2A85] transition-all duration-150 active:scale-95"
           >
