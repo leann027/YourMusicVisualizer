@@ -3,6 +3,10 @@
 :root {
   --background: #050508;
   --foreground: #F2F4F8;
+  --accent-cyan: #00F5D4;
+  --accent-magenta: #FF2A85;
+  --accent-lime: #CCFF00;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @theme inline {
@@ -16,8 +20,52 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-jetbrains-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  caret-color: var(--accent-cyan);
   margin: 0;
   padding: 0;
   overflow: hidden;
   user-select: none;
+}
+
+::selection {
+  background-color: var(--accent-cyan);
+  color: #050508;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Custom scrollbar themed from the committed world */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050508;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 245, 212, 0.35);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+}
+
+/* Case-by-case reduced motion rules */
+.hud-transition {
+  transition:
+    transform 220ms var(--ease-out-expo),
+    opacity 220ms var(--ease-out-expo),
+    border-color 150ms ease-out;
+  @media (prefers-reduced-motion: reduce) {
+    transition:
+      opacity 120ms ease-out,
+      border-color 120ms ease-out;
+  }
 }

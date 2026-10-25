@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { OrbitControls, Stars } from '@react-three/drei';
+import { Stars } from '@react-three/drei';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { ConstellationLinks } from './ConstellationLinks';
+import { CameraFlightController } from './CameraFlightController';
 
 export const GalaxyScene: React.FC = () => {
   const data = useGalaxyStore((s) => s.data);
@@ -18,24 +19,18 @@ export const GalaxyScene: React.FC = () => {
 
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.4} />
-      <pointLight position={[0, 20, 10]} intensity={1.5} color="#F2F4F8" />
-      <pointLight position={[-15, -10, -10]} intensity={0.8} color="#00F5D4" />
-      <pointLight position={[15, 10, -15]} intensity={0.8} color="#FF2A85" />
-
-      {/* Atmospheric Starfield Backdrop */}
+      {/* Atmospheric Starfield Backdrop (1 draw call) */}
       <Stars
-        radius={90}
-        depth={60}
-        count={3500}
-        factor={3.5}
+        radius={95}
+        depth={55}
+        count={1600}
+        factor={3.2}
         saturation={0.2}
         fade
-        speed={0.8}
+        speed={0.45}
       />
 
-      {/* Relational Filaments between Nodes */}
+      {/* Relational Filaments between Nodes (1 draw call) */}
       <ConstellationLinks />
 
       {/* Genre Core Stars (Supergiants) */}
@@ -43,7 +38,7 @@ export const GalaxyScene: React.FC = () => {
         <StarNodeMesh key={genre.id} node={genre} genreColor={genre.color} />
       ))}
 
-      {/* Artist Stars (Scaled by song count & affinity) */}
+      {/* Artist Stars (Scaled logarithmically by song count & non-linearly by affinity) */}
       {data.artists.map((artist) => (
         <StarNodeMesh
           key={artist.id}
@@ -61,16 +56,8 @@ export const GalaxyScene: React.FC = () => {
         />
       ))}
 
-      {/* Smooth Orbit & Exploration Controls */}
-      <OrbitControls
-        enableDamping
-        dampingFactor={0.06}
-        rotateSpeed={0.7}
-        zoomSpeed={1.0}
-        minDistance={6}
-        maxDistance={90}
-        makeDefault
-      />
+      {/* Calibrated GSAP + CameraControls Trajectory Controller */}
+      <CameraFlightController />
     </>
   );
 };

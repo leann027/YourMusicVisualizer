@@ -23,7 +23,7 @@ export const MusicVisualizerCanvas: React.FC = () => {
     <div className="relative w-full h-[100dvh] bg-[#050508] overflow-hidden select-none">
       <Canvas
         camera={{ position: [0, 8, 32], fov: 55, near: 0.1, far: 500 }}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       >
         <color attach="background" args={['#050508']} />
