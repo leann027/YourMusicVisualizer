@@ -14,7 +14,7 @@ interface StarNodeMeshProps {
 }
 
 // Shared unit geometries across all stars to minimize WebGL memory & state switches
-const UNIT_SPHERE_GEOMETRY = new THREE.SphereGeometry(1, 18, 18);
+const UNIT_SPHERE_GEOMETRY = new THREE.SphereGeometry(1, 16, 16);
 const UNIT_RING_GEOMETRY = new THREE.RingGeometry(1.42, 1.82, 28);
 
 export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) => {
@@ -22,31 +22,21 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   const meshRef = useRef<THREE.Mesh>(null);
   const coronaRef = useRef<THREE.Mesh>(null);
 
-  const data = useGalaxyStore((s) => s.data);
-  const selectedNode = useGalaxyStore((s) => s.selectedNode);
-  const hoveredNode = useGalaxyStore((s) => s.hoveredNode);
+  // Performance-critical: Selective subscriptions prevent mass re-renders across 100+ stars
+  const isSelected = useGalaxyStore((s) => s.selectedNode?.id === node.id);
+  const isHovered = useGalaxyStore((s) => s.hoveredNode?.id === node.id);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
-  const cameraDistance = useGalaxyStore((s) => s.cameraDistance);
   const minAffinityFilter = useGalaxyStore((s) => s.minAffinityFilter);
-  const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
-  const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
+  const isPlayingNode = useGalaxyStore(
+    (s) => s.isAudioPlaying && s.playingTrackId === node.id
+  );
   const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
   const selectNode = useGalaxyStore((s) => s.selectNode);
   const hoverNode = useGalaxyStore((s) => s.hoverNode);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
 
-  const isSelected = selectedNode?.id === node.id;
-  const isHovered = hoveredNode?.id === node.id;
-  const isPlayingNode =
-    isAudioPlaying &&
-    (playingTrackId === node.id ||
-      (node.type === 'artist' &&
-        selectedNode?.type === 'song' &&
-        selectedNode.artistId === node.id &&
-        playingTrackId === selectedNode.id));
   const isFilteredOut = node.affinity < minAffinityFilter;
-
   const songCount = 'songCount' in node ? node.songCount : 1;
   const metrics = useMemo(() => calculateStarVisualMetrics(node), [node]);
 
@@ -68,13 +58,19 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
+  // Calibrated invisible hit sphere preventing overlap and mis-clicks during camera orbits
+  const hitScale = useMemo(() => {
+    if (node.type === 'genre') return Math.max(1.1, metrics.coreRadius * 1.35);
+    if (node.type === 'artist') return Math.max(0.48, metrics.coreRadius * 1.4);
+    return Math.max(0.24, metrics.coreRadius * 1.45);
+  }, [node.type, metrics.coreRadius]);
+
   // Calibrated stellar respiration, orbital drift & FFT audio-reactive corona shimmer
   useFrame((state) => {
     if (isFilteredOut) return;
     const t = state.clock.getElapsedTime();
-    const fft = webAudioEngine.sampleFFT();
 
-    // Story 2: Gentle celestial drift & planetary undulating motion
+    // Gentle celestial drift & planetary undulating motion
     if (!prefersReducedMotion && groupRef.current) {
       const seed = node.position[0] * 3.1 + node.position[2] * 7.3;
       if (node.type === 'song') {
@@ -96,15 +92,18 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
 
     if (prefersReducedMotion) return;
 
+    // Performance optimization: only compute dynamic scale animations for active/hovered/playing stars
+    const shouldAnimate = isPlayingNode || isSelected || isHovered;
+    if (!shouldAnimate) return;
+
+    const fft = webAudioEngine.sampleFFT();
     const audioKick =
       fft.isPlaying && (isPlayingNode || isSelected)
         ? fft.subBass * 0.42 + fft.energy * 0.25
-        : fft.isPlaying
-        ? fft.subBass * 0.08 * node.affinity
         : 0;
 
     if (meshRef.current) {
-      const amp = isSelected ? 0.12 : isHovered ? 0.08 : 0.035 * node.affinity;
+      const amp = isSelected ? 0.12 : 0.08;
       const s =
         metrics.coreRadius *
         (1 +
@@ -117,12 +116,10 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       const coronaAudioBoost =
         fft.isPlaying && (isPlayingNode || isSelected)
           ? fft.midHarmonic * 0.65 + fft.highShimmer * 0.45
-          : fft.isPlaying
-          ? fft.energy * 0.14
           : 0;
       const coronaScale =
         metrics.coronaRadius *
-        ((isSelected ? 1.25 : isHovered ? 1.12 : 1.0) +
+        ((isSelected ? 1.25 : 1.12) +
           Math.cos(t * (metrics.pulseFrequency * 0.7) + node.position[1]) * 0.05 +
           coronaAudioBoost);
       coronaRef.current.scale.setScalar(coronaScale);
@@ -137,8 +134,6 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     const nodeSectorId = node.type === 'genre' ? node.id : node.genreId;
 
     if (cameraMode === 'galaxy') {
-      // In galaxy overview, ONLY render Genre Constellation badges.
-      // This leaves the galactic plane clean and makes distant viewing clear and uncluttered.
       return node.type === 'genre';
     }
 
@@ -150,14 +145,10 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     }
 
     // 'artist' or 'song' mode: show active sector's artists and the selected artist's songs
-    if (node.type === 'song') {
-      return (
-        selectedNode?.id === node.artistId ||
-        (selectedNode?.type === 'song' && selectedNode.artistId === node.artistId)
-      );
-    }
-
-    return nodeSectorId === selectedSectorId && node.type === 'artist';
+    return (
+      nodeSectorId === selectedSectorId &&
+      (node.type === 'genre' || node.type === 'artist' || isSelected)
+    );
   }, [
     isFilteredOut,
     isSelected,
@@ -165,10 +156,15 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     node,
     cameraMode,
     selectedSectorId,
-    selectedNode,
   ]);
 
-  const handleSelect = (e?: React.MouseEvent | THREE.Event | { stopPropagation?: () => void }) => {
+  const handleSelect = (
+    e?: React.MouseEvent | THREE.Event | { stopPropagation?: () => void; delta?: number }
+  ) => {
+    // Crucial UX guard: If user was dragging / orbiting the camera (delta > 4px), ignore click!
+    if (e && 'delta' in e && typeof e.delta === 'number' && e.delta > 4) {
+      return;
+    }
     if (e && 'stopPropagation' in e && typeof e.stopPropagation === 'function') {
       e.stopPropagation();
     }
@@ -181,13 +177,14 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         node.previewUrl
       );
       setAudioPlayback(node.id, true);
-    } else if (isAudioPlaying) {
+    } else if (useGalaxyStore.getState().isAudioPlaying) {
+      const allSongs = useGalaxyStore.getState().data.songs;
       const matchSong =
         node.type === 'artist'
-          ? data.songs.find((s) => s.artistId === node.id && s.previewUrl) ||
-            data.songs.find((s) => s.artistId === node.id)
-          : data.songs.find((s) => s.genreId === node.id && s.previewUrl) ||
-            data.songs.find((s) => s.genreId === node.id);
+          ? allSongs.find((s) => s.artistId === node.id && s.previewUrl) ||
+            allSongs.find((s) => s.artistId === node.id)
+          : allSongs.find((s) => s.genreId === node.id && s.previewUrl) ||
+            allSongs.find((s) => s.genreId === node.id);
       if (matchSong) {
         webAudioEngine.playTrack(
           matchSong.id,
@@ -205,9 +202,9 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
 
   return (
     <group ref={groupRef} position={node.position} visible={!isFilteredOut}>
-      {/* Invisible Expanded Raycast Hit Sphere for effortless clicking from any distance */}
+      {/* Invisible Raycast Hit Sphere calibrated to prevent mis-clicks during camera orbits */}
       <mesh
-        scale={Math.max(1.8, metrics.coreRadius * 2.6)}
+        scale={hitScale}
         onClick={handleSelect}
         onPointerOver={(e) => {
           e.stopPropagation();
@@ -284,19 +281,16 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         <meshBasicMaterial color={coreColor} />
       </mesh>
 
-      {/* Story 3: Distance-scaled interactive DOM label with direct click-to-select */}
-      <Html
-        key={`star-label-${node.id}`}
-        position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.55 : 0.3), 0]}
-        center
-        distanceFactor={node.type === 'genre' ? 28 : 20}
-        zIndexRange={[1, 5]}
-        style={{
-          display: shouldShowLabel ? 'block' : 'none',
-          pointerEvents: shouldShowLabel ? 'auto' : 'none',
-        }}
-        className="select-none"
-      >
+      {/* Performance & UX optimization: only mount Drei <Html> when label is visible */}
+      {shouldShowLabel && (
+        <Html
+          key={`star-label-${node.id}`}
+          position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.55 : 0.3), 0]}
+          center
+          distanceFactor={node.type === 'genre' ? 28 : 20}
+          zIndexRange={[1, 5]}
+          className="select-none pointer-events-auto"
+        >
           <div
             role="button"
             tabIndex={0}
@@ -334,6 +328,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             )}
           </div>
         </Html>
+      )}
     </group>
   );
 };

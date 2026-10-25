@@ -25,6 +25,15 @@ export const MusicVisualizerCanvas: React.FC = () => {
         camera={{ position: [0, 8, 32], fov: 55, near: 0.1, far: 500 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+        raycaster={{
+          params: {
+            Points: { threshold: 0.15 },
+            Line: { threshold: 1 },
+            LOD: {},
+            Sprite: {},
+            Mesh: {},
+          },
+        }}
       >
         <color attach="background" args={['#050508']} />
         <GalaxyScene />

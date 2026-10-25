@@ -37,6 +37,7 @@ class WebAudioEngine {
   private currentTrackId: string | null = null;
   private playing = false;
   private listeners = new Set<() => void>();
+  private lastSampleTimestamp = 0;
 
   private currentFrame: AudioFFTFrame = {
     isPlaying: false,
@@ -355,6 +356,13 @@ class WebAudioEngine {
    * Safe to call inside a 60 FPS `useFrame` loop.
    */
   public sampleFFT(): AudioFFTFrame {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    // Cache sampled frame if called multiple times within the same animation frame (~10ms)
+    if (now - this.lastSampleTimestamp < 10 && this.lastSampleTimestamp > 0) {
+      return this.currentFrame;
+    }
+    this.lastSampleTimestamp = now;
+
     if (!this.playing || !this.analyser) {
       // Smooth decay to zero when paused
       for (let i = 0; i < 24; i++) {

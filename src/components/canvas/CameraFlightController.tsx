@@ -145,22 +145,24 @@ export const CameraFlightController: React.FC = () => {
     }
 
     const travelDistance = startEye.distanceTo(endEye);
+    if (travelDistance < 0.25) return;
+
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Calibrated duration: 520ms for local hops within a sector up to 920ms across the galaxy
+    // Calibrated duration: 520ms for local hops within a sector up to 880ms across the galaxy
     const durationSec = prefersReducedMotion
       ? 0.16
-      : Math.min(0.92, Math.max(0.52, 0.48 + travelDistance * 0.009));
+      : Math.min(0.88, Math.max(0.50, 0.46 + travelDistance * 0.008));
 
-    // Story 5: Parabolic swooping altitude & orbital banking so cross-galaxy flights arc cleanly over constellations
+    // Parabolic swooping altitude & orbital banking so cross-galaxy flights arc cleanly over constellations
     const arcLift = prefersReducedMotion
       ? 0
-      : Math.min(14, Math.max(3.2, travelDistance * 0.2));
+      : Math.min(10, Math.max(2.2, travelDistance * 0.14));
     const lateralSway = prefersReducedMotion
       ? 0
-      : Math.min(6.5, travelDistance * 0.08);
+      : Math.min(4.5, travelDistance * 0.05);
 
     const proxy = { t: 0 };
     const durationMs = Math.round(durationSec * 1000);
@@ -169,7 +171,7 @@ export const CameraFlightController: React.FC = () => {
     tweenRef.current = gsap.to(proxy, {
       t: 1,
       duration: durationSec,
-      ease: prefersReducedMotion ? 'power2.out' : 'power3.out',
+      ease: 'power2.out',
       onUpdate: () => {
         const p = proxy.t;
         const bellCurve = 4 * p * (1 - p); // 0 at start, 1.0 at midpoint, 0 at end
@@ -240,13 +242,13 @@ export const CameraFlightController: React.FC = () => {
     <CameraControls
       ref={controlsRef}
       makeDefault
-      minDistance={2.8}
-      maxDistance={150}
-      smoothTime={0.18}
-      draggingSmoothTime={0.08}
-      azimuthRotateSpeed={0.65}
-      polarRotateSpeed={0.65}
-      dollySpeed={0.9}
+      minDistance={3.2}
+      maxDistance={140}
+      smoothTime={0.25}
+      draggingSmoothTime={0.12}
+      azimuthRotateSpeed={0.55}
+      polarRotateSpeed={0.55}
+      dollySpeed={0.8}
     />
   );
 };
