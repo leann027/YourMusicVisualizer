@@ -13,6 +13,7 @@ import {
   Pause,
   Play,
   Radio,
+  X,
 } from 'lucide-react';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
@@ -65,7 +66,7 @@ const ArchivalStudioPortrait: React.FC<ArchivalPortraitProps> = ({
     <div
       role="img"
       aria-label={`Retrato de archivo discográfico de ${artist.name}, catálogo ${artist.catalogCode}`}
-      className="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0 aspect-square rounded border border-[#00F5D4]/35 overflow-hidden select-none shadow-[0_8px_20px_rgba(5,5,8,0.85)]"
+      className="relative w-20 h-20 sm:w-22 sm:h-22 shrink-0 aspect-square rounded-xl border border-[#00F5D4]/35 overflow-hidden select-none shadow-[0_8px_20px_rgba(5,5,8,0.85)]"
       style={{ backgroundColor: artist.sleeveBg }}
     >
       {activeImage ? (
@@ -218,22 +219,20 @@ export const ArtistSleeveCard: React.FC = () => {
     [selectedNode]
   );
 
-  if (!selectedNode || !selectedMetrics) {
-    return null;
-  }
-
   // Resolve artist context whether an ArtistNode or SongNode is selected
   const activeArtist: ArtistNode | null =
-    selectedNode.type === 'artist'
+    selectedNode?.type === 'artist'
       ? selectedNode
-      : selectedNode.type === 'song'
+      : selectedNode?.type === 'song'
       ? data.artists.find((a) => a.id === selectedNode.artistId) || null
       : null;
 
   const activeGenre: GenreNode | null =
-    selectedNode.type === 'genre'
+    selectedNode?.type === 'genre'
       ? selectedNode
-      : data.genres.find((g) => g.id === selectedNode.genreId) || null;
+      : selectedNode
+      ? data.genres.find((g) => g.id === selectedNode.genreId) || null
+      : null;
 
   const artistSongs: SongNode[] = activeArtist
     ? data.songs.filter((s) => s.artistId === activeArtist.id)
@@ -241,6 +240,9 @@ export const ArtistSleeveCard: React.FC = () => {
 
   // Related cross-genre artists & sister genres connected via 'influence' links (Story 6)
   const { crossGenreInfluences, crossGenreSectors } = useMemo(() => {
+    if (!selectedNode) {
+      return { crossGenreInfluences: [], crossGenreSectors: [] };
+    }
     const focusIds = new Set<string>([selectedNode.id]);
     if (activeArtist) focusIds.add(activeArtist.id);
     if (activeGenre) focusIds.add(activeGenre.id);
@@ -264,7 +266,11 @@ export const ArtistSleeveCard: React.FC = () => {
       crossGenreInfluences: relArtists,
       crossGenreSectors: relGenres,
     };
-  }, [data.links, data.artists, data.genres, activeArtist, activeGenre, selectedNode.id]);
+  }, [data.links, data.artists, data.genres, activeArtist, activeGenre, selectedNode]);
+
+  if (!selectedNode || !selectedMetrics) {
+    return null;
+  }
 
   const handleJumpToBridgeNode = (target: ArtistNode | GenreNode) => {
     selectNode(target);
@@ -309,37 +315,41 @@ export const ArtistSleeveCard: React.FC = () => {
   return (
     <aside
       aria-label="Ficha discográfica de inspección estelar"
-      className="pointer-events-auto w-full md:w-96 max-h-[calc(100dvh-9.5rem)] overflow-y-auto rounded border border-[#FF2A85]/55 bg-[#0A0C14]/95 backdrop-blur-md p-4 shadow-[0_0_20px_rgba(255,42,133,0.12),0_16px_42px_rgba(5,5,8,0.9)] hud-transition"
+      className="pointer-events-auto w-full sm:w-80 md:w-84 max-h-[calc(100dvh-9.5rem)] overflow-y-auto rounded-2xl border border-[#FF2A85]/35 bg-[#080A14]/80 backdrop-blur-xl p-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.7)] hud-transition"
     >
-      {/* Heading row: Heading leads directly without any eyebrow above it */}
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="font-[family-name:var(--font-syne)] text-xl md:text-2xl font-extrabold tracking-tight text-[#F2F4F8] leading-tight">
+      {/* Heading row with title, minimize and close button */}
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="font-[family-name:var(--font-syne)] text-lg md:text-xl font-extrabold tracking-tight text-[#F2F4F8] leading-tight truncate">
           {nodeTitle}
         </h2>
 
-        <button
-          type="button"
-          onClick={toggleSleeveCollapsed}
-          aria-expanded={!isSleeveCollapsed}
-          aria-label={
-            isSleeveCollapsed
-              ? 'Expandir ficha estelar'
-              : 'Contraer ficha estelar para despejar el lienzo 3D'
-          }
-          className="flex min-h-8 min-w-8 shrink-0 items-center gap-1.5 rounded border border-[#00F5D4]/35 bg-[#050508] px-2.5 py-1 text-[11px] font-semibold text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8] hover:shadow-[0_0_10px_rgba(0,245,212,0.25)] transition-all duration-150 active:scale-[0.95]"
-        >
-          {isSleeveCollapsed ? (
-            <>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={toggleSleeveCollapsed}
+            aria-expanded={!isSleeveCollapsed}
+            aria-label={
+              isSleeveCollapsed
+                ? 'Expandir ficha estelar'
+                : 'Contraer ficha estelar para despejar el lienzo 3D'
+            }
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#00F5D4]/30 bg-[#050508]/80 text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8] transition-all duration-150 active:scale-95"
+          >
+            {isSleeveCollapsed ? (
               <Eye className="h-3.5 w-3.5 text-[#00F5D4]" strokeWidth={2} />
-              <span>Ficha</span>
-            </>
-          ) : (
-            <>
+            ) : (
               <EyeOff className="h-3.5 w-3.5 text-[#00F5D4]" strokeWidth={2} />
-              <span>Ocultar</span>
-            </>
-          )}
-        </button>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => selectNode(null)}
+            aria-label="Cerrar ficha para despejar la vista estelar"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#FF2A85]/40 bg-[#050508]/80 text-[#FF2A85] hover:bg-[#FF2A85]/20 hover:border-[#FF2A85] transition-all duration-150 active:scale-95"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2.2} />
+          </button>
+        </div>
       </div>
 
       {/* Post-heading metadata badges (Catalog, Affinity, Spectral Class, Song count, Spotify Link) */}
@@ -374,10 +384,10 @@ export const ArtistSleeveCard: React.FC = () => {
       </div>
 
       {!isSleeveCollapsed && (
-        <div className="mt-4 flex flex-col gap-3.5">
-          {/*Archival Vinyl Record-Sleeve Studio Portrait + Origin & Bio for Artist or Song */}
+        <div className="mt-3 flex flex-col gap-3">
+          {/* Archival Vinyl Record-Sleeve Studio Portrait + Origin & Bio for Artist or Song */}
           {activeArtist && (
-            <div className="flex items-start gap-3 rounded border border-[#00F5D4]/20 bg-[#050508]/90 p-2.5">
+            <div className="flex items-start gap-2.5 rounded-xl border border-[#00F5D4]/20 bg-[#050508]/80 p-2.5">
               <ArchivalStudioPortrait
                 artist={activeArtist}
                 spectralClass={selectedMetrics.spectralClass}
@@ -411,32 +421,10 @@ export const ArtistSleeveCard: React.FC = () => {
 
           {/* Genre description when a sector star is inspected */}
           {selectedNode.type === 'genre' && (
-            <p className="text-xs text-[#B8DCE8] leading-relaxed rounded border border-[#00F5D4]/20 bg-[#050508]/90 p-3">
+            <p className="text-xs text-[#B8DCE8] leading-relaxed rounded-xl border border-[#00F5D4]/20 bg-[#050508]/80 p-3">
               {selectedNode.description}
             </p>
           )}
-
-          {/* Logarithmic Star Sizing & Luminosity Readout */}
-          <div className="grid grid-cols-3 gap-2 rounded border border-[#00F5D4]/20 bg-[#050508] p-2.5 text-center tabular-nums">
-            <div>
-              <div className="text-[10px] text-[#B8DCE8]">RADIO NÚCLEO</div>
-              <div className="text-xs font-bold text-[#00F5D4]">
-                {selectedMetrics.coreRadius.toFixed(2)} R☉
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] text-[#B8DCE8]">HALO CORONA</div>
-              <div className="text-xs font-bold text-[#CCFF00]">
-                {selectedMetrics.coronaRadius.toFixed(2)} R☉
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] text-[#B8DCE8]">BRILLO EMISIVO</div>
-              <div className="text-xs font-bold text-[#FF2A85]">
-                {selectedMetrics.emissiveIntensity.toFixed(2)} lm
-              </div>
-            </div>
-          </div>
 
           {/* If Genre is selected: list Artist stars in this constellation */}
           {selectedNode.type === 'genre' && (
@@ -557,22 +545,22 @@ export const ArtistSleeveCard: React.FC = () => {
               </ol>
 
               {/* Real-time 16-bar Web Audio FFT Spectrum Analyzer Readout */}
-              <div className="mt-2.5 rounded border border-[#00F5D4]/25 bg-[#050508] p-2">
+              <div className="mt-2.5 rounded-xl border border-[#00F5D4]/25 bg-[#050508]/85 p-2">
                 <div className="flex items-center justify-between text-[10px] text-[#B8DCE8] mb-1.5">
                   <span className="flex items-center gap-1.5 font-semibold text-[#F2F4F8]">
                     <Activity
                       className="h-3 w-3 text-[#00F5D4]"
                       strokeWidth={2}
                     />
-                    <span>ESPECTRO FFT WEB AUDIO</span>
+                    <span>ESPECTRO FFT</span>
                   </span>
                   <span className="text-[#00F5D4] font-bold">
-                    {isAudioPlaying ? 'PULSO ACTIVO · 64 BINS' : 'EN ESPERA (CLIC EN PISTA)'}
+                    {isAudioPlaying ? 'PULSO ACTIVO' : 'EN ESPERA'}
                   </span>
                 </div>
                 <div
                   aria-hidden="true"
-                  className="flex h-7 items-end gap-1 px-1"
+                  className="flex h-6 items-end gap-1 px-1"
                 >
                   {Array.from({ length: 16 }, (_, i) => (
                     <span

@@ -45,6 +45,47 @@ export const CameraFlightController: React.FC = () => {
     };
   }, [setFlightState]);
 
+  // Story 1: Cinematic Intro Warp-in Sequence upon entering the galaxy
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      controls.setLookAt(0, 24, 72, 0, 0, 0, false);
+      return;
+    }
+
+    // Start in deep outer space
+    controls.setLookAt(0, 78, 220, 0, 0, 0, false);
+    setFlightState(true, 2400);
+
+    const proxy = { t: 0 };
+    const introTween = gsap.to(proxy, {
+      t: 1,
+      duration: 2.4,
+      delay: 0.15,
+      ease: 'power3.out',
+      onUpdate: () => {
+        const p = proxy.t;
+        const curEyeX = THREE.MathUtils.lerp(0, 0, p);
+        const curEyeY = THREE.MathUtils.lerp(78, 24, p);
+        const curEyeZ = THREE.MathUtils.lerp(220, 72, p);
+        controls.setLookAt(curEyeX, curEyeY, curEyeZ, 0, 0, 0, false);
+      },
+      onComplete: () => {
+        setFlightState(false, 2400);
+      },
+    });
+
+    return () => {
+      introTween.kill();
+    };
+  }, [setFlightState]);
+
   // Execute calibrated GSAP camera flight whenever flightVersion increments
   useEffect(() => {
     if (flightVersion === 0) return;
@@ -102,10 +143,13 @@ export const CameraFlightController: React.FC = () => {
       ? 0.16
       : Math.min(0.92, Math.max(0.52, 0.48 + travelDistance * 0.009));
 
-    // Parabolic mid-flight altitude lift so cross-galaxy flights arc cleanly over stars
+    // Story 5: Parabolic swooping altitude & orbital banking so cross-galaxy flights arc cleanly over constellations
     const arcLift = prefersReducedMotion
       ? 0
-      : Math.min(3.2, travelDistance * 0.075);
+      : Math.min(14, Math.max(3.2, travelDistance * 0.2));
+    const lateralSway = prefersReducedMotion
+      ? 0
+      : Math.min(6.5, travelDistance * 0.08);
 
     const proxy = { t: 0 };
     const durationMs = Math.round(durationSec * 1000);
@@ -114,14 +158,16 @@ export const CameraFlightController: React.FC = () => {
     tweenRef.current = gsap.to(proxy, {
       t: 1,
       duration: durationSec,
-      ease: prefersReducedMotion ? 'power2.out' : 'expo.out',
+      ease: prefersReducedMotion ? 'power2.out' : 'power3.out',
       onUpdate: () => {
         const p = proxy.t;
-        const arcOffset = 4 * p * (1 - p) * arcLift;
+        const bellCurve = 4 * p * (1 - p); // 0 at start, 1.0 at midpoint, 0 at end
+        const arcY = bellCurve * arcLift;
+        const swayX = bellCurve * lateralSway * (startEye.z > endEye.z ? 1 : -1);
 
-        const curEyeX = THREE.MathUtils.lerp(startEye.x, endEye.x, p);
+        const curEyeX = THREE.MathUtils.lerp(startEye.x, endEye.x, p) + swayX;
         const curEyeY =
-          THREE.MathUtils.lerp(startEye.y, endEye.y, p) + arcOffset;
+          THREE.MathUtils.lerp(startEye.y, endEye.y, p) + arcY;
         const curEyeZ = THREE.MathUtils.lerp(startEye.z, endEye.z, p);
 
         const curTargetX = THREE.MathUtils.lerp(startTarget.x, endTarget.x, p);

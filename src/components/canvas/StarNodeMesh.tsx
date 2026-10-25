@@ -18,6 +18,7 @@ const UNIT_SPHERE_GEOMETRY = new THREE.SphereGeometry(1, 18, 18);
 const UNIT_RING_GEOMETRY = new THREE.RingGeometry(1.42, 1.82, 28);
 
 export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) => {
+  const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const coronaRef = useRef<THREE.Mesh>(null);
 
@@ -26,6 +27,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   const hoveredNode = useGalaxyStore((s) => s.hoveredNode);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
+  const cameraDistance = useGalaxyStore((s) => s.cameraDistance);
   const minAffinityFilter = useGalaxyStore((s) => s.minAffinityFilter);
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
@@ -66,11 +68,33 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // Calibrated stellar respiration & FFT audio-reactive corona shimmer (disabled under prefers-reduced-motion)
+  // Calibrated stellar respiration, orbital drift & FFT audio-reactive corona shimmer
   useFrame((state) => {
-    if (prefersReducedMotion || isFilteredOut) return;
+    if (isFilteredOut) return;
     const t = state.clock.getElapsedTime();
     const fft = webAudioEngine.sampleFFT();
+
+    // Story 2: Gentle celestial drift & planetary undulating motion
+    if (!prefersReducedMotion && groupRef.current) {
+      const seed = node.position[0] * 3.1 + node.position[2] * 7.3;
+      if (node.type === 'song') {
+        groupRef.current.position.x =
+          node.position[0] + Math.sin(t * 0.45 + seed) * 0.22;
+        groupRef.current.position.z =
+          node.position[2] + Math.cos(t * 0.45 + seed) * 0.22;
+        groupRef.current.position.y =
+          node.position[1] + Math.sin(t * 0.65 + seed) * 0.12;
+      } else if (node.type === 'artist') {
+        groupRef.current.position.x =
+          node.position[0] + Math.sin(t * 0.16 + seed) * 0.32;
+        groupRef.current.position.z =
+          node.position[2] + Math.cos(t * 0.16 + seed) * 0.32;
+        groupRef.current.position.y =
+          node.position[1] + Math.sin(t * 0.22 + seed) * 0.18;
+      }
+    }
+
+    if (prefersReducedMotion) return;
 
     const audioKick =
       fft.isPlaying && (isPlayingNode || isSelected)
@@ -105,7 +129,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     }
   });
 
-  // Smart LOD for DOM labels: prevents label clutter and keeps frame times at 60 FPS
+  // Smart LOD for DOM labels: prevents label clutter and keeps distant galaxy view clean
   const shouldShowLabel = useMemo(() => {
     if (isFilteredOut) return false;
     if (isSelected || isHovered) return true;
@@ -113,10 +137,9 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     const nodeSectorId = node.type === 'genre' ? node.id : node.genreId;
 
     if (cameraMode === 'galaxy') {
-      return (
-        node.type === 'genre' ||
-        (node.type === 'artist' && node.affinity >= 0.78)
-      );
+      // In galaxy overview, ONLY render Genre Constellation badges.
+      // This leaves the galactic plane clean and makes distant viewing clear and uncluttered.
+      return node.type === 'genre';
     }
 
     if (cameraMode === 'sector') {
@@ -145,11 +168,61 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     selectedNode,
   ]);
 
+  const handleSelect = (e?: React.MouseEvent | THREE.Event | { stopPropagation?: () => void }) => {
+    if (e && 'stopPropagation' in e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    selectNode(node);
+    if (node.type === 'song') {
+      webAudioEngine.playTrack(
+        node.id,
+        node.title,
+        node.affinity,
+        node.previewUrl
+      );
+      setAudioPlayback(node.id, true);
+    } else if (isAudioPlaying) {
+      const matchSong =
+        node.type === 'artist'
+          ? data.songs.find((s) => s.artistId === node.id && s.previewUrl) ||
+            data.songs.find((s) => s.artistId === node.id)
+          : data.songs.find((s) => s.genreId === node.id && s.previewUrl) ||
+            data.songs.find((s) => s.genreId === node.id);
+      if (matchSong) {
+        webAudioEngine.playTrack(
+          matchSong.id,
+          matchSong.title,
+          matchSong.affinity,
+          matchSong.previewUrl
+        );
+        setAudioPlayback(matchSong.id, true);
+      }
+    }
+  };
+
   const nodeLabel = 'name' in node ? node.name : node.title;
   const affinityPct = Math.round(node.affinity * 100);
 
   return (
-    <group position={node.position} visible={!isFilteredOut}>
+    <group ref={groupRef} position={node.position} visible={!isFilteredOut}>
+      {/* Invisible Expanded Raycast Hit Sphere for effortless clicking from any distance */}
+      <mesh
+        scale={Math.max(1.8, metrics.coreRadius * 2.6)}
+        onClick={handleSelect}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          hoverNode(node);
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => {
+          hoverNode(null);
+          document.body.style.cursor = 'auto';
+        }}
+      >
+        <sphereGeometry args={[1, 8, 8]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
+
       {/* Outer Bioluminescent Corona (scaled by affinity^1.6 & stellarBrightness) */}
       <mesh
         ref={coronaRef}
@@ -192,40 +265,12 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         </mesh>
       )}
 
-      {/* Core Star Sphere (radius = logarithmic songCount + affinity curve) */}
+      {/* Core Star Sphere */}
       <mesh
         ref={meshRef}
         geometry={UNIT_SPHERE_GEOMETRY}
         scale={metrics.coreRadius}
-        onClick={(e) => {
-          e.stopPropagation();
-          selectNode(node);
-          if (node.type === 'song') {
-            webAudioEngine.playTrack(
-              node.id,
-              node.title,
-              node.affinity,
-              node.previewUrl
-            );
-            setAudioPlayback(node.id, true);
-          } else if (isAudioPlaying) {
-            const matchSong =
-              node.type === 'artist'
-                ? data.songs.find((s) => s.artistId === node.id && s.previewUrl) ||
-                  data.songs.find((s) => s.artistId === node.id)
-                : data.songs.find((s) => s.genreId === node.id && s.previewUrl) ||
-                  data.songs.find((s) => s.genreId === node.id);
-            if (matchSong) {
-              webAudioEngine.playTrack(
-                matchSong.id,
-                matchSong.title,
-                matchSong.affinity,
-                matchSong.previewUrl
-              );
-              setAudioPlayback(matchSong.id, true);
-            }
-          }
-        }}
+        onClick={handleSelect}
         onPointerOver={(e) => {
           e.stopPropagation();
           hoverNode(node);
@@ -239,29 +284,48 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         <meshBasicMaterial color={coreColor} />
       </mesh>
 
-      {/* LOD 3D Telemetry Label (screen-space sized, layered below HUD z-20) */}
-      {shouldShowLabel && (
-        <Html
-          position={[0, metrics.coronaRadius + 0.32, 0]}
-          center
-          zIndexRange={[1, 5]}
-          className="pointer-events-none select-none"
-        >
+      {/* Story 3: Distance-scaled interactive DOM label with direct click-to-select */}
+      <Html
+        key={`star-label-${node.id}`}
+        position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.55 : 0.3), 0]}
+        center
+        distanceFactor={node.type === 'genre' ? 28 : 20}
+        zIndexRange={[1, 5]}
+        style={{
+          display: shouldShowLabel ? 'block' : 'none',
+          pointerEvents: shouldShowLabel ? 'auto' : 'none',
+        }}
+        className="select-none"
+      >
           <div
-            className={`px-2 py-0.5 rounded text-[11px] whitespace-nowrap font-mono tabular-nums tracking-tight ${
-              isSelected
-                ? 'bg-[#F2F4F8] text-[#050508] font-bold shadow-[0_4px_14px_rgba(0,245,212,0.45)]'
-                : isHovered
-                ? 'bg-[#050508]/95 text-[#F2F4F8] border border-[#00F5D4]'
-                : node.type === 'genre'
-                ? 'bg-[#050508]/90 text-[#F2F4F8] border border-[#00F5D4]/40 font-semibold'
-                : 'bg-[#050508]/75 text-[#B8DCE8] border border-[#00F5D4]/15'
+            role="button"
+            tabIndex={0}
+            onClick={handleSelect}
+            onPointerDown={handleSelect}
+            onPointerOver={() => hoverNode(node)}
+            onPointerOut={() => hoverNode(null)}
+            className={`cursor-pointer whitespace-nowrap font-mono tabular-nums tracking-tight transition-transform hover:scale-105 active:scale-95 ${
+              node.type === 'genre'
+                ? `px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider border shadow-[0_0_14px_rgba(0,245,212,0.35)] backdrop-blur-md ${
+                    isSelected
+                      ? 'bg-[#F2F4F8] text-[#050508] border-[#CCFF00] shadow-[0_0_18px_rgba(204,255,0,0.5)]'
+                      : isHovered
+                      ? 'bg-[#050508]/95 text-[#00F5D4] border-[#00F5D4]'
+                      : 'bg-[#050508]/85 text-[#F2F4F8] border-[#00F5D4]/40'
+                  }`
+                : `px-2 py-0.5 rounded text-[10px] ${
+                    isSelected
+                      ? 'bg-[#F2F4F8] text-[#050508] font-bold shadow-[0_4px_14px_rgba(0,245,212,0.45)]'
+                      : isHovered
+                      ? 'bg-[#050508]/95 text-[#F2F4F8] border border-[#00F5D4]'
+                      : 'bg-[#050508]/80 text-[#B8DCE8] border border-[#00F5D4]/20'
+                  }`
             }`}
           >
             <span>{nodeLabel}</span>
             {node.type !== 'song' && (
               <span
-                className={`ml-1.5 text-[10px] ${
+                className={`ml-1.5 text-[9px] ${
                   isSelected ? 'text-[#050508]/80' : 'text-[#00F5D4]'
                 }`}
               >
@@ -270,7 +334,6 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             )}
           </div>
         </Html>
-      )}
     </group>
   );
 };

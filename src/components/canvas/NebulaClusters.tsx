@@ -202,19 +202,28 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({
     }
     if (groupRef.current) groupRef.current.visible = true;
 
-    // Slow organic counter-rotation for inner core & outer dust clouds
-    if (!prefersReducedMotion) {
-      if (innerPointsRef.current) {
-        innerPointsRef.current.rotation.y += delta * 0.016 * rotSign;
-      }
-      if (outerPointsRef.current) {
-        outerPointsRef.current.rotation.y -= delta * 0.011 * rotSign;
-        outerPointsRef.current.rotation.z += delta * 0.004 * rotSign;
-      }
-    }
-
+    // Multi-axis harmonic undulating motion & celestial billowing
     const t = state.clock.getElapsedTime();
     const fft = webAudioEngine.sampleFFT();
+
+    if (!prefersReducedMotion) {
+      if (innerPointsRef.current) {
+        innerPointsRef.current.rotation.y += delta * 0.018 * rotSign;
+        innerPointsRef.current.rotation.x = Math.sin(t * 0.35 + seed) * 0.08;
+        innerPointsRef.current.rotation.z = Math.cos(t * 0.28 + seed) * 0.07;
+      }
+      if (outerPointsRef.current) {
+        outerPointsRef.current.rotation.y -= delta * 0.013 * rotSign;
+        outerPointsRef.current.rotation.x = Math.cos(t * 0.22 + seed) * 0.06;
+        outerPointsRef.current.rotation.z = Math.sin(t * 0.19 + seed) * 0.08;
+      }
+      if (groupRef.current) {
+        groupRef.current.position.y =
+          genre.position[1] + Math.sin(t * 0.4 + seed) * 0.45;
+        groupRef.current.position.x =
+          genre.position[0] + Math.cos(t * 0.25 + seed) * 0.25;
+      }
+    }
 
     // Pulse with sub-bass (20-140Hz) and overall spectral energy
     const audioKick = fft.isPlaying

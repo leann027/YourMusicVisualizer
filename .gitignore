@@ -57,6 +57,7 @@ temp/
 # Next.js
 .next/
 next-env.d.ts
+*.tsbuildinfo
 
 # Graphify analysis
 graphify-out/
