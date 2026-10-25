@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>YourMusicVisualizer — Pulso Estelar Generativo</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1440px; height: 900px; overflow: hidden;
+    background: radial-gradient(circle at 54% 46%, #130924 0%, #07060d 52%, #050508 100%);
+    color: #F2F4F8; font-family: 'JetBrains Mono', monospace; position: relative;
+  }
+  .nebula-current {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 520px 280px at 38% 44%, rgba(0, 245, 212, 0.14), transparent 70%),
+      radial-gradient(ellipse 460px 320px at 66% 52%, rgba(255, 42, 133, 0.16), transparent 72%),
+      radial-gradient(ellipse 340px 220px at 52% 28%, rgba(204, 255, 0, 0.09), transparent 70%);
+  }
+  svg.cosmos { position: absolute; inset: 0; width: 1440px; height: 900px; }
+  .hud-top {
+    position: absolute; top: 28px; left: 36px; right: 36px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid rgba(242, 244, 248, 0.14); padding-bottom: 16px;
+  }
+  .brand { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .brand span { color: #00F5D4; }
+  .telemetry { display: flex; gap: 28px; font-size: 12px; color: #9BA3B8; text-transform: uppercase; letter-spacing: 0.08em; }
+  .telemetry strong { color: #CCFF00; }
+  .sector-pills {
+    position: absolute; top: 96px; left: 36px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .pill {
+    padding: 10px 16px; background: rgba(12, 14, 22, 0.78);
+    border-left: 3px solid #00F5D4; font-size: 12px; width: 230px;
+    display: flex; justify-content: space-between;
+  }
+  .pill.pink { border-left-color: #FF2A85; }
+  .pill.lime { border-left-color: #CCFF00; }
+  /* Raised sleeve card on active star zoom */
+  .sleeve-card {
+    position: absolute; right: 42px; top: 130px; width: 340px;
+    background: #FF2A85; color: #050508; padding: 22px;
+    box-shadow: 0 0 60px rgba(255, 42, 133, 0.35);
+  }
+  .sleeve-kicker { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 8px; }
+  .sleeve-title { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; line-height: 0.95; margin-bottom: 14px; }
+  .sleeve-portrait {
+    width: 100%; height: 180px; background: linear-gradient(135deg, #050508 20%, #1d1128 100%);
+    margin-bottom: 16px; display: flex; align-items: flex-end; padding: 12px; color: #00F5D4; font-size: 12px;
+  }
+  .track-list { list-style: none; font-size: 12px; border-top: 2px solid #050508; padding-top: 10px; }
+  .track-list li { display: flex; justify-content: space-between; padding: 5px 0; font-weight: 600; }
+  .track-list li.active { background: #050508; color: #CCFF00; padding: 5px 8px; }
+  .fft-dock {
+    position: absolute; bottom: 28px; left: 36px; right: 36px; height: 84px;
+    background: rgba(8, 9, 15, 0.85); border: 1px solid rgba(0, 245, 212, 0.28);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 28px;
+  }
+  .fft-bars { display: flex; align-items: flex-end; gap: 6px; height: 48px; }
+  .bar { width: 8px; background: linear-gradient(to top, #00F5D4, #CCFF00); }
+</style>
+</head>
+<body>
+  <div class="nebula-current"></div>
+  <svg class="cosmos" viewBox="0 0 1440 900">
+    <!-- Filamentos reactivos -->
+    <g stroke="rgba(0,245,212,0.32)" stroke-width="1.5" fill="none">
+      <path d="M 520 420 Q 640 310 780 370" />
+      <path d="M 520 420 Q 430 530 360 590" />
+      <path d="M 780 370 Q 880 460 930 540" stroke="rgba(255,42,133,0.45)" stroke-width="2.2" />
+      <path d="M 520 420 Q 610 520 710 610" />
+      <path d="M 620 250 L 520 420" stroke="rgba(204,255,0,0.4)" />
+    </g>
+    <!-- Nodos Estrella por Afinidad y Canciones -->
+    <circle cx="520" cy="420" r="46" fill="rgba(0,245,212,0.18)" />
+    <circle cx="520" cy="420" r="18" fill="#00F5D4" />
+    <text x="548" y="415" fill="#F2F4F8" font-family="Syne" font-size="24" font-weight="800">SYNTHWAVE / ELECTRO</text>
+    <text x="548" y="438" fill="#00F5D4" font-family="JetBrains Mono" font-size="12">AFINIDAD 98% · 142 CANCIONES</text>
+
+    <circle cx="780" cy="370" r="64" fill="rgba(255,42,133,0.22)" />
+    <circle cx="780" cy="370" r="26" fill="#FF2A85" />
+    <text x="720" y="325" fill="#F2F4F8" font-family="Syne" font-size="28" font-weight="800">DAFT PUNK ★</text>
+
+    <circle cx="620" cy="250" r="14" fill="#CCFF00" />
+    <text x="644" y="255" fill="#CCFF00" font-family="Syne" font-size="22" font-weight="700">JUSTICE · 38 TRACKS</text>
+
+    <circle cx="360" cy="590" r="12" fill="#00F5D4" />
+    <text x="382" y="595" fill="#F2F4F8" font-family="Syne" font-size="22" font-weight="700">KAVINSKY · 24 TRACKS</text>
+
+    <circle cx="710" cy="610" r="16" fill="#FF2A85" />
+    <text x="735" y="616" fill="#F2F4F8" font-family="Syne" font-size="22" font-weight="700">MODESELEKTOR · 51 TRACKS</text>
+  </svg>
+
+  <header class="hud-top">
+    <div class="brand">YOUR<span>MUSIC</span>VISUALIZER // STAGE.RIG</div>
+    <div class="telemetry">
+      <span>NODOS ACTIVOS: <strong>1,248</strong></span>
+      <span>SECTOR: <strong>FRENCH TOUCH / ELECTRO</strong></span>
+      <span>ZOOM GSAP: <strong>2.4x LOCKED</strong></span>
+      <span>FFT: <strong>124 BPM LIVE</strong></span>
+    </div>
+  </header>
+
+  <aside class="sector-pills">
+    <div class="pill"><span>01 // SYNTH & ELECTRO</span><strong>142 ★</strong></div>
+    <div class="pill pink"><span>02 // ALT ROCK & SHOEGAZE</span><strong>98 ★</strong></div>
+    <div class="pill lime"><span>03 // IDM & AMBIENT</span><strong>76 ★</strong></div>
+  </aside>
+
+  <section class="sleeve-card">
+    <div class="sleeve-kicker">ESTRELLA SELECCIONADA · AFINIDAD 99.4%</div>
+    <h2 class="sleeve-title">DAFT PUNK</h2>
+    <div class="sleeve-portrait">64 CANCIONES EN CONSTELACIÓN · NODO ALFA</div>
+    <ul class="track-list">
+      <li class="active"><span>01. VERIDIS QUO</span><span>5:45  playing</span></li>
+      <li><span>02. DIGITAL LOVE</span><span>5:01</span></li>
+      <li><span>03. GIORGIO BY MORODER</span><span>9:04</span></li>
+      <li><span>04. CONTACT</span><span>6:23</span></li>
+    </ul>
+  </section>
+
+  <footer class="fft-dock">
+    <div><strong>WEB AUDIO FFT SPECTRUM</strong> · PULSO ESTELAR SINCRONIZADO</div>
+    <div class="fft-bars">
+      <div class="bar" style="height:42px"></div><div class="bar" style="height:36px"></div>
+      <div class="bar" style="height:48px"></div><div class="bar" style="height:28px"></div>
+      <div class="bar" style="height:44px"></div><div class="bar" style="height:19px"></div>
+      <div class="bar" style="height:39px"></div><div class="bar" style="height:46px"></div>
+      <div class="bar" style="height:31px"></div><div class="bar" style="height:22px"></div>
+    </div>
+    <div style="color:#00F5D4; font-weight:600;">[ VOLAR A CONSTELACIÓN VECINA → ]</div>
+  </footer>
+</body>
+</html>

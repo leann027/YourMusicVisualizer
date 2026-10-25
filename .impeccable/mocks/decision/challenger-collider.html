@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>YourMusicVisualizer — Detector de Colisiones Sónicas</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1440px; height: 900px; overflow: hidden;
+    background: #07090D; color: #E2E8F0;
+    font-family: 'JetBrains Mono', monospace; position: relative;
+  }
+  svg.detector { position: absolute; inset: 0; width: 1440px; height: 900px; }
+  .hud-left {
+    position: absolute; top: 36px; left: 40px; width: 340px;
+    border-left: 3px solid #FFD60A; padding-left: 16px;
+  }
+  .hud-left h1 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; color: #FFD60A; line-height: 1.05; }
+  .hud-left p { font-size: 12px; color: #94A3B8; margin-top: 6px; }
+  .event-readout {
+    position: absolute; right: 40px; top: 36px; width: 320px;
+    background: rgba(15, 23, 42, 0.85); border: 1px solid #3B5978; padding: 18px;
+  }
+  .event-readout h2 { font-family: 'Space Grotesk', sans-serif; font-size: 23px; color: #00E5FF; margin-bottom: 10px; }
+  .row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-bottom: 1px solid rgba(59,89,120,0.4); }
+  .bottom-strip {
+    position: absolute; bottom: 32px; left: 40px; right: 40px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid #3B5978; padding-top: 14px; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+  <svg class="detector" viewBox="0 0 1440 900">
+    <!-- Anillos concéntricos del detector (Capas de Género/Afinidad) -->
+    <circle cx="720" cy="450" r="110" stroke="#3B5978" stroke-width="2" fill="none" />
+    <circle cx="720" cy="450" r="220" stroke="#3B5978" stroke-width="1.5" stroke-dasharray="8 4" fill="none" />
+    <circle cx="720" cy="450" r="330" stroke="#3B5978" stroke-width="2" fill="none" />
+
+    <!-- Cuñas calorimétricas radiales (Energía FFT y Cantidad de Canciones) -->
+    <path d="M 720 120 L 745 55 L 695 55 Z" fill="#FF3355" />
+    <path d="M 953 216 L 1010 160 L 975 130 Z" fill="#FF3355" />
+    <path d="M 1050 450 L 1135 430 L 1135 470 Z" fill="#FFD60A" />
+    <path d="M 953 683 L 1020 735 L 985 765 Z" fill="#FF3355" />
+    <path d="M 486 216 L 430 160 L 465 130 Z" fill="#00E5FF" />
+    <path d="M 390 450 L 310 430 L 310 470 Z" fill="#FF3355" />
+
+    <!-- Trayectorias curvadas de partículas (Relaciones Artista -> Canción -> Estilo) -->
+    <path d="M 720 450 Q 810 310 953 216" stroke="#FFD60A" stroke-width="3" fill="none" />
+    <path d="M 720 450 Q 890 480 1050 450" stroke="#00E5FF" stroke-width="2.5" fill="none" />
+    <path d="M 720 450 Q 590 340 486 216" stroke="#FFD60A" stroke-width="2.5" fill="none" />
+    <path d="M 720 450 Q 540 510 390 450" stroke="#00E5FF" stroke-width="2" fill="none" />
+
+    <!-- Nodos estrella en las intersecciones de anillos -->
+    <circle cx="720" cy="450" r="14" fill="#FFD60A" />
+    <circle cx="835" cy="310" r="18" fill="#FFD60A" />
+    <text x="860" y="316" fill="#FFD60A" font-family="Space Grotesk" font-size="24" font-weight="700">APHEX TWIN [78 TRACKS]</text>
+
+    <circle cx="910" cy="462" r="15" fill="#00E5FF" />
+    <text x="932" y="492" fill="#00E5FF" font-family="Space Grotesk" font-size="22" font-weight="700">BOARDS OF CANADA [52]</text>
+
+    <circle cx="560" cy="330" r="16" fill="#FF3355" />
+    <text x="310" y="325" fill="#F8FAFC" font-family="Space Grotesk" font-size="22" font-weight="700">AUTECHRE [64 TRACKS]</text>
+  </svg>
+
+  <header class="hud-left">
+    <h1>COLLIDER // SONIC EVENT DISPLAY</h1>
+    <p>ANILLOS INTERNOS: ALTA AFINIDAD · CUÑAS EXTERIORES: ESPECTRO FFT</p>
+  </header>
+
+  <aside class="event-readout">
+    <h2>TRAZA ACTIVA #042</h2>
+    <div class="row"><span>ARTISTA NODO</span><strong>APHEX TWIN</strong></div>
+    <div class="row"><span>ANILLO SECTOR</span><strong>IDM / BRAIN-DANCE</strong></div>
+    <div class="row"><span>MOMENTO AFINIDAD</span><strong>99.1 GeV (MAX)</strong></div>
+    <div class="row"><span>ENERGÍA FFT</span><strong>+14.2 dB (BASS PEAK)</strong></div>
+  </aside>
+
+  <footer class="bottom-strip">
+    <span>CAPA 1: NÚCLEO AFINIDAD (90-100%)</span>
+    <span>CAPA 2: ÓRBITA ESTILOS (60-89%)</span>
+    <span>CAPA 3: CALORÍMETRO FFT EN VIVO</span>
+    <strong style="color:#FFD60A">[ AISLAR TRAZA Y ACERCAR CÁMARA ]</strong>
+  </footer>
+</body>
+</html>
