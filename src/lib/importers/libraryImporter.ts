@@ -42,20 +42,22 @@ export interface RawLibraryPayload {
 }
 
 const SECTOR_PALETTE = [
-  { color: '#00F5D4', bg: '#0E1726', center: [-24, 7, -18] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [24, -6, -16] as [number, number, number] },
-  { color: '#CCFF00', bg: '#141B0B', center: [-14, -14, 22] as [number, number, number] },
-  { color: '#38BDF8', bg: '#0B192C', center: [20, 15, 18] as [number, number, number] },
-  { color: '#00F5D4', bg: '#0E1726', center: [0, 20, -28] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [-30, -8, 10] as [number, number, number] },
-  { color: '#CCFF00', bg: '#141B0B', center: [30, 8, 8] as [number, number, number] },
-  { color: '#38BDF8', bg: '#0B192C', center: [0, -18, -24] as [number, number, number] },
-  { color: '#00F5D4', bg: '#0E1726', center: [-18, 18, 14] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [16, -18, 16] as [number, number, number] },
-  { color: '#CCFF00', bg: '#141B0B', center: [-32, 5, -22] as [number, number, number] },
-  { color: '#38BDF8', bg: '#0B192C', center: [32, -4, -22] as [number, number, number] },
-  { color: '#00F5D4', bg: '#0E1726', center: [-10, 4, 30] as [number, number, number] },
-  { color: '#FF2A85', bg: '#1F0C1D', center: [12, -3, -32] as [number, number, number] },
+  { color: '#00F5D4', bg: '#081D1A', center: [-24, 7, -18] as [number, number, number] }, // 1. Turquesa Espacial
+  { color: '#FF2A85', bg: '#200C1D', center: [24, -6, -16] as [number, number, number] }, // 2. Magenta Cósmico
+  { color: '#CCFF00', bg: '#141C0A', center: [-14, -14, 22] as [number, number, number] }, // 3. Verde Radiactivo
+  { color: '#38BDF8', bg: '#0B1A2C', center: [20, 15, 18] as [number, number, number] }, // 4. Azul Zafiro / Hielo
+  { color: '#A855F7', bg: '#1A0C2B', center: [0, 20, -28] as [number, number, number] }, // 5. Violeta Púlsar
+  { color: '#F59E0B', bg: '#261708', center: [-30, -8, 10] as [number, number, number] }, // 6. Ámbar Supernova
+  { color: '#EC4899', bg: '#260B1C', center: [30, 8, 8] as [number, number, number] }, // 7. Rosa Nebular
+  { color: '#10B981', bg: '#071F18', center: [0, -18, -24] as [number, number, number] }, // 8. Esmeralda Interestelar
+  { color: '#6366F1', bg: '#0E112B', center: [-18, 18, 14] as [number, number, number] }, // 9. Índigo Profundo
+  { color: '#F43F5E', bg: '#260B14', center: [16, -18, 16] as [number, number, number] }, // 10. Carmesí Gigante Roja
+  { color: '#14B8A6', bg: '#061E1D', center: [-32, 5, -22] as [number, number, number] }, // 11. Cian Acuático
+  { color: '#EAB308', bg: '#231C06', center: [32, -4, -22] as [number, number, number] }, // 12. Oro Estelar
+  { color: '#8B5CF6', bg: '#160D2A', center: [-10, 4, 30] as [number, number, number] }, // 13. Lavanda Astral
+  { color: '#FB7185', bg: '#270E15', center: [12, -3, -32] as [number, number, number] }, // 14. Coral Solar
+  { color: '#06B6D4', bg: '#071E24', center: [-22, -15, -12] as [number, number, number] }, // 15. Cian Eléctrico
+  { color: '#D946EF', bg: '#250B27', center: [22, 12, -26] as [number, number, number] }, // 16. Fucsia Cuántico
 ];
 
 function hashString(str: string): number {
@@ -452,7 +454,7 @@ export function buildMusicGalaxyFromPayload(
       affinity: genreAffinity,
       songCount: genreSongTotal,
       color: palette.color,
-      accentColor: '#CCFF00',
+      accentColor: palette.bg,
       position: [gx, gy, gz],
       description: `Sector constelar importado desde ${
         payload.profileName || 'biblioteca de usuario'

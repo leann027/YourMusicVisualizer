@@ -29,6 +29,7 @@ interface GalaxyState {
   playingTrackId: string | null;
   isAudioPlaying: boolean;
   bloomEnabled: boolean;
+  linksVisible: boolean;
   stellarBrightness: number;
   perfStats: RenderPerfStats;
 
@@ -46,6 +47,7 @@ interface GalaxyState {
   toggleSleeveCollapsed: () => void;
   setAudioPlayback: (trackId: string | null, isPlaying: boolean) => void;
   toggleBloom: () => void;
+  toggleLinksVisible: () => void;
   loadCustomGalaxyData: (
     data: MusicGalaxyData,
     sourceLabel: string,
@@ -73,6 +75,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   playingTrackId: null,
   isAudioPlaying: false,
   bloomEnabled: true,
+  linksVisible: true,
   stellarBrightness: 0.65,
   perfStats: {
     fps: 60,
@@ -172,6 +175,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
 
   toggleBloom: () =>
     set((state) => ({ bloomEnabled: !state.bloomEnabled })),
+
+  toggleLinksVisible: () =>
+    set((state) => ({ linksVisible: !state.linksVisible })),
 
   loadCustomGalaxyData: (data, dataSourceLabel, spotifyUser = null) =>
     set((state) => ({

@@ -309,7 +309,7 @@ export const ArtistSleeveCard: React.FC = () => {
   return (
     <aside
       aria-label="Ficha discográfica de inspección estelar"
-      className="pointer-events-auto w-full md:w-96 max-h-[calc(100dvh-9.5rem)] overflow-y-auto rounded border border-[#FF2A85]/55 bg-[#0A0C14]/95 p-4 shadow-[0_16px_42px_rgba(5,5,8,0.9)] hud-transition"
+      className="pointer-events-auto w-full md:w-96 max-h-[calc(100dvh-9.5rem)] overflow-y-auto rounded border border-[#FF2A85]/55 bg-[#0A0C14]/95 backdrop-blur-md p-4 shadow-[0_0_20px_rgba(255,42,133,0.12),0_16px_42px_rgba(5,5,8,0.9)] hud-transition"
     >
       {/* Heading row: Heading leads directly without any eyebrow above it */}
       <div className="flex items-start justify-between gap-3">
@@ -326,7 +326,7 @@ export const ArtistSleeveCard: React.FC = () => {
               ? 'Expandir ficha estelar'
               : 'Contraer ficha estelar para despejar el lienzo 3D'
           }
-          className="flex min-h-8 min-w-8 shrink-0 items-center gap-1.5 rounded border border-[#00F5D4]/35 bg-[#050508] px-2.5 py-1 text-[11px] font-semibold text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8] transition-colors"
+          className="flex min-h-8 min-w-8 shrink-0 items-center gap-1.5 rounded border border-[#00F5D4]/35 bg-[#050508] px-2.5 py-1 text-[11px] font-semibold text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8] hover:shadow-[0_0_10px_rgba(0,245,212,0.25)] transition-all duration-150 active:scale-[0.95]"
         >
           {isSleeveCollapsed ? (
             <>

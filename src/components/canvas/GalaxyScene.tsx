@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { Stars } from '@react-three/drei';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
+import { NebulaClusters } from './NebulaClusters';
 import { ConstellationLinks } from './ConstellationLinks';
 import { CameraFlightController } from './CameraFlightController';
 import { PostProcessingPipeline } from './PostProcessingPipeline';
@@ -30,6 +31,9 @@ export const GalaxyScene: React.FC = () => {
         fade
         speed={0.45}
       />
+
+      {/* Cosmic Gas & Nebula Clusters around Genre Sectors (Story 4) */}
+      <NebulaClusters />
 
       {/* Relational Filaments between Nodes (1 draw call) */}
       <ConstellationLinks />

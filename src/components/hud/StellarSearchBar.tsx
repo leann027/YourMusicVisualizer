@@ -238,7 +238,7 @@ export const StellarSearchBar: React.FC = () => {
             setActiveIndex(0);
           }}
           onKeyDown={handleKeyDown}
-          className="w-full min-h-9 rounded border border-[#00F5D4]/35 bg-[#090B12]/95 pl-9 pr-16 py-1.5 text-xs text-[#F2F4F8] placeholder:text-[#B8DCE8]/75 focus:border-[#00F5D4] focus:bg-[#050508] transition-colors"
+          className="w-full min-h-9 rounded border border-[#00F5D4]/35 bg-[#090B12]/95 pl-9 pr-16 py-1.5 text-xs text-[#F2F4F8] placeholder:text-[#B8DCE8]/75 focus:border-[#00F5D4] focus:bg-[#050508] focus:shadow-[0_0_15px_rgba(0,245,212,0.2)] transition-all duration-200"
         />
 
         {searchQuery ? (
@@ -250,7 +250,7 @@ export const StellarSearchBar: React.FC = () => {
               setActiveIndex(0);
               inputRef.current?.focus();
             }}
-            className="absolute right-1.5 flex h-7 w-7 items-center justify-center rounded text-[#B8DCE8] hover:bg-[#131826] hover:text-[#F2F4F8]"
+            className="absolute right-1.5 flex h-7 w-7 items-center justify-center rounded text-[#B8DCE8] hover:bg-[#131826] hover:text-[#F2F4F8] hover:shadow-[0_0_8px_rgba(0,245,212,0.2)] transition-all duration-150 active:scale-[0.95]"
           >
             <X className="h-3.5 w-3.5" strokeWidth={2} />
           </button>
@@ -274,7 +274,7 @@ export const StellarSearchBar: React.FC = () => {
           id={listboxId}
           role="listbox"
           aria-label="Coordenadas estelares encontradas"
-          className=" hud-transition absolute left-0 right-0 top-full mt-1.5 z-40 max-h-80 overflow-y-auto rounded border border-[#00F5D4]/45 bg-[#050508]/98 p-1.5 shadow-[0_18px_40px_rgba(5,5,8,0.92)]"
+          className="hud-transition absolute left-0 right-0 top-full mt-1.5 z-40 max-h-80 overflow-y-auto rounded border border-[#00F5D4]/45 bg-[#050508]/98 backdrop-blur-md p-1.5 shadow-[0_0_20px_rgba(0,245,212,0.15),0_18px_40px_rgba(5,5,8,0.92)]"
         >
           {filteredResults.length > 0 ? (
             <>

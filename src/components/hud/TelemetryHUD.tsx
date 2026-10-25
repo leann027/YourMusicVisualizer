@@ -3,7 +3,7 @@
 import React, { useId, useMemo } from 'react';
 import {
   Compass,
-  Gauge,
+  Network,
   Orbit,
   Sparkles,
   Sun,
@@ -41,7 +41,7 @@ export const TelemetryHUD: React.FC = () => {
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
   const bloomEnabled = useGalaxyStore((s) => s.bloomEnabled);
-  const perfStats = useGalaxyStore((s) => s.perfStats);
+  const linksVisible = useGalaxyStore((s) => s.linksVisible);
 
   const selectSector = useGalaxyStore((s) => s.selectSector);
   const resetToGalaxyView = useGalaxyStore((s) => s.resetToGalaxyView);
@@ -50,6 +50,7 @@ export const TelemetryHUD: React.FC = () => {
   const setStellarBrightness = useGalaxyStore((s) => s.setStellarBrightness);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
   const toggleBloom = useGalaxyStore((s) => s.toggleBloom);
+  const toggleLinksVisible = useGalaxyStore((s) => s.toggleLinksVisible);
 
   const syncAudioWithSector = (targetGenreId: string) => {
     if (!isAudioPlaying) return;
@@ -142,37 +143,37 @@ export const TelemetryHUD: React.FC = () => {
   return (
     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-between p-4 md:p-6 text-[#F2F4F8] font-mono select-none">
       {/* Top Telemetry Bar + Stellar Search Combobox */}
-      <header className="pointer-events-auto flex flex-wrap items-center justify-between gap-4 border border-[#00F5D4]/25 bg-[#050508]/90 px-4 md:px-5 py-2.5 rounded">
+      <header className="pointer-events-auto flex flex-wrap items-center justify-between gap-4 border border-[#00F5D4]/30 bg-[#050508]/90 backdrop-blur-md px-4 md:px-5 py-2.5 rounded shadow-[0_0_15px_rgba(0,245,212,0.15)] transition-shadow duration-300">
         <div className="flex items-center gap-3">
-          <Orbit className="h-5 w-5 text-[#00F5D4] shrink-0" strokeWidth={2} />
-          <h1 className="font-[family-name:var(--font-syne)] text-lg md:text-xl font-extrabold tracking-tight text-[#F2F4F8]">
-            YOUR<span className="text-[#00F5D4]">MUSIC</span>VISUALIZER
-          </h1>
+          <div className="relative flex items-center justify-center">
+            <Orbit className="h-5 w-5 text-[#00F5D4] shrink-0 drop-shadow-[0_0_8px_rgba(0,245,212,0.6)]" strokeWidth={2} />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="font-[family-name:var(--font-syne)] text-lg md:text-xl font-extrabold tracking-[0.14em] text-[#F2F4F8] leading-none">
+              YOUR<span className="text-[#00F5D4] drop-shadow-[0_0_10px_rgba(0,245,212,0.5)]">MUSIC</span>VISUALIZER
+            </h1>
+            <span className="text-[9px] tracking-[0.22em] uppercase text-[#B8DCE8] font-mono mt-1 font-semibold">
+              CONSOLA ESTELAR
+            </span>
+          </div>
         </div>
 
         {/* Story 7: Top Stellar Search Combobox */}
         <StellarSearchBar />
 
-        <div className="hidden xl:flex flex-wrap items-center gap-5 text-xs text-[#B8DCE8] tabular-nums">
-          <div className="flex items-center gap-1.5">
+        <div className="hidden xl:flex items-center gap-3 text-xs text-[#B8DCE8] tabular-nums">
+          <div className="flex items-center gap-2 rounded border border-[#CCFF00]/25 bg-[#090B12]/80 px-3 py-1.5 shadow-[0_0_10px_rgba(204,255,0,0.1)] transition-colors hover:border-[#CCFF00]/50">
             <Sparkles className="h-3.5 w-3.5 text-[#CCFF00]" strokeWidth={2} />
-            <span>NODOS:</span>
-            <strong className="text-[#CCFF00]">{visibleCounts.total}</strong>
+            <span className="text-[11px] font-semibold text-[#B8DCE8]">NODOS:</span>
+            <strong className="text-[#CCFF00] font-bold">{visibleCounts.total}</strong>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2 rounded border border-[#00F5D4]/25 bg-[#090B12]/80 px-3 py-1.5 shadow-[0_0_10px_rgba(0,245,212,0.1)] transition-colors hover:border-[#00F5D4]/50">
             <Compass className="h-3.5 w-3.5 text-[#00F5D4]" strokeWidth={2} />
-            <span>CÁMARA:</span>
-            <strong className="text-[#00F5D4] uppercase">
+            <span className="text-[11px] font-semibold text-[#B8DCE8]">CÁMARA:</span>
+            <strong className="text-[#00F5D4] uppercase font-bold">
               {isFlying
                 ? `VUELO (${lastFlightDurationMs}ms)`
                 : `${cameraMode} · ${cameraDistance}pc`}
-            </strong>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Gauge className="h-3.5 w-3.5 text-[#FF2A85]" strokeWidth={2} />
-            <span>MOTOR:</span>
-            <strong className="text-[#F2F4F8]">
-              {perfStats.fps} FPS · {perfStats.drawCalls} DC
             </strong>
           </div>
         </div>
@@ -185,7 +186,7 @@ export const TelemetryHUD: React.FC = () => {
           aria-label="Navegación de sectores constelares y filtro de afinidad"
           className="pointer-events-auto flex flex-col gap-3 w-full md:w-72"
         >
-          <div className="flex flex-col gap-1.5 bg-[#090B12]/90 border border-[#00F5D4]/20 p-3.5 rounded">
+          <div className="flex flex-col gap-1.5 bg-[#090B12]/90 border border-[#00F5D4]/25 p-3.5 rounded shadow-[0_0_15px_rgba(0,245,212,0.12)] backdrop-blur-md">
             <h2 className="font-[family-name:var(--font-syne)] text-sm font-bold tracking-tight text-[#F2F4F8] mb-1">
               Constelaciones por Estilo
             </h2>
@@ -201,10 +202,10 @@ export const TelemetryHUD: React.FC = () => {
                     type="button"
                     aria-pressed={isActive}
                     onClick={() => handleSelectSector(genre.id)}
-                    className={`min-h-9 flex items-center justify-between px-3 py-2 text-left text-xs transition-transform duration-150 rounded border ${
+                    className={`min-h-9 flex items-center justify-between px-3 py-2 text-left text-xs transition-all duration-200 active:scale-[0.98] rounded border ${
                       isActive
-                        ? 'bg-[#131826] border-[#CCFF00] text-[#F2F4F8] translate-x-1'
-                        : 'bg-[#050508]/85 border-[#00F5D4]/20 text-[#B8DCE8] hover:border-[#00F5D4]/60 hover:text-[#F2F4F8]'
+                        ? 'bg-[#131826] border-[#CCFF00] text-[#F2F4F8] translate-x-1 shadow-[0_0_12px_rgba(204,255,0,0.25)]'
+                        : 'bg-[#050508]/85 border-[#00F5D4]/20 text-[#B8DCE8] hover:border-[#00F5D4]/70 hover:text-[#F2F4F8] hover:shadow-[0_0_12px_rgba(0,245,212,0.2)] hover:bg-[#050508]'
                     }`}
                   >
                     <span className="flex items-center gap-2 truncate pr-2">
@@ -228,10 +229,10 @@ export const TelemetryHUD: React.FC = () => {
               type="button"
               aria-pressed={cameraMode === 'galaxy'}
               onClick={resetToGalaxyView}
-              className={`mt-1 min-h-9 flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded border transition-colors duration-150 ${
+              className={`mt-1 min-h-9 flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded border transition-all duration-200 active:scale-[0.98] ${
                 cameraMode === 'galaxy'
-                  ? 'bg-[#00F5D4] text-[#050508] border-[#00F5D4]'
-                  : 'bg-[#050508] text-[#00F5D4] border-[#00F5D4]/40 hover:bg-[#00F5D4]/15'
+                  ? 'bg-[#00F5D4] text-[#050508] border-[#00F5D4] shadow-[0_0_15px_rgba(0,245,212,0.35)] font-bold'
+                  : 'bg-[#050508] text-[#00F5D4] border-[#00F5D4]/40 hover:bg-[#00F5D4]/15 hover:border-[#00F5D4] hover:shadow-[0_0_14px_rgba(0,245,212,0.25)]'
               }`}
             >
               <Orbit className="h-3.5 w-3.5" strokeWidth={2} />
@@ -240,7 +241,7 @@ export const TelemetryHUD: React.FC = () => {
           </div>
 
           {/* Affinity Filter Control (Story 8: Presets + Continuous Slider) */}
-          <div className="bg-[#090B12]/90 border border-[#00F5D4]/20 p-3.5 rounded">
+          <div className="bg-[#090B12]/90 border border-[#00F5D4]/25 p-3.5 rounded shadow-[0_0_15px_rgba(0,245,212,0.12)] backdrop-blur-md">
             <div className="flex items-center justify-between mb-2">
               <label
                 htmlFor={sliderId}
@@ -282,10 +283,10 @@ export const TelemetryHUD: React.FC = () => {
                     type="button"
                     aria-pressed={active}
                     onClick={() => setMinAffinityFilter(item.value)}
-                    className={`min-h-8 py-1.5 px-1 text-[11px] font-semibold rounded border tabular-nums transition-colors duration-150 ${
+                    className={`min-h-8 py-1.5 px-1 text-[11px] font-semibold rounded border tabular-nums transition-all duration-150 active:scale-[0.97] ${
                       active
-                        ? 'bg-[#CCFF00] text-[#050508] border-[#CCFF00]'
-                        : 'bg-[#050508] text-[#B8DCE8] border-[#00F5D4]/25 hover:border-[#00F5D4]'
+                        ? 'bg-[#CCFF00] text-[#050508] border-[#CCFF00] shadow-[0_0_10px_rgba(204,255,0,0.3)]'
+                        : 'bg-[#050508] text-[#B8DCE8] border-[#00F5D4]/25 hover:border-[#00F5D4] hover:text-[#F2F4F8] hover:shadow-[0_0_8px_rgba(0,245,212,0.2)]'
                     }`}
                   >
                     {item.label}
@@ -341,10 +342,10 @@ export const TelemetryHUD: React.FC = () => {
                       type="button"
                       aria-pressed={active}
                       onClick={() => setStellarBrightness(preset.val)}
-                      className={`min-h-7 py-1 px-1 text-[10px] font-semibold rounded border transition-colors ${
+                      className={`min-h-7 py-1 px-1 text-[10px] font-semibold rounded border transition-all duration-150 active:scale-[0.97] ${
                         active
-                          ? 'bg-[#00F5D4] text-[#050508] border-[#00F5D4]'
-                          : 'bg-[#050508] text-[#B8DCE8] border-[#00F5D4]/25 hover:border-[#00F5D4]'
+                          ? 'bg-[#00F5D4] text-[#050508] border-[#00F5D4] shadow-[0_0_10px_rgba(0,245,212,0.3)]'
+                          : 'bg-[#050508] text-[#B8DCE8] border-[#00F5D4]/25 hover:border-[#00F5D4] hover:text-[#F2F4F8] hover:shadow-[0_0_8px_rgba(0,245,212,0.2)]'
                       }`}
                     >
                       {preset.label} ({Math.round(preset.val * 100)}%)
@@ -360,29 +361,38 @@ export const TelemetryHUD: React.FC = () => {
         <ArtistSleeveCard />
       </div>
 
-      {/* Bottom Dock: Scale Formula Telemetry, Audio FFT Pulse & Bloom Controls */}
-      <footer className="pointer-events-auto flex flex-wrap items-center justify-between gap-3 border border-[#00F5D4]/25 bg-[#050508]/90 px-4 md:px-5 py-2.5 rounded text-xs text-[#B8DCE8]">
-        <div className="flex flex-wrap items-center gap-4 tabular-nums">
-          <span className="text-[#F2F4F8] font-semibold">
-            ESCALA LOGARÍTMICA:
-          </span>
-          <span className="hidden lg:inline">
-            R = r₀ + w₁·ln(1 + canciones) + w₂·afinidad¹·⁵
-          </span>
+      {/* Bottom Dock: Audio FFT Pulse, Constellation Links Toggle & Bloom Controls */}
+      <footer className="pointer-events-auto flex flex-wrap items-center justify-between gap-3 border border-[#00F5D4]/30 bg-[#050508]/90 backdrop-blur-md px-4 md:px-5 py-2.5 rounded text-xs text-[#B8DCE8] shadow-[0_0_15px_rgba(0,245,212,0.15)]">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00F5D4] shadow-[0_0_8px_#00F5D4]"></span>
+            </span>
+            <span className="text-[11px] font-bold tracking-wider uppercase text-[#F2F4F8]">
+              Consola Estelar
+            </span>
+          </div>
+          {activeSongTitle && (
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-[#CCFF00] border-l border-[#00F5D4]/20 pl-3">
+              <Volume2 className="h-3 w-3 text-[#CCFF00]" strokeWidth={2} />
+              <span className="truncate max-w-[200px]">{activeSongTitle}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Story 8: Streaming / Local Data Importer Dialog */}
           <DataSourceModal />
 
+          {/* Master Audio FFT Toggle */}
           <button
             type="button"
             aria-pressed={isAudioPlaying}
             onClick={handleToggleMasterAudio}
-            className={`min-h-9 flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+            className={`min-h-9 flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-[0.98] ${
               isAudioPlaying
-                ? 'border-[#CCFF00] bg-[#131826] text-[#CCFF00]'
-                : 'border-[#00F5D4]/40 bg-[#050508] text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8]'
+                ? 'border-[#CCFF00] bg-[#131826] text-[#CCFF00] shadow-[0_0_14px_rgba(204,255,0,0.3)] hover:shadow-[0_0_18px_rgba(204,255,0,0.45)]'
+                : 'border-[#00F5D4]/40 bg-[#050508] text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8] hover:shadow-[0_0_12px_rgba(0,245,212,0.2)]'
             }`}
           >
             {isAudioPlaying ? (
@@ -400,14 +410,37 @@ export const TelemetryHUD: React.FC = () => {
             )}
           </button>
 
+          {/* Story 5: Constellation Links Toggle */}
+          <button
+            type="button"
+            aria-pressed={linksVisible}
+            onClick={toggleLinksVisible}
+            aria-label={linksVisible ? 'Ocultar líneas de constelación' : 'Mostrar líneas de constelación'}
+            className={`min-h-9 flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-[0.98] ${
+              linksVisible
+                ? 'border-[#00F5D4] bg-[#131826] text-[#00F5D4] shadow-[0_0_15px_rgba(0,245,212,0.25)] hover:shadow-[0_0_20px_rgba(0,245,212,0.4)]'
+                : 'border-[#00F5D4]/30 bg-[#050508] text-[#B8DCE8] hover:border-[#00F5D4] hover:text-[#F2F4F8] hover:shadow-[0_0_12px_rgba(0,245,212,0.18)]'
+            }`}
+          >
+            <Network
+              className={`h-3.5 w-3.5 ${
+                linksVisible ? 'text-[#00F5D4]' : 'text-[#B8DCE8]'
+              }`}
+              strokeWidth={2}
+            />
+            <span>Líneas {linksVisible ? 'ON' : 'OFF'}</span>
+          </button>
+
+          {/* Bloom Post-Processing Toggle */}
           <button
             type="button"
             aria-pressed={bloomEnabled}
             onClick={toggleBloom}
-            className={`min-h-9 flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+            aria-label={bloomEnabled ? 'Desactivar efecto Bloom' : 'Activar efecto Bloom'}
+            className={`min-h-9 flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-[0.98] ${
               bloomEnabled
-                ? 'border-[#FF2A85] bg-[#131826] text-[#F2F4F8]'
-                : 'border-[#00F5D4]/30 bg-[#050508] text-[#B8DCE8] hover:border-[#FF2A85]'
+                ? 'border-[#FF2A85] bg-[#131826] text-[#F2F4F8] shadow-[0_0_14px_rgba(255,42,133,0.3)] hover:shadow-[0_0_18px_rgba(255,42,133,0.45)]'
+                : 'border-[#00F5D4]/30 bg-[#050508] text-[#B8DCE8] hover:border-[#FF2A85] hover:text-[#F2F4F8] hover:shadow-[0_0_12px_rgba(255,42,133,0.2)]'
             }`}
           >
             <Zap
@@ -419,10 +452,11 @@ export const TelemetryHUD: React.FC = () => {
             <span>Bloom {bloomEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
+          {/* Flight to Neighbor Sector */}
           <button
             type="button"
             onClick={handleFlyToNeighbor}
-            className="min-h-9 flex items-center gap-1.5 rounded bg-[#00F5D4] px-3.5 py-1.5 text-xs font-bold text-[#050508] hover:bg-[#CCFF00] transition-colors duration-150"
+            className="min-h-9 flex items-center gap-1.5 rounded bg-[#00F5D4] px-3.5 py-1.5 text-xs font-bold text-[#050508] shadow-[0_0_15px_rgba(0,245,212,0.3)] hover:bg-[#CCFF00] hover:shadow-[0_0_20px_rgba(204,255,0,0.45)] transition-all duration-200 active:scale-[0.98]"
           >
             <span>Volar a Constelación Vecina</span>
             <ChevronRight className="h-4 w-4" strokeWidth={2.5} />

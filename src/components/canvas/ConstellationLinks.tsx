@@ -12,6 +12,7 @@ const COLOR_HIGHLIGHT = new THREE.Color('#CCFF00');
 const COLOR_BRIDGE = new THREE.Color('#FF2A85');
 
 export const ConstellationLinks: React.FC = () => {
+  const linksVisible = useGalaxyStore((s) => s.linksVisible);
   const data = useGalaxyStore((s) => s.data);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const hoveredNode = useGalaxyStore((s) => s.hoveredNode);
@@ -140,6 +141,7 @@ export const ConstellationLinks: React.FC = () => {
 
   // Modulate filament luminosity in-place from Web Audio FFT & active/hovered node connections (Story 6)
   useFrame((state) => {
+    if (!linksVisible) return;
     const geo = geometryRef.current;
     if (!geo) return;
     const colorAttr = geo.getAttribute('color') as THREE.BufferAttribute | undefined;
@@ -207,8 +209,12 @@ export const ConstellationLinks: React.FC = () => {
     }
   });
 
+  if (!linksVisible) {
+    return null;
+  }
+
   return (
-    <lineSegments>
+    <lineSegments visible={linksVisible}>
       <bufferGeometry ref={geometryRef}>
         <bufferAttribute
           attach="attributes-position"
