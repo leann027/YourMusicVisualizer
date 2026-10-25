@@ -192,7 +192,12 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
           e.stopPropagation();
           selectNode(node);
           if (node.type === 'song') {
-            webAudioEngine.playTrack(node.id, node.title, node.affinity);
+            webAudioEngine.playTrack(
+              node.id,
+              node.title,
+              node.affinity,
+              node.previewUrl
+            );
             setAudioPlayback(node.id, true);
           }
         }}

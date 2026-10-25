@@ -27,6 +27,8 @@ export interface ArtistNode {
   bio: string;
   sleeveBg: string;
   sleeveAccent: string;
+  imageUrl?: string;
+  spotifyUrl?: string;
 }
 
 export interface SongNode {
@@ -40,6 +42,15 @@ export interface SongNode {
   affinity: number; // 0 to 1
   position: [number, number, number];
   previewUrl?: string;
+  imageUrl?: string;
+  spotifyUrl?: string;
+}
+
+export interface SpotifyUserProfile {
+  id: string;
+  displayName: string;
+  avatarUrl?: string;
+  product?: string;
 }
 
 export type MusicNode = GenreNode | ArtistNode | SongNode;

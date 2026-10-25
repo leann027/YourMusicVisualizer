@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MusicGalaxyData, MusicNode } from '../types/music';
+import { MusicGalaxyData, MusicNode, SpotifyUserProfile } from '../types/music';
 import { mockMusicGalaxy } from '../data/mockMusicGalaxy';
 
 export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song';
@@ -14,6 +14,7 @@ export interface RenderPerfStats {
 interface GalaxyState {
   data: MusicGalaxyData;
   dataSourceLabel: string;
+  spotifyUser: SpotifyUserProfile | null;
   selectedNode: MusicNode | null;
   hoveredNode: MusicNode | null;
   selectedSectorId: string | null;
@@ -43,14 +44,19 @@ interface GalaxyState {
   toggleSleeveCollapsed: () => void;
   setAudioPlayback: (trackId: string | null, isPlaying: boolean) => void;
   toggleBloom: () => void;
-  loadCustomGalaxyData: (data: MusicGalaxyData, sourceLabel: string) => void;
+  loadCustomGalaxyData: (
+    data: MusicGalaxyData,
+    sourceLabel: string,
+    spotifyUser?: SpotifyUserProfile | null
+  ) => void;
   restoreDefaultGalaxy: () => void;
   updatePerfStats: (stats: RenderPerfStats) => void;
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   data: mockMusicGalaxy,
-  dataSourceLabel: ' Universo Base (42 Nodos)',
+  dataSourceLabel: 'Universo Base (42 Nodos)',
+  spotifyUser: null,
   selectedNode: mockMusicGalaxy.artists[0], // Daft Punk initial focus
   hoveredNode: null,
   selectedSectorId: 'genre-electro',
@@ -159,10 +165,11 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   toggleBloom: () =>
     set((state) => ({ bloomEnabled: !state.bloomEnabled })),
 
-  loadCustomGalaxyData: (data, dataSourceLabel) =>
+  loadCustomGalaxyData: (data, dataSourceLabel, spotifyUser = null) =>
     set((state) => ({
       data,
       dataSourceLabel,
+      spotifyUser,
       selectedNode: data.artists[0] || data.genres[0] || null,
       selectedSectorId: data.genres[0]?.id || null,
       cameraMode: 'galaxy',
@@ -177,6 +184,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     set((state) => ({
       data: mockMusicGalaxy,
       dataSourceLabel: 'Universo Base (42 Nodos)',
+      spotifyUser: null,
       selectedNode: mockMusicGalaxy.artists[0],
       selectedSectorId: 'genre-electro',
       cameraMode: 'galaxy',

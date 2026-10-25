@@ -216,7 +216,8 @@ class WebAudioEngine {
   public toggleTrack(
     trackId: string,
     seedString: string,
-    affinity = 0.9
+    affinity = 0.9,
+    previewUrl?: string
   ): boolean {
     if (this.playing && this.currentTrackId === trackId) {
       this.stopCurrentSource();
@@ -226,14 +227,15 @@ class WebAudioEngine {
       return false;
     }
 
-    this.playTrack(trackId, seedString, affinity);
+    this.playTrack(trackId, seedString, affinity, previewUrl);
     return true;
   }
 
   public playTrack(
     trackId: string,
     seedString: string,
-    affinity = 0.9
+    affinity = 0.9,
+    previewUrl?: string
   ): void {
     const ctx = this.ensureContext();
     if (!this.masterGain) return;
@@ -241,12 +243,81 @@ class WebAudioEngine {
     // Always dispose previous source before starting a new one
     this.stopCurrentSource();
 
+    this.currentTrackId = trackId;
+    this.playing = true;
+    this.currentFrame.isPlaying = true;
+    this.currentFrame.trackId = trackId;
+    this.notify();
+
+    // If a real Spotify preview MP3 URL is available, fetch & decode it into our LRU cache
+    if (previewUrl && !this.bufferCache.has(trackId)) {
+      fetch(previewUrl)
+        .then((res) => {
+          if (!res.ok) throw new Error('Preview fetch failed');
+          return res.arrayBuffer();
+        })
+        .then((arrBuf) => ctx.decodeAudioData(arrBuf))
+        .then((decodedBuffer) => {
+          if (this.bufferCache.size >= MAX_CACHED_BUFFERS) {
+            const oldestKey = this.bufferCache.keys().next().value;
+            if (oldestKey) this.bufferCache.delete(oldestKey);
+          }
+          this.bufferCache.set(trackId, decodedBuffer);
+          // Only swap in the decoded preview if the user is still on this track
+          if (this.playing && this.currentTrackId === trackId) {
+            this.startBufferSource(ctx, decodedBuffer, trackId);
+          }
+        })
+        .catch(() => {
+          // Fallback to synthesized harmonic buffer if preview fetch/decode fails
+          if (this.playing && this.currentTrackId === trackId) {
+            const fallback = this.getOrCreateTrackBuffer(
+              ctx,
+              trackId,
+              seedString,
+              affinity
+            );
+            this.startBufferSource(ctx, fallback, trackId);
+          }
+        });
+      return;
+    }
+
     const buffer = this.getOrCreateTrackBuffer(
       ctx,
       trackId,
       seedString,
       affinity
     );
+    this.startBufferSource(ctx, buffer, trackId);
+  }
+
+  private startBufferSource(
+    ctx: AudioContext,
+    buffer: AudioBuffer,
+    trackId: string
+  ): void {
+    if (!this.masterGain) return;
+
+    // Clean up any existing buffer source before starting the new one
+    if (this.activeSource) {
+      try {
+        this.activeSource.onended = null;
+        this.activeSource.stop();
+        this.activeSource.disconnect();
+      } catch {
+        // Ignore
+      }
+      this.activeSource = null;
+    }
+    if (this.activeTrackGain) {
+      try {
+        this.activeTrackGain.disconnect();
+      } catch {
+        // Ignore
+      }
+      this.activeTrackGain = null;
+    }
 
     const source = ctx.createBufferSource();
     const trackGain = ctx.createGain();

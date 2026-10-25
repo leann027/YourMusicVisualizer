@@ -3,8 +3,8 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Activity,
+  ArrowUpRight,
   ChevronRight,
-  Disc3,
   Eye,
   EyeOff,
   MapPin,
@@ -26,15 +26,17 @@ import {
 interface ArchivalPortraitProps {
   artist: ArtistNode;
   spectralClass: string;
+  imageUrl?: string;
 }
 
 /**
  * Generates an Archival Record-Sleeve Square Studio Portrait (`posters-covers-sleeves-yeye-pop-sleeve` raise)
- * tailored to each artist's catalog code, palette accent, and affinity harmonics.
+ * tailored to each artist's catalog code, palette accent, and affinity harmonics, or renders the real Spotify artwork when connected.
  */
 const ArchivalStudioPortrait: React.FC<ArchivalPortraitProps> = ({
   artist,
   spectralClass,
+  imageUrl,
 }) => {
   const initials = useMemo(() => {
     const parts = artist.name.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/);
@@ -57,6 +59,8 @@ const ArchivalStudioPortrait: React.FC<ArchivalPortraitProps> = ({
     });
   }, [seed]);
 
+  const activeImage = imageUrl || artist.imageUrl;
+
   return (
     <div
       role="img"
@@ -64,70 +68,81 @@ const ArchivalStudioPortrait: React.FC<ArchivalPortraitProps> = ({
       className="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0 aspect-square rounded border border-[#00F5D4]/35 overflow-hidden select-none shadow-[0_8px_20px_rgba(5,5,8,0.85)]"
       style={{ backgroundColor: artist.sleeveBg }}
     >
-      <svg
-        viewBox="0 0 120 120"
-        className="h-full w-full"
-        aria-hidden="true"
-        focusable="false"
-      >
-        {/* Yé-Yé Pop Record-Sleeve Offset Geometric Blocks */}
-        <rect
-          x="0"
-          y="0"
-          width="120"
-          height="120"
-          fill={artist.sleeveBg}
+      {activeImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={activeImage}
+          alt={artist.name}
+          width={112}
+          height={112}
+          className="h-full w-full object-cover"
         />
-        <circle
-          cx="88"
-          cy="34"
-          r="42"
-          fill={artist.sleeveAccent}
-          fillOpacity="0.18"
-        />
-        <circle
-          cx="60"
-          cy="60"
-          r="46"
-          fill="none"
-          stroke={artist.sleeveAccent}
-          strokeOpacity="0.55"
-          strokeWidth="1.25"
-        />
-        <circle
-          cx="60"
-          cy="60"
-          r="33"
-          fill="none"
-          stroke="#F2F4F8"
-          strokeOpacity="0.22"
-          strokeWidth="1"
-          strokeDasharray="3 3"
-        />
-        <circle
-          cx="60"
-          cy="60"
-          r="19"
-          fill="#050508"
-          stroke={artist.sleeveAccent}
-          strokeWidth="1.5"
-        />
-        <circle cx="60" cy="60" r="4.5" fill={artist.sleeveAccent} />
-
-        {/* Acoustic Waveform Bars at Bottom Edge */}
-        {bars.map((barHeight, i) => (
+      ) : (
+        <svg
+          viewBox="0 0 120 120"
+          className="h-full w-full"
+          aria-hidden="true"
+          focusable="false"
+        >
+          {/* Yé-Yé Pop Record-Sleeve Offset Geometric Blocks */}
           <rect
-            key={i}
-            x={10 + i * 8.5}
-            y={112 - barHeight * 0.45}
-            width="4.5"
-            height={barHeight * 0.45}
-            rx="1"
-            fill={i % 3 === 0 ? '#CCFF00' : artist.sleeveAccent}
-            fillOpacity="0.85"
+            x="0"
+            y="0"
+            width="120"
+            height="120"
+            fill={artist.sleeveBg}
           />
-        ))}
-      </svg>
+          <circle
+            cx="88"
+            cy="34"
+            r="42"
+            fill={artist.sleeveAccent}
+            fillOpacity="0.18"
+          />
+          <circle
+            cx="60"
+            cy="60"
+            r="46"
+            fill="none"
+            stroke={artist.sleeveAccent}
+            strokeOpacity="0.55"
+            strokeWidth="1.25"
+          />
+          <circle
+            cx="60"
+            cy="60"
+            r="33"
+            fill="none"
+            stroke="#F2F4F8"
+            strokeOpacity="0.22"
+            strokeWidth="1"
+            strokeDasharray="3 3"
+          />
+          <circle
+            cx="60"
+            cy="60"
+            r="19"
+            fill="#050508"
+            stroke={artist.sleeveAccent}
+            strokeWidth="1.5"
+          />
+          <circle cx="60" cy="60" r="4.5" fill={artist.sleeveAccent} />
+
+          {/* Acoustic Waveform Bars at Bottom Edge */}
+          {bars.map((barHeight, i) => (
+            <rect
+              key={i}
+              x={10 + i * 8.5}
+              y={112 - barHeight * 0.45}
+              width="4.5"
+              height={barHeight * 0.45}
+              rx="1"
+              fill={i % 3 === 0 ? '#CCFF00' : artist.sleeveAccent}
+              fillOpacity="0.85"
+            />
+          ))}
+        </svg>
+      )}
 
       {/* Catalog Monogram & Stamp Overlay */}
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-2">
@@ -143,9 +158,11 @@ const ArchivalStudioPortrait: React.FC<ArchivalPortraitProps> = ({
           </span>
         </div>
 
-        <div className="my-auto text-center font-[family-name:var(--font-syne)] text-xl font-extrabold tracking-tight text-[#F2F4F8] drop-shadow-[0_2px_6px_rgba(5,5,8,0.95)]">
-          {initials}
-        </div>
+        {!activeImage && (
+          <div className="my-auto text-center font-[family-name:var(--font-syne)] text-xl font-extrabold tracking-tight text-[#F2F4F8] drop-shadow-[0_2px_6px_rgba(5,5,8,0.95)]">
+            {initials}
+          </div>
+        )}
 
         <div className="text-[8px] font-semibold uppercase tracking-wider text-[#F2F4F8] bg-[#050508] px-1 py-0.5 rounded w-fit">
           STEREO · 33⅓ RPM
@@ -240,10 +257,16 @@ export const ArtistSleeveCard: React.FC = () => {
     const nowPlaying = webAudioEngine.toggleTrack(
       song.id,
       song.title,
-      song.affinity
+      song.affinity,
+      song.previewUrl
     );
     setAudioPlayback(nowPlaying ? song.id : null, nowPlaying);
   };
+
+  const spotifyLinkUrl =
+    selectedNode.type === 'song'
+      ? selectedNode.spotifyUrl || activeArtist?.spotifyUrl
+      : activeArtist?.spotifyUrl;
 
   const nodeTitle =
     'name' in selectedNode ? selectedNode.name : selectedNode.title;
@@ -284,7 +307,7 @@ export const ArtistSleeveCard: React.FC = () => {
         </button>
       </div>
 
-      {/* Post-heading metadata badges (Catalog, Affinity, Spectral Class, Song count) */}
+      {/* Post-heading metadata badges (Catalog, Affinity, Spectral Class, Song count, Spotify Link) */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] tabular-nums">
         <span className="rounded bg-[#FF2A85] px-2 py-0.5 font-bold text-[#050508]">
           AFINIDAD {Math.round(selectedNode.affinity * 100)}%
@@ -302,6 +325,17 @@ export const ArtistSleeveCard: React.FC = () => {
             {selectedNode.songCount} canciones
           </span>
         )}
+        {spotifyLinkUrl && (
+          <a
+            href={spotifyLinkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-h-6 inline-flex items-center gap-1 rounded border border-[#CCFF00]/60 bg-[#050508] px-2 py-0.5 font-bold text-[#CCFF00] hover:bg-[#CCFF00] hover:text-[#050508] transition-colors"
+          >
+            <span>Spotify</span>
+            <ArrowUpRight className="h-3 w-3" strokeWidth={2.2} />
+          </a>
+        )}
       </div>
 
       {!isSleeveCollapsed && (
@@ -312,6 +346,11 @@ export const ArtistSleeveCard: React.FC = () => {
               <ArchivalStudioPortrait
                 artist={activeArtist}
                 spectralClass={selectedMetrics.spectralClass}
+                imageUrl={
+                  selectedNode.type === 'song'
+                    ? selectedNode.imageUrl || activeArtist.imageUrl
+                    : activeArtist.imageUrl
+                }
               />
 
               <div className="flex flex-col gap-1 min-w-0">

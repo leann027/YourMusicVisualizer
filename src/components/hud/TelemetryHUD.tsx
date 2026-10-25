@@ -68,7 +68,8 @@ export const TelemetryHUD: React.FC = () => {
       webAudioEngine.playTrack(
         targetSong.id,
         targetSong.title,
-        targetSong.affinity
+        targetSong.affinity,
+        targetSong.previewUrl
       );
       setAudioPlayback(targetSong.id, true);
     }

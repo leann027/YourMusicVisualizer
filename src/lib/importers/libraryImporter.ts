@@ -26,6 +26,11 @@ export interface RawLibraryTrackInput {
   affinity?: number;
   origin?: string;
   bio?: string;
+  previewUrl?: string;
+  imageUrl?: string;
+  artistImageUrl?: string;
+  spotifyUrl?: string;
+  artistSpotifyUrl?: string;
 }
 
 export interface RawLibraryPayload {
@@ -305,6 +310,13 @@ export function buildMusicGalaxyFromPayload(
         .toUpperCase()
         .padEnd(2, 'X');
 
+      const firstTrackWithImg = trackItems.find(
+        (t) => t.artistImageUrl || t.imageUrl
+      );
+      const firstTrackWithArtistUrl = trackItems.find(
+        (t) => t.artistSpotifyUrl || t.spotifyUrl
+      );
+
       artists.push({
         id: artistId,
         name: aBucket.name,
@@ -318,6 +330,10 @@ export function buildMusicGalaxyFromPayload(
         sleeveBg: palette.bg,
         sleeveAccent: palette.color,
         position: [ax, ay, az],
+        imageUrl: firstTrackWithImg?.artistImageUrl || firstTrackWithImg?.imageUrl,
+        spotifyUrl:
+          firstTrackWithArtistUrl?.artistSpotifyUrl ||
+          firstTrackWithArtistUrl?.spotifyUrl,
       });
 
       links.push({
@@ -347,6 +363,9 @@ export function buildMusicGalaxyFromPayload(
           affinity: songAff,
           duration: t.durationSec || 240,
           position: [sx, sy, sz],
+          previewUrl: t.previewUrl,
+          imageUrl: t.imageUrl,
+          spotifyUrl: t.spotifyUrl,
         });
 
         links.push({
