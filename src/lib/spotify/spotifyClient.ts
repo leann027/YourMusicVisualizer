@@ -18,7 +18,7 @@ import { classifyUniversalMusic } from '../music/genreClassifier';
  */
 
 export const DEFAULT_SPOTIFY_CLIENT_ID =
-  process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID || 'e1b079dc0ff644468c043b3d902f627d';
+  process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID || '0313886d00a24a5f96650ce722baa104';
 
 const STORAGE_KEYS = {
   CODE_VERIFIER: 'ymv_spotify_pkce_verifier',
