@@ -183,8 +183,8 @@ export const TelemetryHUD: React.FC = () => {
             <Orbit className="h-5 w-5 text-[#00F5D4] shrink-0 drop-shadow-[0_0_8px_rgba(0,245,212,0.6)]" strokeWidth={2} />
           </div>
           <div className="flex flex-col">
-            <h1 className="font-[family-name:var(--font-syne)] text-base md:text-lg font-black tracking-[0.16em] text-[#F2F4F8] leading-none">
-              YOUR <span className="text-[#00F5D4]">MUSIC</span> VISUALIZER
+            <h1 className="font-[family-name:var(--font-syne)] text-base md:text-lg font-black tracking-[0.18em] text-[#F2F4F8] leading-none">
+              NOVA<span className="text-[#00F5D4]">FY</span>
             </h1>
             <span className="text-[9px] tracking-[0.24em] uppercase text-[#00F5D4] font-mono mt-0.5 font-semibold">
               COSMOS MUSICAL 3D
