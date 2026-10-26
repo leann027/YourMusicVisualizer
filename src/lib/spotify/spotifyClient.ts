@@ -112,6 +112,7 @@ export function clearSpotifySession(): void {
   localStorage.removeItem(STORAGE_KEYS.CODE_VERIFIER);
   localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
+  localStorage.removeItem(STORAGE_KEYS.CLIENT_ID);
 }
 
 /**
@@ -269,6 +270,18 @@ export async function fetchWithRetry(
           ? 2000
           : Math.max(1000, parsedDate - Date.now() + 1000);
       }
+
+      // Si el tiempo de pausa es desmedido (>15 segundos, ej. bloqueo de 19h de una app anterior),
+      // no congelamos la aplicación esperando horas: retornamos para limpiar la sesión y re-autenticar
+      if (waitMs > 15000) {
+        console.warn(
+          `[API Rate-Limit 429] Retry-After excede el límite razonable (${Math.round(
+            waitMs / 1000
+          )}s). Abortando espera para reiniciar sesión con el nuevo Client ID.`
+        );
+        return res;
+      }
+
       console.warn(
         `[API Rate-Limit 429] Retry-After detectado. Pausando ${(waitMs / 1000).toFixed(1)}s antes de reintentar intento ${attempt}/${maxRetries}... (${input.toString()})`
       );
@@ -461,9 +474,11 @@ export async function fetchSpotifyLikedSongsGalaxy(
     fetchWithRetry('https://api.spotify.com/v1/me', { headers })
   );
   if (!meRes.ok) {
-    if (meRes.status === 401) clearSpotifySession();
+    if (meRes.status === 401 || meRes.status === 429) clearSpotifySession();
     throw new Error(
-      `No se pudo obtener tu perfil de Spotify (HTTP ${meRes.status}).`
+      meRes.status === 429
+        ? 'El token guardado pertenece a la app anterior de Spotify que fue bloqueada por cuota. Se ha reiniciado tu sesión para que puedas conectarte con el nuevo Client ID.'
+        : `No se pudo obtener tu perfil de Spotify (HTTP ${meRes.status}).`
     );
   }
   const meJson = (await meRes.json()) as {
@@ -485,8 +500,11 @@ export async function fetchSpotifyLikedSongsGalaxy(
     fetchWithRetry('https://api.spotify.com/v1/me/tracks?limit=50&offset=0', { headers })
   );
   if (!firstPageRes.ok) {
+    if (firstPageRes.status === 401 || firstPageRes.status === 429) clearSpotifySession();
     throw new Error(
-      `No se pudieron leer tus canciones en "Me gusta" (HTTP ${firstPageRes.status}).`
+      firstPageRes.status === 429
+        ? 'Spotify rechazó la lectura con el token anterior. Se ha reiniciado la sesión: presiona "Conectar Spotify" para vincular con tu nueva app.'
+        : `No se pudieron leer tus canciones en "Me gusta" (HTTP ${firstPageRes.status}).`
     );
   }
 

@@ -86,7 +86,11 @@ export const DataSourceModal: React.FC = () => {
         setTimeout(() => closeModal(), 400);
         return;
       } catch {
+        // Si el token existente es rechazado o fue bloqueado por cuota de la app previa,
+        // limpiamos la sesión anterior y redirigimos inmediatamente al login con el nuevo Client ID.
         clearSpotifySession();
+        await startSpotifyLogin();
+        return;
       } finally {
         setIsSyncingSpotify(false);
       }
