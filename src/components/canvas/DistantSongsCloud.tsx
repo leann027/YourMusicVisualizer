@@ -2,6 +2,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 import { SongNode } from '../../types/music';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 
@@ -69,6 +70,23 @@ export const DistantSongsCloud: React.FC<DistantSongsCloudProps> = ({
     mat.customProgramCacheKey = () => 'distant-songs-circular-point';
 
     mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = { value: 0 };
+      shader.vertexShader = `
+        varying vec3 vWorldPos;
+        ${shader.vertexShader}
+      `;
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `
+        #include <begin_vertex>
+        vWorldPos = position;
+        `
+      );
+      shader.fragmentShader = `
+        uniform float uTime;
+        varying vec3 vWorldPos;
+        ${shader.fragmentShader}
+      `;
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <map_particle_fragment>',
         `
@@ -77,14 +95,23 @@ export const DistantSongsCloud: React.FC<DistantSongsCloudProps> = ({
         float dist = length(ptCoord);
         if (dist > 0.5) discard;
         // Concentrated stellar core with soft diffraction halo
-        float falloff = pow(clamp(1.0 - dist * 2.0, 0.0, 1.0), 2.4);
-        diffuseColor.a *= falloff;
+        float falloff = pow(clamp(1.0 - dist * 2.0, 0.0, 1.0), 2.2);
+        float starSeed = vWorldPos.x * 3.7 + vWorldPos.y * 7.1 + vWorldPos.z * 11.3;
+        float twinkle = 0.78 + 0.22 * sin(uTime * 2.0 + starSeed);
+        diffuseColor.a *= falloff * twinkle;
         `
       );
+      mat.userData.shader = shader;
     };
 
     return mat;
   }, []);
+
+  useFrame((state) => {
+    if (material.userData.shader) {
+      material.userData.shader.uniforms.uTime.value = state.clock.getElapsedTime();
+    }
+  });
 
   // Synchronize material opacity when stellarBrightness changes
   useEffect(() => {

@@ -127,6 +127,9 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         if (dist > 0.5) discard;
         // Volumetric gas puff with cosine bell curve falloff
         float smoke = cos(dist * 3.14159265);
+        // Core emission incandescence (like authentic Hubble emission nebulae)
+        float coreIncandescent = exp(-dist * dist * 14.0) * 0.45;
+        diffuseColor.rgb += vec3(coreIncandescent);
         diffuseColor.a *= (smoke * smoke);
         `
       );
@@ -157,6 +160,9 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         if (dist > 0.5) discard;
         // Volumetric gas puff with cosine bell curve falloff
         float smoke = cos(dist * 3.14159265);
+        // Core emission incandescence (like authentic Hubble emission nebulae)
+        float coreIncandescent = exp(-dist * dist * 14.0) * 0.45;
+        diffuseColor.rgb += vec3(coreIncandescent);
         diffuseColor.a *= (smoke * smoke);
         `
       );

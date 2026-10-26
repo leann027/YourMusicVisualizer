@@ -6,6 +6,7 @@ import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { NebulaClusters } from './NebulaClusters';
 import { DistantSongsCloud } from './DistantSongsCloud';
+import { GalacticDustDisc } from './GalacticDustDisc';
 import { CameraFlightController } from './CameraFlightController';
 import { PostProcessingPipeline } from './PostProcessingPipeline';
 
@@ -64,6 +65,9 @@ export const GalaxyScene: React.FC = () => {
         fade
         speed={0.45}
       />
+
+      {/* Deep-Space Spiral Stardust Disc & Galactic Streamers (1 GPU draw call) */}
+      <GalacticDustDisc />
 
       {/* Cosmic Gas & Nebula Clusters around Genre Sectors (Story 4) */}
       <NebulaClusters />
