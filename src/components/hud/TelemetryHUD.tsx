@@ -44,6 +44,8 @@ export const TelemetryHUD: React.FC = () => {
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
   const bloomEnabled = useGalaxyStore((s) => s.bloomEnabled);
+  const activePresetScale = useGalaxyStore((s) => s.activePresetScale);
+  const setPresetScale = useGalaxyStore((s) => s.setPresetScale);
 
   const selectSector = useGalaxyStore((s) => s.selectSector);
   const resetToGalaxyView = useGalaxyStore((s) => s.resetToGalaxyView);
@@ -442,7 +444,7 @@ export const TelemetryHUD: React.FC = () => {
 
       {/* Bottom Floating Glass Dock */}
       <footer className="pointer-events-auto fixed bottom-3 md:bottom-4 left-3 md:left-6 right-3 md:right-6 z-30 flex flex-wrap items-center justify-between gap-2.5 border border-[#00F5D4]/25 bg-[#080A14]/85 backdrop-blur-xl px-4 md:px-5 py-2 rounded-2xl text-xs text-[#B8DCE8] shadow-[0_12px_40px_rgba(0,0,0,0.65)]">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={resetToGalaxyView}
@@ -455,6 +457,35 @@ export const TelemetryHUD: React.FC = () => {
             <Orbit className="h-3.5 w-3.5" strokeWidth={2} />
             <span>Galaxia</span>
           </button>
+
+          {/* Preset Scale Switcher (50 · 150 · 300 Pistas) */}
+          <div className="flex items-center gap-1 bg-[#050508]/90 border border-[#00F5D4]/25 px-1.5 py-0.5 rounded-xl text-[11px] font-mono shadow-inner">
+            <span className="text-[#00F5D4] text-[10px] uppercase font-bold tracking-wider px-1 hidden sm:inline">
+              Escala:
+            </span>
+            {([50, 150, 300] as const).map((count) => {
+              const active = activePresetScale === count;
+              return (
+                <button
+                  key={count}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    webAudioEngine.stopCurrentSource();
+                    setPresetScale(count);
+                  }}
+                  className={`min-h-7 px-2.5 py-0.5 rounded-lg text-xs font-semibold transition-all duration-150 active:scale-95 ${
+                    active
+                      ? 'bg-[#00F5D4] text-[#050508] font-bold shadow-[0_0_10px_rgba(0,245,212,0.4)]'
+                      : 'text-[#B8DCE8] hover:text-[#F2F4F8] hover:bg-[#00F5D4]/15'
+                  }`}
+                  title={`Cargar galaxia de ${count} pistas`}
+                >
+                  {count}p
+                </button>
+              );
+            })}
+          </div>
 
           {/* Upgraded Cyber-Galactic 24-Band FFT Audio Visualizer Dock */}
           <FFTSpectrumDock />

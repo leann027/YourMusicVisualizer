@@ -40,9 +40,9 @@ export const PostProcessingPipeline: React.FC = () => {
       const renderPass = new RenderPass(scene, camera);
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(size.width, size.height),
-        0.24, // calibrated base strength (crisp stars, no overexposure)
-        0.35, // tight bloom radius
-        0.78  // high threshold so only bright star cores & active filaments bloom
+        0.18, // calibrated base strength (crisp stars, no overexposure)
+        0.28, // tight bloom radius
+        0.85  // high threshold so only bright star cores & active filaments bloom, stardust never washes out
       );
       const outputPass = new OutputPass();
 

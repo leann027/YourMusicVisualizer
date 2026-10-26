@@ -37,36 +37,37 @@ export const GalacticDustDisc: React.FC = () => {
 
   const { geometry, material } = useMemo(() => {
     const prng = createPRNG(424242);
-    const count = 2400;
+    const count = 1800;
 
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
 
-    const coreColor = new THREE.Color('#F2F4F8');
-    const midColorA = new THREE.Color('#00F5D4'); // Cyan
-    const midColorB = new THREE.Color('#FF2A85'); // Magenta
-    const outerColor = new THREE.Color('#38BDF8'); // Ice blue
-    const darkVeil = new THREE.Color('#A855F7'); // Violet
+    // Deep-space cosmic palette: deep indigo, celestial teal, and subtle nebula magenta
+    const coreColor = new THREE.Color('#38BDF8'); // Ice blue accent
+    const midColorA = new THREE.Color('#0E7490'); // Deep teal
+    const midColorB = new THREE.Color('#701A75'); // Deep dark magenta
+    const outerColor = new THREE.Color('#1E1B4B'); // Midnight cobalt
+    const darkVeil = new THREE.Color('#312E81'); // Dark space indigo
 
     for (let i = 0; i < count; i++) {
       // Choose spiral arm: 2 primary arms + 1 diffuse interstellar bridge
       const armIndex = i % 3;
       const armOffset = (armIndex * (Math.PI * 2)) / 3;
 
-      // Distance from galactic core (concentrated towards center with long exponential tail)
+      // Distance from galactic core: clear inner core (r: 6.5 to 50.0) so central stars are never blocked
       const u = prng();
-      const r = 2.0 + Math.pow(u, 1.8) * 48.0;
+      const r = 6.5 + Math.pow(u, 1.4) * 44.0;
 
       // Logarithmic spiral angle: theta = b * ln(r)
-      const spiralSpread = (prng() - 0.5) * (0.35 + (r / 50.0) * 0.45);
+      const spiralSpread = (prng() - 0.5) * (0.32 + (r / 50.0) * 0.40);
       const theta = armOffset + Math.log(r / 2.0) * 2.8 + spiralSpread;
 
       const x = Math.cos(theta) * r;
       const z = Math.sin(theta) * r;
-      // Galactic disc thickness: thinner at outer edges, thicker at core
-      const discThickness = Math.max(0.4, (1.0 - r / 52.0) * 4.2);
-      const y = (prng() - 0.5) * discThickness * (prng() - 0.5) * 2.0;
+      // Galactic disc thickness: thin, non-intrusive dust plane
+      const discThickness = Math.max(0.3, (1.0 - r / 52.0) * 2.4);
+      const y = (prng() - 0.5) * discThickness * (prng() - 0.5) * 1.5;
 
       positions[i * 3] = x;
       positions[i * 3 + 1] = y;
@@ -93,8 +94,8 @@ export const GalacticDustDisc: React.FC = () => {
       colors[i * 3 + 1] = particleColor.g;
       colors[i * 3 + 2] = particleColor.b;
 
-      // Particle scale: larger near core, fine dust at outer perimeter
-      sizes[i] = 0.8 + (1.0 - normalizedR) * 1.4 + prng() * 0.8;
+      // Particle scale: micro-particles, never blinding light blobs
+      sizes[i] = 0.5 + prng() * 0.6;
     }
 
     const geom = new THREE.BufferGeometry();
@@ -103,10 +104,10 @@ export const GalacticDustDisc: React.FC = () => {
     geom.setAttribute('pointScale', new THREE.BufferAttribute(sizes, 1));
 
     const mat = new THREE.PointsMaterial({
-      size: 2.0,
+      size: 1.0,
       vertexColors: true,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.16,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       sizeAttenuation: true,
@@ -115,7 +116,7 @@ export const GalacticDustDisc: React.FC = () => {
     mat.customProgramCacheKey = () => 'galactic-dust-spiral-disc';
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 };
-      shader.uniforms.uBrightness = { value: 0.25 };
+      shader.uniforms.uBrightness = { value: 0.15 };
 
       shader.vertexShader = `
         attribute float pointScale;
@@ -125,8 +126,9 @@ export const GalacticDustDisc: React.FC = () => {
       shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
         `
-        // Steady, non-flickering star dust size (photosensitive safe)
-        gl_PointSize = size * pointScale * (220.0 / -mvPosition.z);
+        // Delicate, non-blinding stardust points clamped to comfortable optical range
+        float pSize = size * pointScale * (110.0 / -mvPosition.z);
+        gl_PointSize = clamp(pSize, 0.8, 3.2);
         `
       );
 
@@ -144,7 +146,8 @@ export const GalacticDustDisc: React.FC = () => {
         float dist = length(coord);
         if (dist > 0.5) discard;
         // Soft gaussian star dust falloff
-        float falloff = exp(-dist * dist * 9.0);
+        float falloff = exp(-dist * dist * 8.0);
+        diffuseColor.rgb *= 0.32; // gentle, non-blinding stardust luminescence
         diffuseColor.a *= falloff * uBrightness;
         `
       );
@@ -182,7 +185,7 @@ export const GalacticDustDisc: React.FC = () => {
     if (material.userData.shader) {
       material.userData.shader.uniforms.uTime.value = t;
       // Modulate with user's stellarBrightness setting (steady, calm alpha with zero strobe)
-      const baseAlpha = THREE.MathUtils.clamp(stellarBrightness * 1.1, 0.08, 0.45);
+      const baseAlpha = THREE.MathUtils.clamp(stellarBrightness * 0.35, 0.05, 0.20);
       material.userData.shader.uniforms.uBrightness.value = baseAlpha;
     }
   });

@@ -6,6 +6,7 @@ import {
   Database,
   FileJson,
   LogOut,
+  Orbit,
   Radio,
   RotateCcw,
   Sparkles,
@@ -36,10 +37,11 @@ export const DataSourceModal: React.FC = () => {
 
   const dataSourceLabel = useGalaxyStore((s) => s.dataSourceLabel);
   const spotifyUser = useGalaxyStore((s) => s.spotifyUser);
+  const activePresetScale = useGalaxyStore((s) => s.activePresetScale);
   const loadCustomGalaxyData = useGalaxyStore((s) => s.loadCustomGalaxyData);
-  const restoreDefaultGalaxy = useGalaxyStore((s) => s.restoreDefaultGalaxy);
+  const setPresetScale = useGalaxyStore((s) => s.setPresetScale);
 
-  const [selectedPreset, setSelectedPreset] = useState<'default' | 'streaming'>('default');
+  const [selectedPreset, setSelectedPreset] = useState<'50' | '150' | '300'>('50');
   const [spotifyTrackLimit, setSpotifyTrackLimit] = useState<number>(() =>
     getStoredTrackLimit()
   );
@@ -102,27 +104,17 @@ export const DataSourceModal: React.FC = () => {
   const handleSpotifyLogout = () => {
     webAudioEngine.stopCurrentSource();
     clearSpotifySession();
-    restoreDefaultGalaxy();
-    setStatusMsg('Sesión de Spotify cerrada. Universo Base restaurado.');
+    setPresetScale(50);
+    setStatusMsg('Sesión de Spotify cerrada. Cosmos Íntimo (50 pistas) restaurado.');
   };
 
   const handleApplyPreset = (e: React.FormEvent) => {
     e.preventDefault();
     webAudioEngine.stopCurrentSource();
 
-    if (selectedPreset === 'default') {
-      restoreDefaultGalaxy();
-      setStatusMsg('Universo Base restaurado (42 nodos estelares).');
-    } else {
-      const galaxy = buildMusicGalaxyFromPayload(SAMPLE_STREAMING_PAYLOAD);
-      loadCustomGalaxyData(
-        galaxy,
-        SAMPLE_STREAMING_PAYLOAD.profileName || 'Spotify / Last.fm Snapshot'
-      );
-      setStatusMsg(
-        `Perfil Streaming cargado: ${galaxy.genres.length} sectores, ${galaxy.artists.length} artistas y ${galaxy.songs.length} pistas.`
-      );
-    }
+    const scaleNum = Number(selectedPreset) as 50 | 150 | 300;
+    setPresetScale(scaleNum);
+    setStatusMsg(`Cosmos de ${scaleNum} pistas cargado con éxito.`);
 
     setTimeout(() => {
       closeModal();
@@ -288,24 +280,24 @@ export const DataSourceModal: React.FC = () => {
         <form onSubmit={handleApplyPreset} className="mt-3 flex flex-col gap-3">
           <fieldset className="flex flex-col gap-2 rounded border border-[#00F5D4]/20 bg-[#050508] p-3 shadow-[0_0_12px_rgba(0,245,212,0.06)]">
             <legend className="px-1.5 text-xs font-bold text-[#00F5D4]">
-              Perfiles Instantáneos (Demo / Snapshot)
+              Escalas Cósmicas Instantáneas (Demo / Evolución)
             </legend>
 
             <label className="flex cursor-pointer items-start gap-2.5 rounded border border-[#00F5D4]/20 bg-[#090B12] p-2 text-xs hover:border-[#00F5D4]/60 transition-colors">
               <input
                 type="radio"
                 name={profileRadiosName}
-                value="default"
-                checked={selectedPreset === 'default'}
-                onChange={() => setSelectedPreset('default')}
+                value="50"
+                checked={selectedPreset === '50'}
+                onChange={() => setSelectedPreset('50')}
                 className="mt-0.5 accent-[#00F5D4]"
               />
               <div>
                 <div className="font-bold text-[#F2F4F8]">
-                  Universo Base · Synthwave, Art Rock, IDM & Dream Pop
+                  Cosmos Íntimo · 50 Pistas
                 </div>
                 <div className="text-[11px] text-[#B8DCE8]">
-                  4 sectores, 15 artistas (Daft Punk, Radiohead, Aphex Twin...) y 22 pistas.
+                  5 sectores, 15 artistas icónicos (Daft Punk, Radiohead, Massive Attack, YOASOBI, Aphex Twin).
                 </div>
               </div>
             </label>
@@ -314,18 +306,38 @@ export const DataSourceModal: React.FC = () => {
               <input
                 type="radio"
                 name={profileRadiosName}
-                value="streaming"
-                checked={selectedPreset === 'streaming'}
-                onChange={() => setSelectedPreset('streaming')}
+                value="150"
+                checked={selectedPreset === '150'}
+                onChange={() => setSelectedPreset('150')}
                 className="mt-0.5 accent-[#00F5D4]"
               />
               <div>
                 <div className="flex items-center gap-1.5 font-bold text-[#F2F4F8]">
                   <Radio className="h-3.5 w-3.5 text-[#CCFF00]" strokeWidth={2} />
-                  <span>Snapshot Streaming · Sesión Neo-Tokyo & Bristol</span>
+                  <span>Galaxia Expandida · 150 Pistas</span>
                 </div>
                 <div className="text-[11px] text-[#B8DCE8]">
-                  Massive Attack, Portishead, Burial, Ryuichi Sakamoto y YMO.
+                  8 sectores (suma Neo-Soul, Cyberpunk, Post-Rock), 35 artistas y cúmulos orbitales densos.
+                </div>
+              </div>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-2.5 rounded border border-[#00F5D4]/20 bg-[#090B12] p-2 text-xs hover:border-[#00F5D4]/60 transition-colors">
+              <input
+                type="radio"
+                name={profileRadiosName}
+                value="300"
+                checked={selectedPreset === '300'}
+                onChange={() => setSelectedPreset('300')}
+                className="mt-0.5 accent-[#00F5D4]"
+              />
+              <div>
+                <div className="flex items-center gap-1.5 font-bold text-[#FF2A85]">
+                  <Orbit className="h-3.5 w-3.5 text-[#FF2A85]" strokeWidth={2} />
+                  <span>Supercúmulo Estelar · 300 Pistas</span>
+                </div>
+                <div className="text-[11px] text-[#B8DCE8]">
+                  12 sectores (paleta cósmica completa, Modern Jazz, Tropical Psych, Future Bass), 65+ artistas.
                 </div>
               </div>
             </label>
@@ -335,7 +347,7 @@ export const DataSourceModal: React.FC = () => {
               className="mt-1 min-h-9 flex items-center justify-center gap-2 rounded bg-[#00F5D4] px-3.5 py-1.5 text-xs font-bold text-[#050508] hover:bg-[#CCFF00] hover:shadow-[0_0_15px_rgba(0,245,212,0.35)] transition-all duration-200 active:scale-[0.98]"
             >
               <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.2} />
-              <span>Cargar Perfil Seleccionado</span>
+              <span>Cargar Galaxia ({selectedPreset} pistas)</span>
             </button>
           </fieldset>
 

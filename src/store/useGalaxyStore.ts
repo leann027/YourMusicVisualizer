@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { MusicGalaxyData, MusicNode, SpotifyUserProfile } from '../types/music';
-import { mockMusicGalaxy } from '../data/mockMusicGalaxy';
+import {
+  GALAXY_PRESET_50,
+  GALAXY_PRESET_150,
+  GALAXY_PRESET_300,
+} from '../data/galaxyPresets';
 
 export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song';
 
@@ -14,6 +18,7 @@ export interface RenderPerfStats {
 interface GalaxyState {
   data: MusicGalaxyData;
   dataSourceLabel: string;
+  activePresetScale: 50 | 150 | 300 | 'custom';
   spotifyUser: SpotifyUserProfile | null;
   selectedNode: MusicNode | null;
   hoveredNode: MusicNode | null;
@@ -48,6 +53,7 @@ interface GalaxyState {
   setAudioPlayback: (trackId: string | null, isPlaying: boolean) => void;
   toggleBloom: () => void;
   toggleLinksVisible: () => void;
+  setPresetScale: (scale: 50 | 150 | 300) => void;
   loadCustomGalaxyData: (
     data: MusicGalaxyData,
     sourceLabel: string,
@@ -58,12 +64,13 @@ interface GalaxyState {
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
-  data: mockMusicGalaxy,
-  dataSourceLabel: 'Universo Base (42 Nodos)',
+  data: GALAXY_PRESET_50,
+  dataSourceLabel: 'Cosmos Íntimo (50 Pistas)',
+  activePresetScale: 50,
   spotifyUser: null,
-  selectedNode: mockMusicGalaxy.artists[0], // Daft Punk initial focus
+  selectedNode: GALAXY_PRESET_50.artists[0] || null,
   hoveredNode: null,
-  selectedSectorId: 'genre-electro',
+  selectedSectorId: GALAXY_PRESET_50.genres[0]?.id || null,
   cameraMode: 'galaxy',
   flightVersion: 0,
   isFlying: false,
@@ -179,10 +186,41 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   toggleLinksVisible: () =>
     set((state) => ({ linksVisible: !state.linksVisible })),
 
+  setPresetScale: (scale) => {
+    const presetData =
+      scale === 50
+        ? GALAXY_PRESET_50
+        : scale === 150
+        ? GALAXY_PRESET_150
+        : GALAXY_PRESET_300;
+    const label =
+      scale === 50
+        ? 'Cosmos Íntimo (50 Pistas)'
+        : scale === 150
+        ? 'Galaxia Expandida (150 Pistas)'
+        : 'Supercúmulo Estelar (300 Pistas)';
+
+    set((state) => ({
+      data: presetData,
+      dataSourceLabel: label,
+      activePresetScale: scale,
+      spotifyUser: null,
+      selectedNode: presetData.artists[0] || presetData.genres[0] || null,
+      selectedSectorId: presetData.genres[0]?.id || null,
+      cameraMode: 'galaxy',
+      minAffinityFilter: 0,
+      searchQuery: '',
+      playingTrackId: null,
+      isAudioPlaying: false,
+      flightVersion: state.flightVersion + 1,
+    }));
+  },
+
   loadCustomGalaxyData: (data, dataSourceLabel, spotifyUser = null) =>
     set((state) => ({
       data,
       dataSourceLabel,
+      activePresetScale: 'custom',
       spotifyUser,
       selectedNode: data.artists[0] || data.genres[0] || null,
       selectedSectorId: data.genres[0]?.id || null,
@@ -194,21 +232,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       flightVersion: state.flightVersion + 1,
     })),
 
-  restoreDefaultGalaxy: () =>
-    set((state) => ({
-      data: mockMusicGalaxy,
-      dataSourceLabel: 'Universo Base (42 Nodos)',
-      spotifyUser: null,
-      selectedNode: mockMusicGalaxy.artists[0],
-      selectedSectorId: 'genre-electro',
-      cameraMode: 'galaxy',
-      stellarBrightness: 0.25,
-      minAffinityFilter: 0,
-      searchQuery: '',
-      playingTrackId: null,
-      isAudioPlaying: false,
-      flightVersion: state.flightVersion + 1,
-    })),
+  restoreDefaultGalaxy: () => {
+    get().setPresetScale(50);
+  },
 
   updatePerfStats: (perfStats) => set({ perfStats }),
 }));

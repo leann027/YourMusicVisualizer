@@ -107,12 +107,12 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
   // 3. Materials with AdditiveBlending and GPU-level circular fragment discard (zero square artifacts)
   const innerMaterial = useMemo(() => {
     const mat = new THREE.PointsMaterial({
-      size: 14.0,
+      size: 9.0,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       color: new THREE.Color(genre.color),
-      opacity: 0.08,
+      opacity: 0.045,
       sizeAttenuation: true,
     });
 
@@ -127,10 +127,8 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         if (dist > 0.5) discard;
         // Volumetric gas puff with cosine bell curve falloff
         float smoke = cos(dist * 3.14159265);
-        // Core emission incandescence (like authentic Hubble emission nebulae)
-        float coreIncandescent = exp(-dist * dist * 14.0) * 0.45;
-        diffuseColor.rgb += vec3(coreIncandescent);
-        diffuseColor.a *= (smoke * smoke);
+        diffuseColor.rgb *= 0.45;
+        diffuseColor.a *= (smoke * smoke * 0.7);
         `
       );
     };
@@ -140,12 +138,12 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
 
   const outerMaterial = useMemo(() => {
     const mat = new THREE.PointsMaterial({
-      size: 24.0,
+      size: 16.0,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       color: new THREE.Color(genre.color),
-      opacity: 0.05,
+      opacity: 0.025,
       sizeAttenuation: true,
     });
 
@@ -160,10 +158,8 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         if (dist > 0.5) discard;
         // Volumetric gas puff with cosine bell curve falloff
         float smoke = cos(dist * 3.14159265);
-        // Core emission incandescence (like authentic Hubble emission nebulae)
-        float coreIncandescent = exp(-dist * dist * 14.0) * 0.45;
-        diffuseColor.rgb += vec3(coreIncandescent);
-        diffuseColor.a *= (smoke * smoke);
+        diffuseColor.rgb *= 0.35;
+        diffuseColor.a *= (smoke * smoke * 0.5);
         `
       );
     };
@@ -178,7 +174,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       side: THREE.BackSide,
-      opacity: 0.035,
+      opacity: 0.012,
     });
   }, [genre.color]);
 
