@@ -3,7 +3,7 @@
 import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import { Billboard, Text } from '@react-three/drei';
 import { MusicNode, calculateStarVisualMetrics } from '../../types/music';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
@@ -139,6 +139,8 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   // Smart LOD for DOM labels: prevents label clutter and keeps distant galaxy view clean
   const shouldShowLabel = useMemo(() => {
     if (isFilteredOut) return false;
+    // Songs never render Drei <Html> portals: saves DOM memory and prevents React 19 removeChild collision
+    if (node.type === 'song') return false;
     if (isSelected || isHovered) return true;
 
     const nodeSectorId = node.type === 'genre' ? node.id : node.genreId;
@@ -154,7 +156,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       );
     }
 
-    // 'artist' or 'song' mode: show active sector's artists and the selected artist's songs
+    // 'artist' or 'song' mode: show active sector's artists
     return (
       nodeSectorId === selectedSectorId &&
       (node.type === 'genre' || node.type === 'artist' || isSelected)
@@ -324,58 +326,43 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         <meshBasicMaterial color={coreColor} />
       </mesh>
 
-      {/* Memory & UX optimization: keep Drei <Html> mounted with CSS visibility to prevent React 19 removeChild portal collisions */}
-      <Html
-        key={`star-label-${node.id}`}
-        position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.55 : 0.3), 0]}
-        center
-        distanceFactor={node.type === 'genre' ? 28 : 20}
-        zIndexRange={[1, 5]}
-        className="select-none pointer-events-auto"
-        style={{
-          display: shouldShowLabel ? 'block' : 'none',
-          pointerEvents: shouldShowLabel ? 'auto' : 'none',
-        }}
-      >
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleSelect(e);
-          }}
-          onPointerOver={() => hoverNode(node)}
-          onPointerOut={() => hoverNode(null)}
-          className={`cursor-pointer whitespace-nowrap font-mono tabular-nums tracking-tight transition-transform hover:scale-105 active:scale-95 ${
-            node.type === 'genre'
-              ? `px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider border shadow-[0_0_14px_rgba(0,245,212,0.35)] backdrop-blur-md ${
-                  isSelected
-                    ? 'bg-[#F2F4F8] text-[#050508] border-[#CCFF00] shadow-[0_0_18px_rgba(204,255,0,0.5)]'
-                    : isHovered
-                    ? 'bg-[#050508]/95 text-[#00F5D4] border-[#00F5D4]'
-                    : 'bg-[#050508]/85 text-[#F2F4F8] border-[#00F5D4]/40'
-                }`
-              : `px-2 py-0.5 rounded text-[10px] ${
-                  isSelected
-                    ? 'bg-[#F2F4F8] text-[#050508] font-bold shadow-[0_4px_14px_rgba(0,245,212,0.45)]'
-                    : isHovered
-                    ? 'bg-[#050508]/95 text-[#F2F4F8] border border-[#00F5D4]'
-                    : 'bg-[#050508]/80 text-[#B8DCE8] border border-[#00F5D4]/20'
-                }`
-          }`}
+      {/* Native WebGL SDF Text & Billboard: zero DOM nodes, 60 FPS GPU-rendered, completely eliminates React 19 removeChild collision */}
+      {node.type !== 'song' && shouldShowLabel && (
+        <Billboard
+          position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.85 : 0.45), 0]}
+          follow={true}
+          lockX={false}
+          lockY={false}
+          lockZ={false}
         >
-          <span>{nodeLabel}</span>
-          {node.type !== 'song' && (
-            <span
-              className={`ml-1.5 text-[9px] ${
-                isSelected ? 'text-[#050508]/80' : 'text-[#00F5D4]'
-              }`}
-            >
-              {songCount}p · {affinityPct}%
-            </span>
-          )}
-        </div>
-      </Html>
+          <Text
+            fontSize={node.type === 'genre' ? 0.72 : 0.44}
+            color={isSelected ? '#CCFF00' : isHovered ? '#00F5D4' : '#F2F4F8'}
+            anchorX="center"
+            anchorY="bottom"
+            outlineWidth={0.045}
+            outlineColor="#050508"
+            renderOrder={99}
+            depthOffset={-1}
+            letterSpacing={0.02}
+          >
+            {nodeLabel}
+          </Text>
+          <Text
+            position={[0, -0.06, 0]}
+            fontSize={node.type === 'genre' ? 0.36 : 0.25}
+            color={isSelected ? '#CCFF00' : '#00F5D4'}
+            anchorX="center"
+            anchorY="top"
+            outlineWidth={0.03}
+            outlineColor="#050508"
+            renderOrder={99}
+            depthOffset={-1}
+          >
+            {`${songCount}p · ${affinityPct}%`}
+          </Text>
+        </Billboard>
+      )}
     </group>
   );
 };
