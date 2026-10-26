@@ -37,8 +37,12 @@ interface GalaxyState {
   linksVisible: boolean;
   stellarBrightness: number;
   perfStats: RenderPerfStats;
+  isWarpActive: boolean;
+  hasWarpCompleted: boolean;
 
   // Actions
+  finishWarp: () => void;
+  skipWarp: () => void;
   selectNode: (node: MusicNode | null) => void;
   hoverNode: (node: MusicNode | null) => void;
   selectSector: (genreId: string) => void;
@@ -90,6 +94,11 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     triangles: 0,
     geometries: 0,
   },
+  isWarpActive: true,
+  hasWarpCompleted: false,
+
+  finishWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
+  skipWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
 
   selectNode: (node) => {
     if (!node) {

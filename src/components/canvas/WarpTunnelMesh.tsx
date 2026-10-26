@@ -1,0 +1,134 @@
+'use client';
+
+import React, { useMemo, useRef } from 'react';
+import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
+import { useGalaxyStore } from '../../store/useGalaxyStore';
+
+function createPRNG(seed: number) {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+interface WarpTunnelMeshProps {
+  progressRef: React.MutableRefObject<number>;
+}
+
+const STREAK_COUNT = 650;
+const UNIT_LINE_GEOMETRY = new THREE.CylinderGeometry(0.045, 0.045, 1, 6, 1, true);
+
+/**
+ * Ephemeral Hyperspace Light Streaks (`WarpTunnelMesh`).
+ *
+ * Rendered strictly during the initial warp-in sequence (3.4s).
+ * - 650 streamlined instanced light cylinders stretched along Z.
+ * - Single GPU draw call with AdditiveBlending and soft chromatic palette.
+ * - Dynamically shortens and fades out as the camera decelerates into orbit.
+ * - Disables rendering completely (`visible = false`) once in orbit for zero GPU overhead.
+ */
+export const WarpTunnelMesh: React.FC<WarpTunnelMeshProps> = ({ progressRef }) => {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const isWarpActive = useGalaxyStore((s) => s.isWarpActive);
+  const hasWarpCompleted = useGalaxyStore((s) => s.hasWarpCompleted);
+
+  // Precompute instance parameters: radial placement around the camera trajectory
+  const instances = useMemo(() => {
+    const prng = createPRNG(98765);
+    const data = [];
+    const colors = [
+      new THREE.Color('#00F5D4'), // Cyan
+      new THREE.Color('#38BDF8'), // Azure
+      new THREE.Color('#F2F4F8'), // Starlight
+      new THREE.Color('#CCFF00'), // Acid lime accent
+      new THREE.Color('#A855F7'), // Violet pulsar
+    ];
+
+    for (let i = 0; i < STREAK_COUNT; i++) {
+      const angle = prng() * Math.PI * 2;
+      // Cylindrical distribution around camera approach path (radius 7.5 to 58)
+      const radius = 7.5 + Math.pow(prng(), 1.3) * 50.5;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius * 0.75 + 10.0;
+      // Stretched along Z axis from deep outer space (Z=340 down to Z=-40)
+      const z = -40 + prng() * 380;
+      const baseLength = 18 + prng() * 36;
+      const speedFactor = 0.85 + prng() * 0.35;
+      const color = colors[Math.floor(prng() * colors.length)];
+
+      data.push({
+        baseX: x,
+        baseY: y,
+        baseZ: z,
+        baseLength,
+        speedFactor,
+        color,
+      });
+    }
+    return data;
+  }, []);
+
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  useFrame(() => {
+    if (!isWarpActive || hasWarpCompleted || !meshRef.current) return;
+
+    const p = progressRef.current; // 0.0 (start warp) -> 1.0 (in orbit)
+    // Speed factor drops sharply as camera decelerates
+    const speedRatio = Math.max(0, 1.0 - Math.pow(p, 0.7));
+    const opacityRatio = Math.max(0, 1.0 - Math.pow(p, 1.6));
+
+    const material = meshRef.current.material as THREE.MeshBasicMaterial;
+    if (material) {
+      material.opacity = opacityRatio * 0.85;
+    }
+
+    if (opacityRatio <= 0.01) {
+      meshRef.current.visible = false;
+      return;
+    }
+
+    meshRef.current.visible = true;
+
+    for (let i = 0; i < STREAK_COUNT; i++) {
+      const item = instances[i];
+      const length = Math.max(0.2, item.baseLength * speedRatio);
+
+      dummy.position.set(item.baseX, item.baseY, item.baseZ);
+      // Align cylinder along Z (default CylinderGeometry is along Y)
+      dummy.rotation.set(Math.PI / 2, 0, 0);
+      dummy.scale.set(1.0, length, 1.0);
+      dummy.updateMatrix();
+
+      meshRef.current.setMatrixAt(i, dummy.matrix);
+      meshRef.current.setColorAt(i, item.color);
+    }
+
+    meshRef.current.instanceMatrix.needsUpdate = true;
+    if (meshRef.current.instanceColor) {
+      meshRef.current.instanceColor.needsUpdate = true;
+    }
+  });
+
+  if (hasWarpCompleted && !isWarpActive) {
+    return null;
+  }
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[UNIT_LINE_GEOMETRY, undefined, STREAK_COUNT]}
+      frustumCulled={false}
+    >
+      <meshBasicMaterial
+        transparent
+        opacity={0.85}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </instancedMesh>
+  );
+};

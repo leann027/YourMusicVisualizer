@@ -29,6 +29,7 @@ function createPRNG(seed: number) {
  */
 export const GalacticDustDisc: React.FC = () => {
   const pointsRef = useRef<THREE.Points>(null);
+  const smoothSubBassRef = useRef<number>(0);
   const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
 
   const prefersReducedMotion = useMemo(() => {
@@ -119,10 +120,11 @@ export const GalacticDustDisc: React.FC = () => {
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => 'cosmic-interstellar-ambient-fog-v3';
+    mat.customProgramCacheKey = () => 'cosmic-interstellar-ambient-fog-v4';
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 };
       shader.uniforms.uBrightness = { value: 0.12 };
+      shader.uniforms.uSubBass = { value: 0 };
 
       shader.vertexShader = `
         attribute float aRadius;
@@ -133,6 +135,7 @@ export const GalacticDustDisc: React.FC = () => {
         varying vec3 vDustColor;
         varying float vPhase;
         uniform float uTime;
+        uniform float uSubBass;
         ${shader.vertexShader}
       `;
 
@@ -145,12 +148,15 @@ export const GalacticDustDisc: React.FC = () => {
         `
       );
 
-      // Continuous fluid dynamic flow in vertex shader: differential rotation & 3D volumetric wave billows
+      // Continuous fluid dynamic flow in vertex shader: differential rotation, volumetric billows, and FFT tidal waves
       shader.vertexShader = shader.vertexShader.replace(
         '#include <begin_vertex>',
         `
         float curAngle = aAngle + uTime * aSpeed;
-        float waveY = sin(uTime * 0.40 + aRadius * 0.28 + aPhase) * 1.15 * exp(-aRadius * 0.04);
+        // Concentric acoustic tidal wave radiating outward from galactic core modulated by subBass
+        float tidalWave = sin(aRadius * 0.42 - uTime * 3.2 + aPhase) * (uSubBass * 1.1) * exp(-aRadius * 0.04);
+        float baseWaveY = sin(uTime * 0.40 + aRadius * 0.28 + aPhase) * 1.15 * exp(-aRadius * 0.04);
+        float waveY = baseWaveY + tidalWave;
         float waveR = aRadius + cos(uTime * 0.25 + aAngle * 2.0 + aPhase) * 0.85;
         vec3 transformed = vec3(
           cos(curAngle) * waveR,
@@ -218,6 +224,15 @@ export const GalacticDustDisc: React.FC = () => {
       const baseAlpha = THREE.MathUtils.clamp(stellarBrightness * 0.28, 0.04, 0.15);
       const audioSubBass = fft.isPlaying ? fft.subBass * 0.02 : 0;
       material.userData.shader.uniforms.uBrightness.value = baseAlpha + audioSubBass;
+
+      // Acoustic tidal wave amplitude smoothly damped with lerp
+      const targetSubBass = fft.isPlaying && !prefersReducedMotion ? fft.subBass : 0.0;
+      smoothSubBassRef.current = THREE.MathUtils.lerp(
+        smoothSubBassRef.current,
+        targetSubBass,
+        Math.min(1.0, delta * 6.0)
+      );
+      material.userData.shader.uniforms.uSubBass.value = smoothSubBassRef.current;
     }
 
     if (!prefersReducedMotion && pointsRef.current) {

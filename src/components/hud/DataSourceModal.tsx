@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Database,
   FileJson,
+  KeyRound,
   LogOut,
   Orbit,
   Radio,
@@ -22,8 +23,10 @@ import {
 import {
   clearSpotifySession,
   fetchSpotifyLikedSongsGalaxy,
+  getActiveClientId,
   getStoredAccessToken,
   getStoredTrackLimit,
+  setCustomClientId,
   setStoredTrackLimit,
   SPOTIFY_TRACK_LIMIT_OPTIONS,
   startSpotifyLogin,
@@ -34,6 +37,7 @@ export const DataSourceModal: React.FC = () => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileInputId = useId();
   const profileRadiosName = useId();
+  const clientIdInputId = useId();
 
   const dataSourceLabel = useGalaxyStore((s) => s.dataSourceLabel);
   const spotifyUser = useGalaxyStore((s) => s.spotifyUser);
@@ -45,6 +49,10 @@ export const DataSourceModal: React.FC = () => {
   const [spotifyTrackLimit, setSpotifyTrackLimit] = useState<number>(() =>
     getStoredTrackLimit()
   );
+  const [clientIdInput, setClientIdInput] = useState<string>(() =>
+    getActiveClientId()
+  );
+  const [showClientIdConfig, setShowClientIdConfig] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isSyncingSpotify, setIsSyncingSpotify] = useState(false);
@@ -53,6 +61,7 @@ export const DataSourceModal: React.FC = () => {
     setErrorMsg('');
     setStatusMsg('');
     setSpotifyTrackLimit(getStoredTrackLimit());
+    setClientIdInput(getActiveClientId());
     dialogRef.current?.showModal();
   };
 
@@ -91,14 +100,14 @@ export const DataSourceModal: React.FC = () => {
         // Si el token existente es rechazado o fue bloqueado por cuota de la app previa,
         // limpiamos la sesión anterior y redirigimos inmediatamente al login con el nuevo Client ID.
         clearSpotifySession();
-        await startSpotifyLogin();
+        await startSpotifyLogin(clientIdInput.trim());
         return;
       } finally {
         setIsSyncingSpotify(false);
       }
     }
 
-    await startSpotifyLogin();
+    await startSpotifyLogin(clientIdInput.trim());
   };
 
   const handleSpotifyLogout = () => {
@@ -273,6 +282,57 @@ export const DataSourceModal: React.FC = () => {
                 <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
                 <span>Desconectar</span>
               </button>
+            )}
+          </div>
+
+          {/* Spotify Client ID Configuration Toggle */}
+          <div className="border-t border-[#CCFF00]/20 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowClientIdConfig(!showClientIdConfig)}
+              className="flex items-center gap-1.5 text-[11px] text-[#B8DCE8] hover:text-[#CCFF00] transition-colors"
+            >
+              <KeyRound className="h-3 w-3 text-[#CCFF00]" strokeWidth={2} />
+              <span>
+                {showClientIdConfig
+                  ? 'Ocultar configuración de Spotify Client ID'
+                  : 'Configurar Spotify Client ID (Avanzado)'}
+              </span>
+            </button>
+
+            {showClientIdConfig && (
+              <div className="mt-2 flex flex-col gap-2 rounded bg-[#090B12] p-2.5 border border-[#CCFF00]/25">
+                <label
+                  htmlFor={clientIdInputId}
+                  className="text-[10px] uppercase font-bold text-[#CCFF00] tracking-wider"
+                >
+                  Spotify Client ID
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id={clientIdInputId}
+                    type="text"
+                    value={clientIdInput}
+                    onChange={(e) => setClientIdInput(e.target.value)}
+                    placeholder="Pega tu Spotify Client ID aquí"
+                    className="flex-1 rounded border border-[#CCFF00]/30 bg-[#050508] px-2.5 py-1 text-xs text-[#F2F4F8] font-mono focus:border-[#CCFF00] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomClientId(clientIdInput.trim());
+                      setStatusMsg('Client ID de Spotify guardado correctamente.');
+                    }}
+                    className="rounded bg-[#CCFF00] px-2.5 py-1 text-xs font-bold text-[#050508] hover:bg-[#00F5D4] transition-colors"
+                  >
+                    Guardar
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#B8DCE8] leading-tight">
+                  En tu app de <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="underline text-[#00F5D4]">Spotify Developer Dashboard</a>, asegúrate de añadir esta Redirect URI:{' '}
+                  <code className="text-[#CCFF00]">http://127.0.0.1:3000/callback</code>
+                </p>
+              </div>
             )}
           </div>
         </div>

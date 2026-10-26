@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { Stars } from '@react-three/drei';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { NebulaClusters } from './NebulaClusters';
 import { DistantSongsCloud } from './DistantSongsCloud';
 import { GalacticDustDisc } from './GalacticDustDisc';
+import { WarpTunnelMesh } from './WarpTunnelMesh';
 import { CameraFlightController } from './CameraFlightController';
 import { PostProcessingPipeline } from './PostProcessingPipeline';
 
 export const GalaxyScene: React.FC = () => {
+  const warpProgressRef = useRef(0);
   const data = useGalaxyStore((s) => s.data);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
@@ -102,8 +104,11 @@ export const GalaxyScene: React.FC = () => {
         />
       ))}
 
+      {/* Ephemeral Hyperspace Light Streaks during intro Warp-In */}
+      <WarpTunnelMesh progressRef={warpProgressRef} />
+
       {/* Calibrated GSAP + CameraControls Trajectory Controller */}
-      <CameraFlightController />
+      <CameraFlightController warpProgressRef={warpProgressRef} />
 
       {/* Deferred UnrealBloomPass Post-Processing modulated by Web Audio FFT */}
       <PostProcessingPipeline />

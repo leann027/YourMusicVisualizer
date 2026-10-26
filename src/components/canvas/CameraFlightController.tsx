@@ -8,7 +8,11 @@ import type CameraControlsImpl from 'camera-controls';
 import gsap from 'gsap';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 
-export const CameraFlightController: React.FC = () => {
+interface CameraFlightControllerProps {
+  warpProgressRef?: React.MutableRefObject<number>;
+}
+
+export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ warpProgressRef }) => {
   const controlsRef = useRef<CameraControlsImpl>(null);
   const tweenRef = useRef<gsap.core.Tween | null>(null);
   const introTweenRef = useRef<gsap.core.Tween | null>(null);
@@ -20,6 +24,9 @@ export const CameraFlightController: React.FC = () => {
   const setFlightState = useGalaxyStore((s) => s.setFlightState);
   const setCameraDistance = useGalaxyStore((s) => s.setCameraDistance);
   const updatePerfStats = useGalaxyStore((s) => s.updatePerfStats);
+  const isWarpActive = useGalaxyStore((s) => s.isWarpActive);
+  const finishWarp = useGalaxyStore((s) => s.finishWarp);
+  const skipWarp = useGalaxyStore((s) => s.skipWarp);
 
   const { gl, camera } = useThree();
 
@@ -38,6 +45,12 @@ export const CameraFlightController: React.FC = () => {
         introTweenRef.current.kill();
         introTweenRef.current = null;
       }
+      if (warpProgressRef) {
+        warpProgressRef.current = 1.0;
+      }
+      if (isWarpActive) {
+        skipWarp();
+      }
       if (tweenRef.current) {
         tweenRef.current.kill();
         tweenRef.current = null;
@@ -49,9 +62,37 @@ export const CameraFlightController: React.FC = () => {
     return () => {
       controls.removeEventListener('controlstart', handleUserControlStart);
     };
-  }, [setFlightState]);
+  }, [setFlightState, isWarpActive, skipWarp, warpProgressRef]);
 
-  // Story 1: Cinematic Intro Warp-in Sequence upon entering the galaxy (Helical / Orbital Descent)
+  // Keyboard shortcut to skip warp (Escape, Space, Enter)
+  useEffect(() => {
+    if (!isWarpActive) return;
+
+    const handleSkipKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
+        if (introTweenRef.current) {
+          introTweenRef.current.kill();
+          introTweenRef.current = null;
+        }
+        if (warpProgressRef) {
+          warpProgressRef.current = 1.0;
+        }
+        const controls = controlsRef.current;
+        if (controls) {
+          controls.setLookAt(0, 18, 52, 0, 0, 0, false);
+        }
+        setFlightState(false);
+        skipWarp();
+      }
+    };
+
+    window.addEventListener('keydown', handleSkipKey);
+    return () => {
+      window.removeEventListener('keydown', handleSkipKey);
+    };
+  }, [isWarpActive, skipWarp, setFlightState, warpProgressRef]);
+
+  // Story 1: Cinematic Intro Warp-in Sequence upon entering the galaxy (Hyperspace Warp Drive)
   // Guaranteed to run ONLY ONCE on initial page mount. Never re-runs when selecting stars or sectors.
   useEffect(() => {
     if (hasIntroPlayedRef.current) return;
@@ -65,41 +106,50 @@ export const CameraFlightController: React.FC = () => {
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (prefersReducedMotion) {
+      if (warpProgressRef) warpProgressRef.current = 1.0;
       controls.setLookAt(0, 18, 52, 0, 0, 0, false);
+      finishWarp();
       return;
     }
 
-    // Start in deep outer cosmos with high orbital vantage angle
-    const startRadius = 245;
-    const startAngle = 0.92;
-    const startY = 112;
-    const initialX = Math.sin(startAngle) * startRadius;
-    const initialZ = Math.cos(startAngle) * startRadius;
+    // High-speed approach vantage point from deep space along straight/sweeping trajectory
+    const startX = 12;
+    const startY = 46;
+    const startZ = 295;
 
-    controls.setLookAt(initialX, startY, initialZ, 0, 6, 0, false);
-    setFlightState(true, 4800);
+    const endX = 0;
+    const endY = 18;
+    const endZ = 52;
+
+    controls.setLookAt(startX, startY, startZ, 0, 3, 0, false);
+    setFlightState(true, 3400);
 
     const proxy = { t: 0 };
     introTweenRef.current = gsap.to(proxy, {
       t: 1,
-      duration: 4.8,
+      duration: 3.4,
       delay: 0.1,
-      ease: 'power3.out',
+      ease: 'power4.out',
       onUpdate: () => {
         const p = proxy.t;
-        // Helical spiral curve easing into the galactic observation plane
-        const curY = THREE.MathUtils.lerp(startY, 18, p);
-        const curRadius = THREE.MathUtils.lerp(startRadius, 52, p);
-        const curAngle = startAngle * (1 - p);
-        const curEyeX = Math.sin(curAngle) * curRadius;
-        const curEyeZ = Math.cos(curAngle) * curRadius;
-        const curTargetY = THREE.MathUtils.lerp(6, 0, p);
+        if (warpProgressRef) {
+          warpProgressRef.current = p;
+        }
 
-        controls.setLookAt(curEyeX, curY, curEyeZ, 0, curTargetY, 0, false);
+        const curEyeX = THREE.MathUtils.lerp(startX, endX, p);
+        const curEyeY = THREE.MathUtils.lerp(startY, endY, p);
+        const curEyeZ = THREE.MathUtils.lerp(startZ, endZ, p);
+        const curTargetY = THREE.MathUtils.lerp(3, 0, p);
+
+        controls.setLookAt(curEyeX, curEyeY, curEyeZ, 0, curTargetY, 0, false);
       },
       onComplete: () => {
+        if (warpProgressRef) {
+          warpProgressRef.current = 1.0;
+        }
         introTweenRef.current = null;
-        setFlightState(false, 4800);
+        setFlightState(false, 3400);
+        finishWarp();
       },
     });
 
@@ -109,7 +159,7 @@ export const CameraFlightController: React.FC = () => {
         introTweenRef.current = null;
       }
     };
-  }, [setFlightState]);
+  }, [setFlightState, finishWarp, warpProgressRef]);
 
   // Execute calibrated GSAP camera flight whenever flightVersion increments
   useEffect(() => {

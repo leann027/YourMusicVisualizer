@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useId, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import {
   Compass,
   Orbit,
@@ -34,6 +34,11 @@ export const TelemetryHUD: React.FC = () => {
   const brightnessSliderId = useId();
   const [isConstellationsOpen, setIsConstellationsOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const data = useGalaxyStore((s) => s.data);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
@@ -45,6 +50,7 @@ export const TelemetryHUD: React.FC = () => {
   const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
   const bloomEnabled = useGalaxyStore((s) => s.bloomEnabled);
   const activePresetScale = useGalaxyStore((s) => s.activePresetScale);
+  const isWarpActive = useGalaxyStore((s) => s.isWarpActive);
   const setPresetScale = useGalaxyStore((s) => s.setPresetScale);
 
   const selectSector = useGalaxyStore((s) => s.selectSector);
@@ -54,6 +60,7 @@ export const TelemetryHUD: React.FC = () => {
   const setStellarBrightness = useGalaxyStore((s) => s.setStellarBrightness);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
   const toggleBloom = useGalaxyStore((s) => s.toggleBloom);
+  const skipWarp = useGalaxyStore((s) => s.skipWarp);
 
   const activeSectorGenre = useMemo(() => {
     return data.genres.find((g) => g.id === selectedSectorId) || null;
@@ -149,8 +156,31 @@ export const TelemetryHUD: React.FC = () => {
     return { genres, artists, songs, total: genres + artists + songs };
   }, [data, minAffinityFilter]);
 
+  const warpRunning = mounted && isWarpActive;
+
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 text-[#F2F4F8] font-mono select-none">
+    <>
+      {/* Skip Warp Badge when hyperspace entry is running */}
+      {warpRunning && (
+        <aside
+          aria-label="Indicador de salto hiperespacial"
+          className="pointer-events-auto fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 rounded-full border border-[#00F5D4]/40 bg-[#050508]/85 backdrop-blur-xl px-4 py-1.5 text-xs text-[#00F5D4] shadow-[0_0_24px_rgba(0,245,212,0.35)] animate-pulse cursor-pointer select-none transition-transform hover:scale-105 active:scale-95"
+          onClick={() => skipWarp()}
+        >
+          <span className="font-bold tracking-wider uppercase text-[11px]">Hiperespacio</span>
+          <span className="rounded bg-[#00F5D4]/15 border border-[#00F5D4]/30 px-2 py-0.5 text-[10px] text-[#F2F4F8] font-mono">
+            Clic o Espacio para saltar
+          </span>
+        </aside>
+      )}
+
+      <div
+        className={`fixed inset-0 z-20 text-[#F2F4F8] font-mono select-none pointer-events-none transition-all duration-700 ease-out ${
+          warpRunning
+            ? 'opacity-0 pointer-events-none scale-95'
+            : 'opacity-100 scale-100'
+        }`}
+      >
       {/* Top Floating Glass Header + Stellar Search Combobox */}
       <header className="pointer-events-auto fixed top-3 md:top-4 left-3 md:left-6 right-3 md:right-6 z-30 flex flex-wrap items-center justify-between gap-3 border border-[#00F5D4]/25 bg-[#080A14]/85 backdrop-blur-xl px-4 md:px-5 py-2 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.6)]">
         <div className="flex items-center gap-2.5">
@@ -557,5 +587,6 @@ export const TelemetryHUD: React.FC = () => {
         </div>
       </footer>
     </div>
+    </>
   );
 };

@@ -35,8 +35,16 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
 
   const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
   const minAffinityFilter = useGalaxyStore((s) => s.minAffinityFilter);
+  const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
+  const data = useGalaxyStore((s) => s.data);
 
   const isFilteredOut = genre.affinity < minAffinityFilter;
+
+  const isPlayingThisGenre = useMemo(() => {
+    if (!playingTrackId) return false;
+    const playingSong = data.songs.find((s) => s.id === playingTrackId);
+    return playingSong ? playingSong.genreId === genre.id : false;
+  }, [playingTrackId, data.songs, genre.id]);
 
   // Direct songCount-based nebula density scaling:
   // Genres with many songs produce vast, dense, majestic cosmic nebulae!
@@ -321,17 +329,21 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       }
     }
 
-    // Steady, serene brightness: NO sudden spike or flare-up when approaching or selecting!
+    // Steady, serene brightness with subtle harmonic fluorescence in the active genre
+    const activeBoost = isPlayingThisGenre && fft.isPlaying
+      ? (fft.highShimmer * 0.025 + fft.subBass * 0.015)
+      : 0;
+
     const targetInnerBrightness = THREE.MathUtils.clamp(
-      0.055 * stellarBrightness,
+      0.055 * stellarBrightness + activeBoost,
       0.01,
-      0.10
+      0.14
     );
 
     const targetOuterBrightness = THREE.MathUtils.clamp(
-      0.035 * stellarBrightness,
+      0.035 * stellarBrightness + activeBoost * 0.7,
       0.006,
-      0.07
+      0.09
     );
 
     if (innerMaterial.userData.shader) {
