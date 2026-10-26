@@ -85,11 +85,11 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     return genreColor || '#00F5D4';
   }, [node, genreColor]);
 
-  // Authentic stellar core tint: preserves natural color with subtle high-affinity thermal heat (no white flash on select)
+  // Authentic stellar core tint: preserves natural color with subtle high-affinity thermal heat (never washes out into blinding white)
   const coreColor = useMemo(() => {
     const base = new THREE.Color(starColor);
     const white = new THREE.Color('#F2F4F8');
-    base.lerp(white, node.affinity * 0.22);
+    base.lerp(white, node.affinity * 0.10);
     return '#' + base.getHexString();
   }, [starColor, node.affinity]);
 
@@ -130,28 +130,33 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       }
     }
 
-    // Proximity anti-glare: calculate camera distance to star node
-    let proximityFactor = 1.0;
+    // Strict Proximity Anti-Glare: smoothly eliminates the outer additive corona as camera approaches
+    let coronaProximity = 1.0;
+    let distToCam = 100.0;
     if (groupRef.current) {
-      const distToCam = camera.position.distanceTo(groupRef.current.position);
-      // As camera comes closer than 22 units, smoothly reduce corona opacity and radius
-      proximityFactor = THREE.MathUtils.clamp((distToCam - 4.5) / 16.0, 0.08, 1.0);
+      distToCam = camera.position.distanceTo(groupRef.current.position);
+      // Fades smoothly from distance 24 down to 7.5, completely zero at <= 7.5
+      coronaProximity = THREE.MathUtils.clamp((distToCam - 7.5) / 16.5, 0.0, 1.0);
     }
 
     if (coronaRef.current) {
-      const baseScale = metrics.coreRadius * 1.35;
-      const fullScale = metrics.coronaRadius * (1.05 + Math.cos(t * 0.5 + node.position[1]) * 0.02);
-      const curScale = baseScale + (fullScale - baseScale) * proximityFactor;
-      coronaRef.current.scale.setScalar(curScale);
+      if (coronaProximity <= 0.001) {
+        coronaRef.current.visible = false;
+      } else {
+        coronaRef.current.visible = true;
+        const curScale = metrics.coreRadius * (1.05 + 0.30 * coronaProximity);
+        coronaRef.current.scale.setScalar(curScale);
 
-      const coronaMat = coronaRef.current.material as THREE.MeshBasicMaterial;
-      if (coronaMat) {
-        coronaMat.opacity = metrics.coronaOpacity * stellarBrightness * 0.40 * proximityFactor;
+        const coronaMat = coronaRef.current.material as THREE.MeshBasicMaterial;
+        if (coronaMat) {
+          coronaMat.opacity = metrics.coronaOpacity * stellarBrightness * 0.35 * coronaProximity;
+        }
       }
     }
 
     if (diffractionRef.current) {
-      diffractionRef.current.visible = proximityFactor > 0.45;
+      // Hide diffraction spikes when camera is closer than 16 units
+      diffractionRef.current.visible = distToCam >= 16.0;
     }
 
     if (prefersReducedMotion) return;

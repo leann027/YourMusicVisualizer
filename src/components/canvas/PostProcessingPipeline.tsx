@@ -20,6 +20,7 @@ import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
 export const PostProcessingPipeline: React.FC = () => {
   const { gl, scene, camera, size } = useThree();
   const bloomEnabled = useGalaxyStore((s) => s.bloomEnabled);
+  const cameraDistance = useGalaxyStore((s) => s.cameraDistance);
 
   const composerRef = useRef<EffectComposer | null>(null);
   const bloomPassRef = useRef<UnrealBloomPass | null>(null);
@@ -101,21 +102,38 @@ export const PostProcessingPipeline: React.FC = () => {
     }
 
     const fft = webAudioEngine.sampleFFT();
-    // Photosensitive-safe, gentle ambient bloom with heavy dampening (zero strobing or sudden flashes)
-    const targetStrength = fft.isPlaying
-      ? 0.15 + fft.subBass * 0.03
-      : 0.13;
-    const targetRadius = 0.22;
+
+    // Adaptive Proximity Anti-Glare:
+    // When zoomed into an inspected star, its projected screen area expands dramatically.
+    // Progressively dampening bloom strength and lifting the threshold prevents blinding glare and washed out screens.
+    const proximityBloomFactor = THREE.MathUtils.clamp(
+      (cameraDistance - 5.0) / 22.0,
+      0.02,
+      1.0
+    );
+
+    const baseStrength = fft.isPlaying
+      ? 0.14 + fft.subBass * 0.03
+      : 0.12;
+
+    const targetStrength = baseStrength * proximityBloomFactor;
+    const targetRadius = 0.20;
+    const targetThreshold = THREE.MathUtils.lerp(0.96, 0.88, proximityBloomFactor);
 
     bloomPass.strength = THREE.MathUtils.lerp(
       bloomPass.strength,
       targetStrength,
-      Math.min(1, delta * 3.0)
+      Math.min(1, delta * 4.0)
     );
     bloomPass.radius = THREE.MathUtils.lerp(
       bloomPass.radius,
       targetRadius,
-      Math.min(1, delta * 3.0)
+      Math.min(1, delta * 4.0)
+    );
+    bloomPass.threshold = THREE.MathUtils.lerp(
+      bloomPass.threshold,
+      targetThreshold,
+      Math.min(1, delta * 4.0)
     );
 
     composer.render(delta);

@@ -216,8 +216,8 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         float edgeFade = smoothstep(0.5, 0.05, dist);
         float coreGlow = exp(-dist * dist * 6.0);
         float falloff = edgeFade * coreGlow;
-        // Proximity anti-glare: smoothly fade out particles as camera approaches within 22 units
-        float proximityFade = smoothstep(4.0, 22.0, vCamDist);
+        // Proximity anti-glare: smoothly fade out particles as camera approaches within 28 units (zero glare on star inspection)
+        float proximityFade = smoothstep(8.0, 28.0, vCamDist);
         diffuseColor.rgb = vNebulaColor * (0.65 + 0.35 * coreGlow);
         diffuseColor.a *= falloff * uBrightness * proximityFade;
         `
@@ -286,8 +286,8 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         float edgeFade = smoothstep(0.5, 0.06, dist);
         float coreGlow = exp(-dist * dist * 5.5);
         float falloff = edgeFade * coreGlow;
-        // Proximity anti-glare: smoothly fade out particles as camera approaches within 26 units
-        float proximityFade = smoothstep(5.0, 26.0, vCamDist);
+        // Proximity anti-glare: smoothly fade out particles as camera approaches within 32 units (zero glare on star inspection)
+        float proximityFade = smoothstep(9.0, 32.0, vCamDist);
         diffuseColor.rgb = vNebulaColor * (0.60 + 0.30 * coreGlow);
         diffuseColor.a *= falloff * uBrightness * proximityFade;
         `
