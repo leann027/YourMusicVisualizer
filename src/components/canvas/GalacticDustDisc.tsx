@@ -146,7 +146,6 @@ export const GalacticDustDisc: React.FC = () => {
         #include <color_vertex>
         vDustColor = color;
         vPhase = aPhase;
-        vCamDist = -mvPosition.z;
         `
       );
 
@@ -171,6 +170,7 @@ export const GalacticDustDisc: React.FC = () => {
       shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
         `
+        vCamDist = -mvPosition.z;
         float pSize = size * pointScale * (70.0 / max(8.0, -mvPosition.z));
         gl_PointSize = clamp(pSize, 1.0, 16.0);
         `
@@ -221,14 +221,15 @@ export const GalacticDustDisc: React.FC = () => {
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
     const fft = webAudioEngine.sampleFFT();
+    const mat = pointsRef.current?.material as THREE.PointsMaterial | undefined;
 
-    if (material.userData.shader) {
+    if (mat?.userData?.shader) {
       // Advance GPU fluid flow time
-      material.userData.shader.uniforms.uTime.value = !prefersReducedMotion ? t : 0;
-      // Calm, steady brightness that never washes out stars or overexposes when approaching
-      const baseAlpha = THREE.MathUtils.clamp(stellarBrightness * 0.28, 0.04, 0.15);
-      const audioSubBass = fft.isPlaying ? fft.subBass * 0.02 : 0;
-      material.userData.shader.uniforms.uBrightness.value = baseAlpha + audioSubBass;
+      mat.userData.shader.uniforms.uTime.value = !prefersReducedMotion ? t : 0;
+      // Calm, steady celestial dust brightness that never washes out stars or overexposes when approaching
+      const baseAlpha = THREE.MathUtils.clamp(0.08 + stellarBrightness * 0.35, 0.05, 0.22);
+      const audioSubBass = fft.isPlaying ? fft.subBass * 0.03 : 0;
+      mat.userData.shader.uniforms.uBrightness.value = baseAlpha + audioSubBass;
 
       // Acoustic tidal wave amplitude smoothly damped with lerp
       const targetSubBass = fft.isPlaying && !prefersReducedMotion ? fft.subBass : 0.0;
@@ -237,7 +238,7 @@ export const GalacticDustDisc: React.FC = () => {
         targetSubBass,
         Math.min(1.0, delta * 6.0)
       );
-      material.userData.shader.uniforms.uSubBass.value = smoothSubBassRef.current;
+      mat.userData.shader.uniforms.uSubBass.value = smoothSubBassRef.current;
     }
 
     if (!prefersReducedMotion && pointsRef.current) {

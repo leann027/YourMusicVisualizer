@@ -79,7 +79,7 @@ export const PostProcessingPipeline: React.FC = () => {
         composerRef.current = null;
       }
     };
-  }, [gl, scene, camera, bloomEnabled]); // resize handled in dedicated effect below
+  }, [gl, scene, camera, bloomEnabled, size.width, size.height]);
 
   useEffect(() => {
     if (composerRef.current) {

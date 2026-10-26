@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight,
   ChevronRight,
@@ -248,11 +248,7 @@ export const ArtistSleeveCard: React.FC = () => {
     };
   }, [data.links, data.artists, data.genres, activeArtist, activeGenre, selectedNode]);
 
-  if (!selectedNode || !selectedMetrics) {
-    return null;
-  }
-
-  const handleJumpToBridgeNode = (target: ArtistNode | GenreNode) => {
+  const handleJumpToBridgeNode = useCallback((target: ArtistNode | GenreNode) => {
     selectNode(target);
     const allSongs = data.songs;
     if (target.type === 'artist') {
@@ -284,9 +280,9 @@ export const ArtistSleeveCard: React.FC = () => {
         setAudioPlayback(randomSong.id, true);
       }
     }
-  };
+  }, [data.songs, selectNode, setAudioPlayback]);
 
-  const handleToggleSongPreview = (song: SongNode) => {
+  const handleToggleSongPreview = useCallback((song: SongNode) => {
     selectNode(song);
     const nowPlaying = webAudioEngine.toggleTrack(
       song.id,
@@ -295,7 +291,11 @@ export const ArtistSleeveCard: React.FC = () => {
       song.previewUrl
     );
     setAudioPlayback(nowPlaying ? song.id : null, nowPlaying);
-  };
+  }, [selectNode, setAudioPlayback]);
+
+  if (!selectedNode || !selectedMetrics) {
+    return null;
+  }
 
   const spotifyLinkUrl =
     selectedNode.type === 'song'

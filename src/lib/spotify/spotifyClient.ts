@@ -709,11 +709,6 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
   });
 
-  // Dynamic constellations: scale smoothly to accommodate any number of distinct musical genres
-  const topGenres = Array.from(genreFrequency.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([g]) => g);
-
   const rawTracks: RawLibraryTrackInput[] = validItems.map((item, idx) => {
     const track = item.track;
     const primaryArtist = track.artists[0];

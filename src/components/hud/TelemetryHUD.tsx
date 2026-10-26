@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useEffect, useId, useMemo, useState } from 'react';
+import React, { useId, useMemo, useState, useSyncExternalStore } from 'react';
 import {
-  Compass,
   Orbit,
   Sparkles,
   Sun,
@@ -29,16 +28,18 @@ const AFFINITY_THRESHOLDS = [
   { label: '≥92% Alfa', value: 0.92 },
 ];
 
+const emptySubscribe = () => () => {};
+
 export const TelemetryHUD: React.FC = () => {
   const sliderId = useId();
   const brightnessSliderId = useId();
   const [isConstellationsOpen, setIsConstellationsOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   const data = useGalaxyStore((s) => s.data);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
@@ -46,7 +47,6 @@ export const TelemetryHUD: React.FC = () => {
   const minAffinityFilter = useGalaxyStore((s) => s.minAffinityFilter);
   const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
-  const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
   const bloomEnabled = useGalaxyStore((s) => s.bloomEnabled);
   const activePresetScale = useGalaxyStore((s) => s.activePresetScale);
@@ -143,11 +143,6 @@ export const TelemetryHUD: React.FC = () => {
       setAudioPlayback(targetSong.id, true);
     }
   };
-
-  const activeSongTitle = useMemo(() => {
-    if (!playingTrackId) return null;
-    return data.songs.find((s) => s.id === playingTrackId)?.title || null;
-  }, [data.songs, playingTrackId]);
 
   const visibleCounts = useMemo(() => {
     const genres = data.genres.filter((g) => g.affinity >= minAffinityFilter).length;

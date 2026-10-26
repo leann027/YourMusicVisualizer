@@ -206,6 +206,8 @@ class WebAudioEngine {
     _affinity = 0.9,
     previewUrl?: string
   ): void {
+    void _seedString;
+    void _affinity;
     const ctx = this.ensureContext();
     if (!this.masterGain) return;
 

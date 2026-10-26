@@ -18,7 +18,6 @@ import { useGalaxyStore } from '../../store/useGalaxyStore';
 import {
   buildMusicGalaxyFromPayload,
   RawLibraryPayload,
-  SAMPLE_STREAMING_PAYLOAD,
 } from '../../lib/importers/libraryImporter';
 import {
   clearSpotifySession,
@@ -41,7 +40,6 @@ export const DataSourceModal: React.FC = () => {
 
   const dataSourceLabel = useGalaxyStore((s) => s.dataSourceLabel);
   const spotifyUser = useGalaxyStore((s) => s.spotifyUser);
-  const activePresetScale = useGalaxyStore((s) => s.activePresetScale);
   const loadCustomGalaxyData = useGalaxyStore((s) => s.loadCustomGalaxyData);
   const setPresetScale = useGalaxyStore((s) => s.setPresetScale);
 

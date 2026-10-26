@@ -185,7 +185,6 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         `
         #include <color_vertex>
         vNebulaColor = color;
-        vCamDist = -mvPosition.z;
         `
       );
 
@@ -193,6 +192,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
         `
+        vCamDist = -mvPosition.z;
         float pSize = size * pointScale * (65.0 / max(9.0, -mvPosition.z));
         gl_PointSize = clamp(pSize, 1.0, 16.0);
         `
@@ -255,7 +255,6 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         `
         #include <color_vertex>
         vNebulaColor = color;
-        vCamDist = -mvPosition.z;
         `
       );
 
@@ -263,6 +262,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
         `
+        vCamDist = -mvPosition.z;
         float pSize = size * pointScale * (65.0 / max(9.0, -mvPosition.z));
         gl_PointSize = clamp(pSize, 1.0, 20.0);
         `
@@ -339,34 +339,36 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       }
     }
 
-    // Steady, serene brightness with subtle harmonic fluorescence in the active genre
+    // Rich, luminous nebula presence with subtle harmonic fluorescence in the active genre
     const activeBoost = isPlayingThisGenre && fft.isPlaying
-      ? (fft.highShimmer * 0.025 + fft.subBass * 0.015)
+      ? (fft.highShimmer * 0.035 + fft.subBass * 0.025)
       : 0;
 
     const targetInnerBrightness = THREE.MathUtils.clamp(
-      0.055 * stellarBrightness + activeBoost,
-      0.01,
-      0.14
+      0.08 + 0.16 * stellarBrightness + activeBoost,
+      0.04,
+      0.24
     );
 
     const targetOuterBrightness = THREE.MathUtils.clamp(
-      0.035 * stellarBrightness + activeBoost * 0.7,
-      0.006,
-      0.09
+      0.05 + 0.12 * stellarBrightness + activeBoost * 0.7,
+      0.03,
+      0.18
     );
 
-    if (innerMaterial.userData.shader) {
-      innerMaterial.userData.shader.uniforms.uBrightness.value = THREE.MathUtils.lerp(
-        innerMaterial.userData.shader.uniforms.uBrightness.value,
+    const innerMat = innerPointsRef.current?.material as THREE.PointsMaterial | undefined;
+    if (innerMat?.userData?.shader) {
+      innerMat.userData.shader.uniforms.uBrightness.value = THREE.MathUtils.lerp(
+        innerMat.userData.shader.uniforms.uBrightness.value,
         targetInnerBrightness,
         Math.min(1, delta * 3.0)
       );
     }
 
-    if (outerMaterial.userData.shader) {
-      outerMaterial.userData.shader.uniforms.uBrightness.value = THREE.MathUtils.lerp(
-        outerMaterial.userData.shader.uniforms.uBrightness.value,
+    const outerMat = outerPointsRef.current?.material as THREE.PointsMaterial | undefined;
+    if (outerMat?.userData?.shader) {
+      outerMat.userData.shader.uniforms.uBrightness.value = THREE.MathUtils.lerp(
+        outerMat.userData.shader.uniforms.uBrightness.value,
         targetOuterBrightness,
         Math.min(1, delta * 3.0)
       );

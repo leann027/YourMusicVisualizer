@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { GalaxyScene } from './GalaxyScene';
 
-export const MusicVisualizerCanvas: React.FC = () => {
-  const [mounted, setMounted] = useState(false);
+const emptySubscribe = () => () => {};
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+export const MusicVisualizerCanvas: React.FC = () => {
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   if (!mounted) {
     return (

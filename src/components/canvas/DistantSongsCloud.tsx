@@ -2,7 +2,6 @@
 
 import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
 import { SongNode } from '../../types/music';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 
@@ -85,12 +84,7 @@ export const DistantSongsCloud: React.FC<DistantSongsCloudProps> = ({
     };
 
     return mat;
-  }, []);
-
-  // Synchronize material opacity when stellarBrightness changes
-  useEffect(() => {
-    material.opacity = Math.min(0.85, Math.max(0.18, stellarBrightness * 2.4));
-  }, [material, stellarBrightness]);
+  }, [stellarBrightness]);
 
   useEffect(() => {
     return () => {

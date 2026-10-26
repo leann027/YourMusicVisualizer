@@ -61,7 +61,9 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   const diffractionRef = useRef<THREE.Group>(null);
 
   // Performance-critical: Selective subscriptions prevent mass re-renders across 100+ stars
-  const isSelected = useGalaxyStore((s) => s.selectedNode?.id === node.id);
+  const selectedNodeId = useGalaxyStore((s) => s.selectedNode?.id);
+  const isSelected = selectedNodeId === node.id;
+  const isParentArtistSelected = node.type === 'song' && selectedNodeId === node.artistId;
   const isHovered = useGalaxyStore((s) => s.hoveredNode?.id === node.id);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
@@ -195,12 +197,17 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     }
   });
 
-  // Smart LOD for DOM labels: prevents label clutter and keeps distant galaxy view clean
+  // Smart LOD for labels: shows song titles whenever parent artist is selected or camera is focused
   const shouldShowLabel = useMemo(() => {
     if (isFilteredOut) return false;
-    // Songs never render Drei <Html> portals: saves DOM memory and prevents React 19 removeChild collision
-    if (node.type === 'song') return false;
-    if (isSelected || isHovered) return true;
+    if (isSelected || isHovered || isPlayingNode) return true;
+
+    if (node.type === 'song') {
+      return (
+        isParentArtistSelected ||
+        (cameraMode === 'artist' && node.artistId === selectedNodeId)
+      );
+    }
 
     const nodeSectorId = node.type === 'genre' ? node.id : node.genreId;
 
@@ -224,8 +231,11 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     isFilteredOut,
     isSelected,
     isHovered,
+    isPlayingNode,
     node,
+    isParentArtistSelected,
     cameraMode,
+    selectedNodeId,
     selectedSectorId,
   ]);
 
@@ -486,31 +496,37 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       </mesh>
 
       {/* Native WebGL SDF Text & Billboard: zero DOM nodes, 60 FPS GPU-rendered, completely eliminates React 19 removeChild collision */}
-      {node.type !== 'song' && shouldShowLabel && (
+      {shouldShowLabel && (
         <Billboard
-          position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.90 : 0.40), 0]}
+          position={[
+            0,
+            metrics.coronaRadius + (node.type === 'genre' ? 0.90 : node.type === 'artist' ? 0.45 : 0.28),
+            0,
+          ]}
           follow={true}
           lockX={false}
           lockY={false}
           lockZ={false}
         >
           <Text
-            fontSize={node.type === 'genre' ? 0.65 : 0.36}
-            color={isSelected ? '#CCFF00' : isHovered ? '#00F5D4' : '#F2F4F8'}
+            fontSize={node.type === 'genre' ? 0.65 : node.type === 'artist' ? 0.36 : 0.22}
+            color={isSelected || isPlayingNode ? '#CCFF00' : isHovered ? '#00F5D4' : '#F2F4F8'}
             anchorX="center"
             anchorY="bottom"
-            outlineWidth={0.04}
+            outlineWidth={node.type === 'song' ? 0.03 : 0.04}
             outlineColor="#050508"
             renderOrder={99}
             depthOffset={-1}
             letterSpacing={0.02}
+            maxWidth={node.type === 'song' ? 3.5 : 5.0}
+            textAlign="center"
           >
             {nodeLabel}
           </Text>
           <Text
             position={[0, -0.05, 0]}
-            fontSize={node.type === 'genre' ? 0.30 : 0.20}
-            color={isSelected ? '#CCFF00' : '#00F5D4'}
+            fontSize={node.type === 'genre' ? 0.30 : node.type === 'artist' ? 0.20 : 0.15}
+            color={isSelected || isPlayingNode ? '#CCFF00' : '#00F5D4'}
             anchorX="center"
             anchorY="top"
             outlineWidth={0.025}
@@ -518,7 +534,9 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             renderOrder={99}
             depthOffset={-1}
           >
-            {`${songCount}p · ${affinityPct}%`}
+            {node.type === 'song'
+              ? (node.duration ? `${Math.floor(node.duration / 60)}:${Math.floor(node.duration % 60).toString().padStart(2, '0')} · ${affinityPct}%` : `${affinityPct}%`)
+              : `${songCount}p · ${affinityPct}%`}
           </Text>
         </Billboard>
       )}

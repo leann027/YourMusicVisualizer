@@ -120,7 +120,7 @@ export const ConstellationLinks: React.FC = () => {
       validLinks: links,
     };
   }, [
-    data.links,
+    data,
     nodeMetaMap,
     minAffinityFilter,
     cameraMode,

@@ -78,24 +78,25 @@ export function getDynamicSectorPlacement(
   totalCount: number,
   _genreName: string
 ): { color: string; bg: string; center: [number, number, number] } {
+  void _genreName;
   // Cohesive, dynamic clustering:
   // Dynamically spaces genres around the galaxy disc so they never collide and don't drift into distant voids
   const count = Math.max(1, totalCount);
   const baseRadius =
     count <= 4
-      ? 16.5
+      ? 18.0
       : count <= 8
-      ? 19.5
+      ? 22.5
       : count <= 14
-      ? 23.5
-      : Math.min(30.0, 22.0 + Math.sqrt(count) * 1.5);
+      ? 27.0
+      : Math.min(34.0, 25.0 + Math.sqrt(count) * 1.8);
 
   // Harmonious angular distribution around the galactic disk
   const angle = (index * (Math.PI * 2)) / count + (index % 2 === 0 ? 0.12 : -0.12);
   // Natural radial variance gives organic wispiness without clumping
-  const r = baseRadius * (0.90 + (index % 3) * 0.10);
+  const r = baseRadius * (0.92 + (index % 3) * 0.08);
   // Gentle vertical elevation preserves the unified galactic disc
-  const elevation = Math.sin(index * 1.9) * (count <= 8 ? 2.0 : 3.0);
+  const elevation = Math.sin(index * 1.9) * (count <= 8 ? 2.5 : 3.6);
 
   const cx = Number((Math.cos(angle) * r).toFixed(2));
   const cy = Number(elevation.toFixed(2));
@@ -389,17 +390,17 @@ export function buildMusicGalaxyFromPayload(
     let artistIdx = 0;
     const artistCount = gBucket.artists.size;
 
-    const goldenAngle = 2.3999632; // Golden-Ratio angle (Phyllotaxis spiral)
     for (const [, aBucket] of gBucket.artists) {
       const artistId = `artist-${slugify(aBucket.name)}`;
-      // Even angular distribution around the genre star: zero overlapping labels
-      const spiralRadius = 3.4 + (artistIdx % 2 === 0 ? 0 : 0.65);
-      const angle = (artistIdx * (Math.PI * 2)) / Math.max(1, artistCount) + (genreIdx * 0.45);
-      const ax = Number((gx + Math.cos(angle) * spiralRadius).toFixed(2));
+      // Harmonious phyllotactic / spiral dispersion around the genre core star
+      // Distributes artist stars cleanly with generous orbital envelopes for their song planetary systems
+      const artistDist = 4.8 + Math.sqrt(artistIdx + 0.8) * 2.2 + (artistIdx % 2 === 0 ? 0.4 : -0.4);
+      const angle = (artistIdx * (Math.PI * 2)) / Math.max(1, artistCount) + (genreIdx * 0.55);
+      const ax = Number((gx + Math.cos(angle) * artistDist).toFixed(2));
       const ay = Number(
-        (gy + (artistIdx % 2 === 0 ? 0.45 : -0.45)).toFixed(2)
+        (gy + Math.sin(artistIdx * 2.1) * 1.2 + (artistIdx % 2 === 0 ? 0.4 : -0.4)).toFixed(2)
       );
-      const az = Number((gz + Math.sin(angle) * spiralRadius).toFixed(2));
+      const az = Number((gz + Math.sin(angle) * artistDist).toFixed(2));
 
       const trackItems = aBucket.tracks;
       const avgAffinity =
@@ -480,12 +481,14 @@ export function buildMusicGalaxyFromPayload(
 
       trackItems.forEach((t, tIdx) => {
         const songId = `song-${slugify(aBucket.name)}-${slugify(t.title)}-${tIdx}`;
-        // Planetary orbital disk around parent artist star
-        const goldenSongAngle = tIdx * 2.3999632;
-        const sRadius = 0.95 + Math.sqrt(tIdx + 0.3) * 0.42;
+        // Planetary orbital disk around parent artist star with clear separation from artist core
+        // Golden angle ensures no two songs align along the same radial ray
+        const goldenSongAngle = tIdx * 2.3999632 + (artistIdx * 0.6);
+        // Minimum orbital radius starts at 2.1 to be well outside the artist star's corona (~1.4)
+        const sRadius = 2.1 + Math.sqrt(tIdx + 1) * 0.85;
         const sx = Number((ax + Math.cos(goldenSongAngle) * sRadius).toFixed(2));
         const sy = Number(
-          (ay + Math.sin(tIdx * 1.7) * 0.32 + (tIdx % 2 === 0 ? 0.35 : -0.35)).toFixed(2)
+          (ay + Math.sin(tIdx * 1.8 + artistIdx) * 0.45 + (tIdx % 2 === 0 ? 0.25 : -0.25)).toFixed(2)
         );
         const sz = Number((az + Math.sin(goldenSongAngle) * sRadius).toFixed(2));
         const songAff = Number(

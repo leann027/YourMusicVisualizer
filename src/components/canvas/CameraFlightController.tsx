@@ -32,7 +32,7 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
 
   // Performance & camera distance sampling accumulators (no per-frame React state updates)
   const frameCountRef = useRef(0);
-  const lastSampleTimeRef = useRef(performance.now());
+  const lastSampleTimeRef = useRef(0);
   const tempTargetRef = useRef(new THREE.Vector3());
 
   // Stop any active GSAP flight immediately if the user manually grabs the camera
@@ -309,6 +309,9 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
 
     frameCountRef.current += 1;
     const now = performance.now();
+    if (lastSampleTimeRef.current === 0) {
+      lastSampleTimeRef.current = now;
+    }
     const elapsed = now - lastSampleTimeRef.current;
 
     if (elapsed >= 500) {
