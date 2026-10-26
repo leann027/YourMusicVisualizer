@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag name for release (e.g., v1.0.1)'
+        description: 'Tag name for release (e.g., v1.1.1)'
         required: true
         type: string
 
@@ -24,15 +24,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js 20 LTS
+      - name: Setup Node.js 22 LTS
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies & Run Verification
         run: |
-          npm ci
+          npm install --no-audit
           npm run test
           npm run build
 
