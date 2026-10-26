@@ -63,6 +63,7 @@ const SECTOR_PALETTE = [
   { color: '#F97316', bg: '#241006', center: [26, -15, 2] as [number, number, number] }, // 18. Cobre Astral
   { color: '#2DD4BF', bg: '#061F1B', center: [-8, 24, -4] as [number, number, number] }, // 19. Menta Cósmica
   { color: '#E11D48', bg: '#23080F', center: [10, 22, -12] as [number, number, number] }, // 20. Rubí Interestelar
+  { color: '#FF3399', bg: '#26071B', center: [14, 18, 22] as [number, number, number] }, // 21. Sakura Ciber-Neón (J-Pop, J-Rock & Anime)
 ];
 
 function hashString(str: string): number {
@@ -221,6 +222,28 @@ export const SAMPLE_STREAMING_PAYLOAD: RawLibraryPayload = {
       affinity: 0.89,
       origin: 'Vancouver, Canadá · 2010',
       bio: 'Dream-synth futurista, capas vocales etéreas y secuenciadores industriales de dormitorio.',
+    },
+    {
+      title: 'Sparkle (スパークル)',
+      artist: 'RADWIMPS',
+      genre: 'J-POP, J-ROCK & ANIME',
+      album: 'Your Name. (君の名は。)',
+      durationSec: 537,
+      playCount: 112,
+      affinity: 0.99,
+      origin: 'Kanagawa, Japón · 2001',
+      bio: 'Composiciones cinemáticas, arreglos orquestales emotivos y rock alternativo japonés.',
+    },
+    {
+      title: 'Yoru ni Kakeru (夜に駆ける)',
+      artist: 'YOASOBI',
+      genre: 'J-POP, J-ROCK & ANIME',
+      album: 'THE BOOK (2021)',
+      durationSec: 261,
+      playCount: 124,
+      affinity: 0.98,
+      origin: 'Tokio, Japón · 2019',
+      bio: 'Dúo vocal y de producción musical basado en narrativas literarias y melodías vertiginosas.',
     },
   ],
 };

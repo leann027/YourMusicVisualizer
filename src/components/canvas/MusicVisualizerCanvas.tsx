@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { GalaxyScene } from './GalaxyScene';
+import { useGalaxyStore } from '../../store/useGalaxyStore';
 
 export const MusicVisualizerCanvas: React.FC = () => {
   const [mounted, setMounted] = useState(false);
+  const flightVersion = useGalaxyStore((s) => s.flightVersion);
 
   useEffect(() => {
     setMounted(true);
@@ -36,7 +38,7 @@ export const MusicVisualizerCanvas: React.FC = () => {
         }}
       >
         <color attach="background" args={['#050508']} />
-        <GalaxyScene />
+        <GalaxyScene key={`galaxy-scene-${flightVersion}`} />
       </Canvas>
     </div>
   );

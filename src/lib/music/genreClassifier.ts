@@ -93,9 +93,53 @@ export const CANONICAL_GENRES: Record<string, { sister: string; description: str
     sister: 'IDM & AMBIENT EXPERIMENTAL',
     description: 'Composiciones orquestales, crescendos cinemáticos y atmósferas evocativas.',
   },
+  'J-POP, J-ROCK & ANIME': {
+    sister: 'SYNTHWAVE & FRENCH TOUCH',
+    description: 'Melodías dinámicas, rock nipón, aperturas de anime, city pop y producciones vocales japonesas.',
+  },
 };
 
 export const ALL_CANONICAL_GENRES = Object.keys(CANONICAL_GENRES);
+
+/**
+ * Universal global genres safely used for deterministic hashing fallbacks.
+ * Regional / culture-specific genres (e.g. 'ROCK NACIONAL & ARGENTINO',
+ * 'CUMBIA, CUARTETO & TROPICAL', 'POP LATINO & BALADA', 'J-POP, J-ROCK & ANIME')
+ * are strictly EXCLUDED from blind fallbacks so unfamiliar foreign tracks
+ * are NEVER erroneously classified into regional categories.
+ */
+export const UNIVERSAL_FALLBACK_GENRES = [
+  'POP INTERNACIONAL & SYNTH-POP',
+  'INDIE ROCK & POST-PUNK',
+  'ELECTRÓNICA, HOUSE & TECHNO',
+  'SYNTHWAVE & FRENCH TOUCH',
+  'ART ROCK & SHOEGAZE',
+  'ROCK CLÁSICO & PSICODELIA',
+  'IDM & AMBIENT EXPERIMENTAL',
+  'TRIP-HOP, DOWNTEMPO & DUB',
+  'R&B, SOUL, FUNK & DISCO',
+  'HARD ROCK & HEAVY METAL',
+  'DREAM POP & PSYCHEDELIA',
+  'HIP-HOP, RAP & BOOM BAP',
+  'JAZZ, BLUES & FOLK',
+];
+
+/**
+ * Regular expression matching Japanese / CJK scripts:
+ * Hiragana (\u3040-\u309F), Katakana (\u30A0-\u30FF),
+ * CJK Unified Ideographs / Kanji (\u4E00-\u9FAF, \u3400-\u4DBF),
+ * Halfwidth/Fullwidth Katakana (\uFF66-\uFF9F).
+ */
+export const JAPANESE_SCRIPT_REGEX = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9faf\uff66-\uff9f]/;
+
+function matchesPattern(text: string, pattern: string): boolean {
+  if (text === pattern) return true;
+  if (pattern.length <= 4) {
+    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|\\s)${escaped}(\\s|$)`, 'i').test(text);
+  }
+  return text.includes(pattern);
+}
 
 const INSTANT_ARTIST_PATTERNS: Array<{
   patterns: string[];
@@ -348,11 +392,47 @@ const INSTANT_ARTIST_PATTERNS: Array<{
   {
     patterns: [
       'hans zimmer', 'john williams', 'ennio morricone', 'gustavo santaolalla', 'ludovico einaudi',
-      'ryuichi sakamoto', 'joe hisaishi', 'vangelis', 'max richter', 'beethoven', 'mozart',
-      'bach', 'chopin', 'debussy', 'tchaikovsky', 'brahms', 'ravel', 'vivaldi', 'philip glass',
+      'vangelis', 'max richter', 'beethoven', 'mozart', 'bach', 'chopin', 'debussy', 'tchaikovsky',
+      'brahms', 'ravel', 'vivaldi', 'philip glass',
     ],
     genre: 'MÚSICA CLÁSICA & SOUNDTRACK',
     secondaryGenre: 'IDM & AMBIENT EXPERIMENTAL',
+  },
+  // 21. J-Pop, J-Rock & Anime
+  {
+    patterns: [
+      'yoasobi', 'radwimps', 'kenshi yonezu', 'yonezu kenshi', 'lisa', 'ado', 'king gnu',
+      'eve', 'one ok rock', 'babymetal', 'asian kung-fu generation', 'asian kung fu generation',
+      'lamp', 'casiopea', 'tatsuro yamashita', 'mariya takeuchi', 'fujii kaze', 'vaundy',
+      'mrs. green apple', 'mrs green apple', 'official hige dandism', 'official higedandism',
+      'yorushika', 'zutomayo', 'zutto mayonaka de iinoni', 'minami', 'aimer', 'flow',
+      'spyair', 'kana-boon', 'the pillows', 'maximum the hormone', 'polkadot stingray',
+      'frederic', 'kana nishino', 'kyary pamyu pamyu', 'utada hikaru', 'hikaru utada',
+      'ayumi hamasaki', 'namie amuro', 'perfume', 'wednesday campanella', 'atarashii gakko',
+      'atarashii gakko!', 'toe', 'tricot', 'boris', 'melt-banana', 'mid-air thief', 'fishmans',
+      'cornelius', 'shintaro sakamoto', 'haruomi hosono', 'taeko onuki', 'taeko ohnuki',
+      'junko ohashi', 'anri', 'miki matsubara', 'masayoshi takanaka', 'toshiki kadomatsu',
+      'hatsune miku', 'kikuo', 'wowaka', 'maretu', 'deco*27', 'tuyu', 'inabakumori',
+      'pinocchiop', 'syudou', 'kanaria', 'chinozo', 'tatsuya kitani', 'creepy nuts',
+      'burnout syndromes', 'ling tosite sigure', 'tk from ling tosite sigure', 'uverworld',
+      'man with a mission', 'granrodeo', 'egoist', 'supercell', 'claris', 'myth & roid',
+      'reona', 'sawanohiroyuki[nzk]', 'hiroyuki sawano', 'yuki kajiura', 'yoko kanno',
+      'joe hisaishi', 'ryuichi sakamoto', 'yellow magic orchestra', 'ymo', 'sheena ringo',
+      'shiina ringo', 'tokyo jihen', 'chilli beans.', 'daoko', 'reol', 'asian kung-fu', 'kanaboon',
+      'fhána', 'fhana', 'unison square garden', 'survive said the prophet', 'myth and roid',
+      'scandal', 'band-maid', 'boowy', 'x japan', 'buck-tick', 'l\'arc-en-ciel', 'glay',
+      'dir en grey', 'the gazette', 'miyavi', 'gackt', 'hyde', 'the oral cigarettes',
+      'blue encount', 'wanima', 'novelbright', 'saucy dog', 'macaroni empitsu',
+      'tani yuuki', 'gen hoshino', 'suda masaki', 'masaki suda', 'ryokuoushoku shakai',
+      'yama', 'yuuri', 'uru', 'milet', 'asca', 'halca', 'honeyworks', 'fripside',
+      'angela', 'jam project', 'oldcodex', 'my first story', 'coldrain', 'crossfaith',
+      'crystal lake', 'hanabie.', 'nemophila', 'lovebites', 'aldious', 'nujabes',
+      'uyama hiroto', 'dj krush', 'ken ishii', 'susumu hirasawa', 'p-model', 'the seatbelts',
+      'bradio', 'co shu nie', 'cö shu nie', 'galileo galilei', 'back number',
+      'sekai no owari', 'end of the world', 'alexandros', '[alexandros]',
+    ],
+    genre: 'J-POP, J-ROCK & ANIME',
+    secondaryGenre: 'SYNTHWAVE & FRENCH TOUCH',
   },
 ];
 
@@ -366,7 +446,7 @@ function hashStr(str: string): number {
 
 /**
  * Universal classifier matching artist name, album, or raw genre tag against
- * the instant knowledge base and keyword heuristics.
+ * the instant knowledge base, CJK script detection, and keyword heuristics.
  */
 export function classifyUniversalMusic(
   artistName: string,
@@ -378,9 +458,39 @@ export function classifyUniversalMusic(
   const t = (trackTitle || '').trim().toLowerCase();
   const combined = `${a} ${g} ${t}`;
 
-  // 1. Direct Pattern Match against curated 350+ artist dictionary
+  // 1. Script Analysis: If the artist name, song title, or raw genre contains Japanese/CJK characters,
+  // it is definitively Japanese / East Asian music. Route directly to 'J-POP, J-ROCK & ANIME'
+  // (unless explicit classical/ambient cues are present), completely avoiding any regional misclassification.
+  const hasJapaneseScript =
+    JAPANESE_SCRIPT_REGEX.test(artistName || '') ||
+    JAPANESE_SCRIPT_REGEX.test(trackTitle || '') ||
+    JAPANESE_SCRIPT_REGEX.test(rawGenreText || '');
+
+  if (hasJapaneseScript) {
+    if (combined.includes('classical') || combined.includes('orchestral') || combined.includes('soundtrack')) {
+      return {
+        genre: 'MÚSICA CLÁSICA & SOUNDTRACK',
+        secondaryGenre: 'J-POP, J-ROCK & ANIME',
+        rawGenre: rawGenreText || 'Soundtrack / Anime OST',
+      };
+    }
+    if (combined.includes('ambient') || combined.includes('idm')) {
+      return {
+        genre: 'IDM & AMBIENT EXPERIMENTAL',
+        secondaryGenre: 'J-POP, J-ROCK & ANIME',
+        rawGenre: rawGenreText || 'Japanese Ambient',
+      };
+    }
+    return {
+      genre: 'J-POP, J-ROCK & ANIME',
+      secondaryGenre: combined.includes('rock') || combined.includes('metal') ? 'INDIE ROCK & POST-PUNK' : 'SYNTHWAVE & FRENCH TOUCH',
+      rawGenre: rawGenreText || 'J-Pop / J-Rock / Anime',
+    };
+  }
+
+  // 2. Direct Pattern Match against curated 400+ artist dictionary (with word-boundary protection)
   for (const entry of INSTANT_ARTIST_PATTERNS) {
-    if (entry.patterns.some((p) => a === p || a.includes(p))) {
+    if (entry.patterns.some((p) => matchesPattern(a, p))) {
       return {
         genre: entry.genre,
         secondaryGenre: entry.secondaryGenre,
@@ -389,10 +499,33 @@ export function classifyUniversalMusic(
     }
   }
 
-  // 2. Keyword heuristic analysis across combined metadata
+  // 3. Keyword heuristic analysis across combined metadata
   let matchedGenre = '';
 
   if (
+    combined.includes('j-pop') ||
+    combined.includes('jpop') ||
+    combined.includes('j-rock') ||
+    combined.includes('jrock') ||
+    combined.includes('j-metal') ||
+    combined.includes('anime') ||
+    combined.includes('anisong') ||
+    combined.includes('anison') ||
+    combined.includes('city pop') ||
+    combined.includes('citypop') ||
+    combined.includes('vocaloid') ||
+    combined.includes('utaite') ||
+    combined.includes('shibuya-kei') ||
+    combined.includes('doujin') ||
+    combined.includes('touhou') ||
+    combined.includes('visual kei') ||
+    combined.includes('v-kei') ||
+    combined.includes('japanese') ||
+    combined.includes('kayokyoku') ||
+    combined.includes('enka')
+  ) {
+    matchedGenre = 'J-POP, J-ROCK & ANIME';
+  } else if (
     combined.includes('synthwave') ||
     combined.includes('retrowave') ||
     combined.includes('french touch') ||
@@ -506,7 +639,7 @@ export function classifyUniversalMusic(
   } else if (
     combined.includes('rock nacional') ||
     combined.includes('rock argentino') ||
-    combined.includes('rock en español')
+    combined.includes('rock rioplatense')
   ) {
     matchedGenre = 'ROCK NACIONAL & ARGENTINO';
   } else if (
@@ -521,10 +654,13 @@ export function classifyUniversalMusic(
     matchedGenre = 'ROCK CLÁSICO & PSICODELIA';
   }
 
-  // 3. Deterministic musical distribution fallback: distributes unfamiliar artists evenly across canonical genres
+  // 4. Safe Universal Distribution Fallback:
+  // Distributes unfamiliar artists evenly across UNIVERSAL global genres.
+  // Regional genres ('ROCK NACIONAL & ARGENTINO', 'CUMBIA, CUARTETO & TROPICAL', etc.)
+  // are never picked here, preventing unintended cross-cultural leaks.
   if (!matchedGenre) {
-    const idx = hashStr(a || 'music') % ALL_CANONICAL_GENRES.length;
-    matchedGenre = ALL_CANONICAL_GENRES[idx];
+    const idx = hashStr(a || 'music') % UNIVERSAL_FALLBACK_GENRES.length;
+    matchedGenre = UNIVERSAL_FALLBACK_GENRES[idx];
   }
 
   const sister = CANONICAL_GENRES[matchedGenre]?.sister || 'ROCK CLÁSICO & PSICODELIA';

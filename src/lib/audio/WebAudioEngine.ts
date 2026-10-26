@@ -21,7 +21,8 @@ export interface AudioFFTFrame {
   bins: Uint8Array;    // 24 downsampled bars (0 - 255) for HUD visualizer
 }
 
-const MAX_CACHED_BUFFERS = 4;
+const MAX_CACHED_BUFFERS = 16;
+const MAX_PREVIEW_BUFFERS = 16;
 
 class WebAudioEngine {
   private ctx: AudioContext | null = null;
@@ -30,7 +31,11 @@ class WebAudioEngine {
   private activeSource: AudioBufferSourceNode | null = null;
   private activeTrackGain: GainNode | null = null;
 
-  private bufferCache = new Map<string, AudioBuffer>();
+  // Separate caches for synthesized harmonic loops vs real 30s decoded MP3 previews
+  private synthBufferCache = new Map<string, AudioBuffer>();
+  private previewBufferCache = new Map<string, AudioBuffer>();
+  private pendingPreviewFetches = new Set<string>();
+
   private fftData = new Uint8Array(64);
   private hudBars = new Uint8Array(24);
 
@@ -135,19 +140,19 @@ class WebAudioEngine {
     seedString: string,
     affinity: number
   ): AudioBuffer {
-    const existing = this.bufferCache.get(trackId);
+    const existing = this.synthBufferCache.get(trackId);
     if (existing) {
       // Refresh LRU order
-      this.bufferCache.delete(trackId);
-      this.bufferCache.set(trackId, existing);
+      this.synthBufferCache.delete(trackId);
+      this.synthBufferCache.set(trackId, existing);
       return existing;
     }
 
     // Evict oldest AudioBuffer if cache exceeds MAX_CACHED_BUFFERS
-    if (this.bufferCache.size >= MAX_CACHED_BUFFERS) {
-      const oldestKey = this.bufferCache.keys().next().value;
+    if (this.synthBufferCache.size >= MAX_CACHED_BUFFERS) {
+      const oldestKey = this.synthBufferCache.keys().next().value;
       if (oldestKey) {
-        this.bufferCache.delete(oldestKey);
+        this.synthBufferCache.delete(oldestKey);
       }
     }
 
@@ -210,7 +215,7 @@ class WebAudioEngine {
       );
     }
 
-    this.bufferCache.set(trackId, buffer);
+    this.synthBufferCache.set(trackId, buffer);
     return buffer;
   }
 
@@ -232,6 +237,13 @@ class WebAudioEngine {
     return true;
   }
 
+  /**
+   * Plays a track with 0ms instant auditory and FFT feedback:
+   * - If real preview is already decoded, plays it immediately.
+   * - If not yet decoded, plays the synthesized celestial harmonic buffer instantly (0 delay),
+   *   while fetching and decoding the preview in the background.
+   * - Once decoded, crossfades smoothly into the real audio stream.
+   */
   public playTrack(
     trackId: string,
     seedString: string,
@@ -250,8 +262,26 @@ class WebAudioEngine {
     this.currentFrame.trackId = trackId;
     this.notify();
 
-    // If a real Spotify preview MP3 URL is available, fetch & decode it into our LRU cache
-    if (previewUrl && !this.bufferCache.has(trackId)) {
+    // 1. If real preview is already cached, play it immediately (0ms latency!)
+    const cachedPreview = this.previewBufferCache.get(trackId);
+    if (cachedPreview) {
+      this.startBufferSource(ctx, cachedPreview, trackId);
+      return;
+    }
+
+    // 2. Instant start with synthesized harmonic audio (0ms feedback!)
+    const synthBuffer = this.getOrCreateTrackBuffer(
+      ctx,
+      trackId,
+      seedString,
+      affinity
+    );
+    this.startBufferSource(ctx, synthBuffer, trackId);
+
+    // 3. Background fetch of the real 30s preview; crossfades in when ready
+    if (previewUrl && !this.pendingPreviewFetches.has(trackId)) {
+      this.pendingPreviewFetches.add(trackId);
+
       fetch(previewUrl)
         .then((res) => {
           if (!res.ok) throw new Error('Preview fetch failed');
@@ -259,38 +289,79 @@ class WebAudioEngine {
         })
         .then((arrBuf) => ctx.decodeAudioData(arrBuf))
         .then((decodedBuffer) => {
-          if (this.bufferCache.size >= MAX_CACHED_BUFFERS) {
-            const oldestKey = this.bufferCache.keys().next().value;
-            if (oldestKey) this.bufferCache.delete(oldestKey);
+          this.pendingPreviewFetches.delete(trackId);
+
+          if (this.previewBufferCache.size >= MAX_PREVIEW_BUFFERS) {
+            const oldestKey = this.previewBufferCache.keys().next().value;
+            if (oldestKey) this.previewBufferCache.delete(oldestKey);
           }
-          this.bufferCache.set(trackId, decodedBuffer);
-          // Only swap in the decoded preview if the user is still on this track
+          this.previewBufferCache.set(trackId, decodedBuffer);
+
+          // If the listener is still playing this exact track, smoothly crossfade to real audio!
           if (this.playing && this.currentTrackId === trackId) {
-            this.startBufferSource(ctx, decodedBuffer, trackId);
+            this.crossfadeToBuffer(ctx, decodedBuffer, trackId);
           }
         })
         .catch(() => {
-          // Fallback to synthesized harmonic buffer if preview fetch/decode fails
-          if (this.playing && this.currentTrackId === trackId) {
-            const fallback = this.getOrCreateTrackBuffer(
-              ctx,
-              trackId,
-              seedString,
-              affinity
-            );
-            this.startBufferSource(ctx, fallback, trackId);
-          }
+          this.pendingPreviewFetches.delete(trackId);
+          // Listener continues listening to the synthesized harmonic loop without interruption
         });
-      return;
+    }
+  }
+
+  /**
+   * Smoothly crossfades between the active synthesized ambient buffer and the newly
+   * decoded real track audio buffer over 280ms without clicks or pops.
+   */
+  private crossfadeToBuffer(
+    ctx: AudioContext,
+    newBuffer: AudioBuffer,
+    trackId: string
+  ): void {
+    if (!this.masterGain || !this.playing || this.currentTrackId !== trackId) return;
+
+    const oldSource = this.activeSource;
+    const oldGain = this.activeTrackGain;
+
+    const newSource = ctx.createBufferSource();
+    const newGain = ctx.createGain();
+    newSource.buffer = newBuffer;
+    newSource.loop = true;
+
+    // Fade in new audio source
+    newGain.gain.setValueAtTime(0.001, ctx.currentTime);
+    newGain.gain.exponentialRampToValueAtTime(1.0, ctx.currentTime + 0.28);
+
+    newSource.connect(newGain);
+    newGain.connect(this.masterGain);
+    newSource.start(0);
+
+    // Fade out previous synthesized source
+    if (oldGain && oldSource) {
+      try {
+        oldGain.gain.setValueAtTime(
+          Math.max(0.01, oldGain.gain.value),
+          ctx.currentTime
+        );
+        oldGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        setTimeout(() => {
+          try {
+            oldSource.stop();
+            oldSource.disconnect();
+            oldGain.disconnect();
+          } catch {
+            // Ignore
+          }
+        }, 290);
+      } catch {
+        // Ignore
+      }
     }
 
-    const buffer = this.getOrCreateTrackBuffer(
-      ctx,
-      trackId,
-      seedString,
-      affinity
-    );
-    this.startBufferSource(ctx, buffer, trackId);
+    this.activeSource = newSource;
+    this.activeTrackGain = newGain;
+    this.currentTrackId = trackId;
+    this.notify();
   }
 
   private startBufferSource(
@@ -421,7 +492,7 @@ class WebAudioEngine {
     return {
       isPlaying: this.playing,
       trackId: this.currentTrackId,
-      cachedBuffers: this.bufferCache.size,
+      cachedBuffers: this.synthBufferCache.size + this.previewBufferCache.size,
     };
   }
 
@@ -430,7 +501,9 @@ class WebAudioEngine {
    */
   public dispose(): void {
     this.stopCurrentSource();
-    this.bufferCache.clear();
+    this.synthBufferCache.clear();
+    this.previewBufferCache.clear();
+    this.pendingPreviewFetches.clear();
     if (this.masterGain) {
       try {
         this.masterGain.disconnect();

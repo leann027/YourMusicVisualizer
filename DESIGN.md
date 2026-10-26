@@ -57,6 +57,8 @@ colors:
   menta-cosmica-bg: "#061F1B"
   rubi-interestelar: "#E11D48"
   rubi-interestelar-bg: "#23080F"
+  sakura-ciber-neon: "#FF3399"
+  sakura-ciber-neon-bg: "#26071B"
 typography:
   display:
     fontFamily: "Syne, sans-serif"
