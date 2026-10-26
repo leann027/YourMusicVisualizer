@@ -1,7 +1,7 @@
-# YourMusicVisualizer
+# Novafy
 
 ## Context
-YourMusicVisualizer es una aplicación web interactiva para oyentes de música que transforma su biblioteca y afinidad musical (incluyendo el análisis en vivo de canciones en "Me gusta" de Spotify) en un cosmos 3D navegable y cinematográfico con nebulosas de gas estilo Vía Láctea, derivas orbitales vivas, trayectorias de cámara en arco, interfaz flotante de cristal minimalista y previews de audio reactivos por FFT.
+Novafy es una aplicación web interactiva para oyentes de música que transforma su biblioteca y afinidad musical (incluyendo el análisis en vivo de canciones en "Me gusta" de Spotify) en un cosmos 3D navegable y cinematográfico con nebulosas de gas estilo Vía Láctea, derivas orbitales vivas, trayectorias de cámara en arco, interfaz flotante de cristal minimalista y previews de audio reactivos por FFT.
 
 ## Stack
 - **Framework UI & Routing:** Next.js 16 (App Router) con TypeScript y Tailwind CSS

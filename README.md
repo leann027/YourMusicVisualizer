@@ -1,4 +1,4 @@
-# YourMusicVisualizer
+# Novafy
 
 Sistema interactivo de exploración y renderizado 3D que transforma bibliotecas musicales en un cosmos procedural navegable en tiempo real. Canciones, artistas y géneros se computan como entidades estelares, cúmulos de gas nebular y discos de polvo galáctico que orbitan una singularidad central supermasiva, con cinemáticas de cámara en arco, interfaz perimetral de cristal y reactividad acústica por transformada rápida de Fourier (FFT).
 

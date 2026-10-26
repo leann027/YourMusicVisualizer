@@ -15,9 +15,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'YourMusicVisualizer — Cosmos 3D de tu Música',
+  title: 'Novafy — Cosmos 3D de tu Música',
   description:
-    'Visualizador espacial interactivo 3D que transforma tu biblioteca de canciones, artistas y géneros en un universo navegable de estrellas.',
+    'Cosmos 3D interactivo que transforma tu biblioteca musical en una galaxia viva de estrellas, nebulosas y polvo cósmico.',
 };
 
 export default function RootLayout({
