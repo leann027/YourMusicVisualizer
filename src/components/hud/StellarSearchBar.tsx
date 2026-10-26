@@ -54,11 +54,12 @@ export const StellarSearchBar: React.FC = () => {
 
     const artistItems: SearchResultItem[] = data.artists.map((a) => {
       const genre = genreMap.get(a.genreId);
+      const subgenreLabel = a.subgenre ? ` · [${a.subgenre}]` : '';
       return {
         id: a.id,
         node: a,
         primaryLabel: a.name,
-        secondaryLabel: `${a.catalogCode} · ${a.origin.split('·')[0].trim()} · ${
+        secondaryLabel: `${a.catalogCode}${subgenreLabel} · ${
           genre ? genre.name.split('&')[0].trim() : ''
         }`,
         typeBadge: 'ARTISTA',
@@ -69,11 +70,12 @@ export const StellarSearchBar: React.FC = () => {
 
     const songItems: SearchResultItem[] = data.songs.map((s) => {
       const artist = artistMap.get(s.artistId);
+      const subgenreLabel = s.subgenre ? ` · [${s.subgenre}]` : '';
       return {
         id: s.id,
         node: s,
         primaryLabel: s.title,
-        secondaryLabel: `${artist ? artist.name : 'Artista'} · ${s.album}`,
+        secondaryLabel: `${artist ? artist.name : 'Artista'}${subgenreLabel} · ${s.album}`,
         typeBadge: 'PISTA',
         affinityPct: Math.round(s.affinity * 100),
         accentColor: artist ? artist.sleeveAccent : '#00F5D4',
@@ -93,12 +95,29 @@ export const StellarSearchBar: React.FC = () => {
     }
 
     return allItems
-      .filter(
-        (item) =>
-          item.primaryLabel.toLowerCase().includes(q) ||
-          item.secondaryLabel.toLowerCase().includes(q) ||
-          item.typeBadge.toLowerCase().includes(q)
-      )
+      .filter((item) => {
+        const matchesPrimary = item.primaryLabel.toLowerCase().includes(q);
+        const matchesSecondary = item.secondaryLabel.toLowerCase().includes(q);
+        const matchesType = item.typeBadge.toLowerCase().includes(q);
+        const nodeSubgenre =
+          'subgenre' in item.node && item.node.subgenre
+            ? item.node.subgenre.toLowerCase()
+            : '';
+        const nodeTags =
+          'tags' in item.node && item.node.tags
+            ? item.node.tags.map((t) => t.toLowerCase())
+            : [];
+        const matchesSubgenre = nodeSubgenre.includes(q);
+        const matchesTags = nodeTags.some((t) => t.includes(q));
+
+        return (
+          matchesPrimary ||
+          matchesSecondary ||
+          matchesType ||
+          matchesSubgenre ||
+          matchesTags
+        );
+      })
       .slice(0, 9);
   }, [allItems, searchQuery]);
 

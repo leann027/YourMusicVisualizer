@@ -393,6 +393,39 @@ export const ArtistSleeveCard: React.FC = () => {
         )}
       </div>
 
+      {/* 2-Level Musical Taxonomy & Subgenre Badge */}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+        {activeGenre && (
+          <span className="rounded-md border border-[#00F5D4]/50 bg-[#00F5D4]/15 px-2 py-0.5 font-bold text-[#00F5D4] tracking-wider uppercase text-[10px]">
+            {activeGenre.name.split('&')[0].trim()}
+          </span>
+        )}
+        {(selectedNode.subgenre || activeArtist?.subgenre) && (
+          <span className="rounded-md border border-[#FF2A85]/60 bg-[#FF2A85]/20 px-2 py-0.5 font-extrabold text-[#FF2A85] text-[10px]">
+            {selectedNode.subgenre || activeArtist?.subgenre}
+          </span>
+        )}
+        {(selectedNode.tags || activeArtist?.tags) && (
+          <div className="flex flex-wrap gap-1 items-center">
+            {(selectedNode.tags || activeArtist?.tags || [])
+              .filter(
+                (t) =>
+                  t.toLowerCase() !==
+                  (selectedNode.subgenre || activeArtist?.subgenre || '').toLowerCase()
+              )
+              .slice(0, 3)
+              .map((tag, tIdx) => (
+                <span
+                  key={tIdx}
+                  className="rounded px-1.5 py-0.2 text-[9.5px] font-mono text-[#CCFF00] border border-[#CCFF00]/30 bg-[#CCFF00]/5"
+                >
+                  #{tag}
+                </span>
+              ))}
+          </div>
+        )}
+      </div>
+
       {!isSleeveCollapsed && (
         <div className="mt-3 flex flex-col gap-3">
           {/* Archival Vinyl Record-Sleeve Studio Portrait + Origin & Bio for Artist or Song */}
@@ -537,6 +570,11 @@ export const ArtistSleeveCard: React.FC = () => {
                           <span className="truncate font-semibold">
                             {song.title}
                           </span>
+                          {song.subgenre && (
+                            <span className="hidden xs:inline-block text-[9px] font-mono px-1.5 py-0.5 rounded border border-[#FF2A85]/35 bg-[#FF2A85]/10 text-[#FF2A85] shrink-0">
+                              {song.subgenre}
+                            </span>
+                          )}
                         </span>
 
                         <span className="flex items-center gap-2 shrink-0 text-[11px]">

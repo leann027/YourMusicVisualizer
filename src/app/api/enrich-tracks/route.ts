@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  resolveTrackTaxonomy,
+  MACRO_GENRES,
+} from '@/lib/music/taxonomy';
+import {
   classifyUniversalMusic,
-  GenreClassification,
 } from '@/lib/music/genreClassifier';
 
 interface EnrichTrackRequestItem {
@@ -16,86 +19,165 @@ interface EnrichTrackRequestItem {
 export interface EnrichTrackResultItem {
   key: string;
   genre: string;
+  subgenre: string;
   secondaryGenre?: string;
   rawGenre: string;
+  tags: string[];
   previewUrl: string;
 }
 
-const artistClassificationCache = new Map<string, GenreClassification>();
+interface CachedTrackTaxonomy {
+  genre: string;
+  subgenre: string;
+  secondaryGenre?: string;
+  rawGenre: string;
+  tags: string[];
+}
+
+const trackTaxonomyCache = new Map<string, CachedTrackTaxonomy>();
+const artistTagsCache = new Map<string, Array<{ name: string; weight: number }>>();
+
+const LASTFM_API_KEY =
+  process.env.LASTFM_API_KEY || 'b25b959554ed76058ac220b7b2e0a026';
+
+function cleanTrackTitle(title: string): string {
+  return title
+    .replace(/\s*\([^)]*(remaster|live|version|edit|feat|ft|deluxe|edition|anniversary|mono|stereo|soundtrack|ost)[^)]*\)/gi, '')
+    .replace(/\s*\[[^\]]*(remaster|live|version|edit|feat|ft|deluxe|edition|anniversary|mono|stereo|soundtrack|ost)[^\]]*\]/gi, '')
+    .replace(/\s*-\s*.*(remaster|live|version|mono|stereo|deluxe).*/gi, '')
+    .replace(/["'“”]/g, '')
+    .trim();
+}
 
 /**
- * High-Speed Classification & Metadata Enrichment Resolver (`/api/enrich-tracks`).
- *
- * Uses the instant universal classifier (0ms) first. If an artist is untagged,
- * queries Deezer's high-limit API (`50 req / 5s`) with a 2.2s timeout to obtain official
- * album genres, and passes them to `classifyUniversalMusic` for canonical clustering.
+ * Fetches listener-curated tags at the TRACK level (Last.fm track.getTopTags)
+ * with a fast 1.8s timeout and fallback to artist-level tags.
  */
-async function resolveArtistClassification(
-  artistName: string,
-  existingGenre?: string,
-  _existingSecondary?: string
-): Promise<GenreClassification> {
-  const artistKey = artistName.trim().toLowerCase();
-  const cached = artistClassificationCache.get(artistKey);
-  if (cached) return cached;
+async function fetchTrackLevelTags(
+  artist: string,
+  title: string
+): Promise<Array<{ name: string; weight: number }>> {
+  const cleanTitle = cleanTrackTitle(title);
+  if (!cleanTitle || !artist) return [];
 
-  // 1. Instant 0ms classification first (matches 400+ artists, Japanese CJK, or keywords)
-  const initial = classifyUniversalMusic(artistName, existingGenre, undefined);
-  if (
-    existingGenre ||
-    initial.rawGenre !== initial.genre ||
-    initial.genre === 'J-POP, J-ROCK & ANIME'
-  ) {
-    artistClassificationCache.set(artistKey, initial);
-    return initial;
-  }
-
-  // 2. Fast timeout lookup to Deezer for un-tagged unknown artists
-  let fetchedGenre = '';
   try {
-    const dzRes = await fetch(
-      `https://api.deezer.com/search?q=artist:"${encodeURIComponent(
-        artistName
-      )}"&limit=1`,
-      {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(2200),
-        next: { revalidate: 86400 },
-      }
-    );
-    if (dzRes.ok) {
-      const dzData = (await dzRes.json()) as {
-        data?: { album?: { id?: number } }[];
+    const trackUrl = `https://ws.audioscrobbler.com/2.0/?method=track.gettoptags&artist=${encodeURIComponent(
+      artist
+    )}&track=${encodeURIComponent(cleanTitle)}&api_key=${LASTFM_API_KEY}&format=json`;
+
+    const res = await fetch(trackUrl, {
+      signal: AbortSignal.timeout(1800),
+      headers: { Accept: 'application/json' },
+    });
+
+    if (res.ok) {
+      const data = (await res.json()) as {
+        toptags?: {
+          tag?: Array<{ name: string; count: number | string }>;
+        };
       };
-      const albumId = dzData.data?.[0]?.album?.id;
-      if (albumId) {
-        const albumRes = await fetch(
-          `https://api.deezer.com/album/${albumId}`,
-          {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(2000),
-            next: { revalidate: 86400 },
-          }
-        );
-        if (albumRes.ok) {
-          const albumJson = (await albumRes.json()) as {
-            genres?: { data?: { name?: string }[] };
-          };
-          const gList = albumJson.genres?.data || [];
-          if (gList[0]?.name) fetchedGenre = gList[0].name;
-        }
+      const rawTags = data?.toptags?.tag;
+      if (Array.isArray(rawTags) && rawTags.length > 0) {
+        return rawTags
+          .map((t) => ({
+            name: String(t.name).toLowerCase().trim(),
+            weight: Number(t.count) || 50,
+          }))
+          .filter((t) => t.weight >= 4 && t.name.length > 1);
       }
     }
   } catch {
-    // Non-blocking: continue to fallback
+    // Non-blocking fallback
   }
 
-  const finalResult = fetchedGenre
-    ? classifyUniversalMusic(artistName, fetchedGenre, undefined)
-    : initial;
+  // Fallback to cached or queried artist tags
+  const aKey = artist.toLowerCase().trim();
+  const cachedArtist = artistTagsCache.get(aKey);
+  if (cachedArtist) return cachedArtist;
 
-  artistClassificationCache.set(artistKey, finalResult);
-  return finalResult;
+  try {
+    const artistUrl = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptags&artist=${encodeURIComponent(
+      artist
+    )}&api_key=${LASTFM_API_KEY}&format=json`;
+
+    const aRes = await fetch(artistUrl, {
+      signal: AbortSignal.timeout(1800),
+      headers: { Accept: 'application/json' },
+    });
+
+    if (aRes.ok) {
+      const aData = (await aRes.json()) as {
+        toptags?: {
+          tag?: Array<{ name: string; count: number | string }>;
+        };
+      };
+      const rawTags = aData?.toptags?.tag;
+      if (Array.isArray(rawTags) && rawTags.length > 0) {
+        const parsed = rawTags
+          .map((t) => ({
+            name: String(t.name).toLowerCase().trim(),
+            weight: Number(t.count) || 50,
+          }))
+          .filter((t) => t.weight >= 4 && t.name.length > 1);
+        artistTagsCache.set(aKey, parsed);
+        return parsed;
+      }
+    }
+  } catch {
+    // Non-blocking
+  }
+
+  return [];
+}
+
+/**
+ * Resolves a track's definitive 2-level taxonomy (Macro Constellation + Normalized Subgenre)
+ * and extracts tags for TF-IDF edge computation.
+ */
+async function resolveTrackEnrichment(
+  item: EnrichTrackRequestItem
+): Promise<CachedTrackTaxonomy> {
+  const cacheKey = `${item.artist.toLowerCase().trim()}::${item.title.toLowerCase().trim()}`;
+  const cached = trackTaxonomyCache.get(cacheKey);
+  if (cached) return cached;
+
+  // 1. Fetch track-level listener tags (Last.fm track.getTopTags)
+  const trackTags = await fetchTrackLevelTags(item.artist, item.title);
+
+  // Combine with existing Spotify genres if available
+  const combinedTagList: Array<{ name: string; weight: number }> = [...trackTags];
+  if (item.existingGenre) {
+    combinedTagList.push({ name: item.existingGenre, weight: 85 });
+  }
+  if (item.existingSecondaryGenre) {
+    combinedTagList.push({ name: item.existingSecondaryGenre, weight: 65 });
+  }
+
+  let result: CachedTrackTaxonomy;
+
+  if (combinedTagList.length > 0) {
+    const resolved = resolveTrackTaxonomy(combinedTagList, item.artist, item.title);
+    result = {
+      genre: resolved.macroGenre.name,
+      subgenre: resolved.subgenre,
+      secondaryGenre: MACRO_GENRES[resolved.macroGenre.sister]?.name,
+      rawGenre: `${resolved.macroGenre.shortName} · ${resolved.subgenre}`,
+      tags: resolved.normalizedTags,
+    };
+  } else {
+    // Fallback to instant universal classifier heuristics
+    const fast = classifyUniversalMusic(item.artist, item.existingGenre, item.title);
+    result = {
+      genre: fast.genre,
+      subgenre: fast.rawGenre !== fast.genre ? fast.rawGenre : fast.genre,
+      secondaryGenre: fast.secondaryGenre,
+      rawGenre: fast.genre,
+      tags: [fast.genre],
+    };
+  }
+
+  trackTaxonomyCache.set(cacheKey, result);
+  return result;
 }
 
 export async function POST(req: NextRequest) {
@@ -107,62 +189,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ results: [] });
     }
 
-    // 1. Deduplicate by unique artist so 500 tracks only classify ~80-140 unique artists
-    const uniqueArtistsMap = new Map<
-      string,
-      { artist: string; existingGenre?: string; existingSecondaryGenre?: string }
-    >();
+    // Process tracks in concurrent batches of 20 with rate-limit safe timeouts
+    const batchSize = 20;
+    const enrichedResults: EnrichTrackResultItem[] = [];
 
-    for (const t of tracks) {
-      const aKey = t.artist.trim().toLowerCase();
-      if (!uniqueArtistsMap.has(aKey)) {
-        uniqueArtistsMap.set(aKey, {
-          artist: t.artist,
-          existingGenre: t.existingGenre,
-          existingSecondaryGenre: t.existingSecondaryGenre,
-        });
-      }
-    }
+    for (let i = 0; i < tracks.length; i += batchSize) {
+      const chunk = tracks.slice(i, i + batchSize);
+      const chunkResults = await Promise.all(
+        chunk.map(async (item) => {
+          const taxonomy = await resolveTrackEnrichment(item);
+          const previewParams = new URLSearchParams({
+            artist: item.artist,
+            title: item.title,
+          });
+          if (item.existingPreviewUrl) {
+            previewParams.set('fallbackUrl', item.existingPreviewUrl);
+          }
 
-    const uniqueArtists = Array.from(uniqueArtistsMap.values());
-    const batchSize = 25;
-
-    for (let i = 0; i < uniqueArtists.length; i += batchSize) {
-      const batch = uniqueArtists.slice(i, i + batchSize);
-      await Promise.all(
-        batch.map((item) =>
-          resolveArtistClassification(
-            item.artist,
-            item.existingGenre,
-            item.existingSecondaryGenre
-          )
-        )
+          return {
+            key: item.key,
+            genre: taxonomy.genre,
+            subgenre: taxonomy.subgenre,
+            secondaryGenre: taxonomy.secondaryGenre,
+            rawGenre: taxonomy.rawGenre,
+            tags: taxonomy.tags,
+            previewUrl: `/api/track-preview?${previewParams.toString()}`,
+          };
+        })
       );
+      enrichedResults.push(...chunkResults);
     }
-
-    // 2. Map all tracks to their classified genres + on-demand /api/track-preview streaming URL
-    const enrichedResults: EnrichTrackResultItem[] = tracks.map((item) => {
-      const aKey = item.artist.trim().toLowerCase();
-      const classification =
-        artistClassificationCache.get(aKey) ||
-        classifyUniversalMusic(item.artist, item.existingGenre || '', item.title);
-
-      const previewParams = new URLSearchParams({
-        artist: item.artist,
-        title: item.title,
-      });
-      if (item.existingPreviewUrl) {
-        previewParams.set('fallbackUrl', item.existingPreviewUrl);
-      }
-
-      return {
-        key: item.key,
-        genre: classification.genre,
-        secondaryGenre: classification.secondaryGenre,
-        rawGenre: classification.rawGenre,
-        previewUrl: `/api/track-preview?${previewParams.toString()}`,
-      };
-    });
 
     return NextResponse.json({ results: enrichedResults });
   } catch (err) {
@@ -171,7 +227,7 @@ export async function POST(req: NextRequest) {
         error:
           err instanceof Error
             ? err.message
-            : 'Error enriqueciendo géneros musicales',
+            : 'Error enriqueciendo géneros musicales y etiquetas a nivel de pista',
         results: [],
       },
       { status: 500 }

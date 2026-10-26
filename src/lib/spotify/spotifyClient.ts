@@ -391,8 +391,10 @@ export async function fetchSpotifyLikedSongsGalaxy(
     string,
     {
       genre: string;
+      subgenre?: string;
       secondaryGenre?: string;
       rawGenre: string;
+      tags?: string[];
       previewUrl?: string;
     }
   >();
@@ -424,8 +426,10 @@ export async function fetchSpotifyLikedSongsGalaxy(
         results?: {
           key: string;
           genre: string;
+          subgenre?: string;
           secondaryGenre?: string;
           rawGenre: string;
+          tags?: string[];
           previewUrl?: string;
         }[];
       };
@@ -463,8 +467,8 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
 
     const candidateGenre = (
-      fastClass.genre ||
       enriched?.genre ||
+      fastClass.genre ||
       details?.genres?.[0] ||
       'POP INTERNACIONAL & SYNTH-POP'
     ).toUpperCase();
@@ -509,10 +513,22 @@ export async function fetchSpotifyLikedSongsGalaxy(
 
     const artistGenre =
       artistPrimaryGenre.get(primaryArtist.name) ||
-      fallbackClass.genre ||
-      enriched?.genre;
+      enriched?.genre ||
+      fallbackClass.genre;
 
     const matchedGenre = artistGenre;
+
+    const candidateSubgenre =
+      enriched?.subgenre ||
+      fallbackClass.genre ||
+      'General';
+
+    const candidateTags =
+      enriched?.tags && enriched.tags.length > 0
+        ? enriched.tags
+        : candidateSubgenre
+        ? [candidateSubgenre]
+        : [matchedGenre];
 
     const likedCountForArtist =
       artistLikedCount.get(primaryArtist.name) || 1;
@@ -548,6 +564,8 @@ export async function fetchSpotifyLikedSongsGalaxy(
       title: track.name,
       artist: primaryArtist.name,
       genre: matchedGenre,
+      subgenre: candidateSubgenre,
+      tags: candidateTags,
       secondaryGenre: enriched?.secondaryGenre,
       collaborators,
       album: albumLabel,
@@ -557,7 +575,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
       origin: `Guardado en Spotify · ${addedDate}`,
       bio: `Estrella de tus "Me gusta" en Spotify (${likedCountForArtist} ${
         likedCountForArtist === 1 ? 'pista guardada' : 'pistas guardadas'
-      }). Estilo: ${rawStyleLabel}.`,
+      }). Estilo: ${candidateSubgenre} · ${rawStyleLabel}.`,
       previewUrl: enriched?.previewUrl || fallbackStreamUrl,
       imageUrl: track.album.images?.[0]?.url,
       artistImageUrl:

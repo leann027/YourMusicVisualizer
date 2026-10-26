@@ -12,6 +12,9 @@ export interface GenreNode {
   songCount: number;
   affinity: number; // 0 to 1 aggregate sector affinity
   description: string;
+  subgenre?: string;
+  tags?: string[];
+  macroGenreId?: string;
 }
 
 export interface ArtistNode {
@@ -29,6 +32,8 @@ export interface ArtistNode {
   sleeveAccent: string;
   imageUrl?: string;
   spotifyUrl?: string;
+  subgenre?: string;
+  tags?: string[];
 }
 
 export interface SongNode {
@@ -44,6 +49,8 @@ export interface SongNode {
   previewUrl?: string;
   imageUrl?: string;
   spotifyUrl?: string;
+  subgenre?: string;
+  tags?: string[];
 }
 
 export interface SpotifyUserProfile {

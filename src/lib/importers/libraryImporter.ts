@@ -8,6 +8,7 @@ import {
   SongNode,
 } from '../../types/music';
 import { classifyUniversalMusic } from '../music/genreClassifier';
+import { computeTfIdfLinks, normalizeMusicalTag } from '../music/taxonomy';
 
 /**
  * Data Ingestion & Spatial Layout Engine (`libraryImporter.ts`).
@@ -21,6 +22,8 @@ export interface RawLibraryTrackInput {
   title: string;
   artist: string;
   genre?: string;
+  subgenre?: string;
+  tags?: string[];
   secondaryGenre?: string;
   collaborators?: string[];
   album?: string;
@@ -446,6 +449,17 @@ export function buildMusicGalaxyFromPayload(
         spotifyUrl:
           firstTrackWithArtistUrl?.artistSpotifyUrl ||
           firstTrackWithArtistUrl?.spotifyUrl,
+        subgenre:
+          trackItems.find((t) => t.subgenre)?.subgenre ||
+          normalizeMusicalTag(gBucket.name)?.subgenre ||
+          'General',
+        tags: Array.from(
+          new Set(
+            trackItems.flatMap(
+              (t) => t.tags || (t.subgenre ? [t.subgenre] : [])
+            )
+          )
+        ),
       };
 
       artists.push(artistNode);
@@ -478,6 +492,17 @@ export function buildMusicGalaxyFromPayload(
             aBucket.name
           )}&title=${encodeURIComponent(t.title)}`;
 
+        const songSubgenre =
+          t.subgenre ||
+          normalizeMusicalTag(t.genre || '')?.subgenre ||
+          artistNode.subgenre ||
+          'Pista';
+
+        const songTags =
+          t.tags && t.tags.length > 0
+            ? t.tags
+            : [songSubgenre, t.genre || 'General'];
+
         songs.push({
           id: songId,
           title: t.title,
@@ -491,6 +516,8 @@ export function buildMusicGalaxyFromPayload(
           previewUrl: resolvedPreviewUrl,
           imageUrl: t.imageUrl,
           spotifyUrl: t.spotifyUrl,
+          subgenre: songSubgenre,
+          tags: songTags,
         });
 
         links.push({
@@ -577,6 +604,28 @@ export function buildMusicGalaxyFromPayload(
       addUniqueInfluenceLink(artist.id, secGenreNode.id, 0.82);
     }
   });
+
+  // 4. TF-IDF Stylistic Constellation Bridges (Story 3):
+  // Connect artists sharing distinctive, specific subgenres while penalizing ubiquitous library tags
+  const tfIdfEdges = computeTfIdfLinks(
+    artists.map((a) => ({
+      id: a.id,
+      name: a.name,
+      tags: a.tags && a.tags.length > 0 ? a.tags : (a.subgenre ? [a.subgenre] : []),
+    })),
+    {
+      minSimilarity: 0.30,
+      maxLinksPerNode: 2,
+    }
+  );
+
+  for (const edge of tfIdfEdges) {
+    addUniqueInfluenceLink(
+      edge.source,
+      edge.target,
+      Number(Math.min(0.95, Math.max(0.65, edge.similarity)).toFixed(2))
+    );
+  }
 
   return { genres, artists, songs, links };
 }
