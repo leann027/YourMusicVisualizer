@@ -1,22 +1,39 @@
 'use client';
 
 import React, { useMemo, useRef } from 'react';
+import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { NebulaClusters } from './NebulaClusters';
 import { DistantSongsCloud } from './DistantSongsCloud';
 import { GalacticDustDisc } from './GalacticDustDisc';
+import { ConstellationLinks } from './ConstellationLinks';
 import { WarpTunnelMesh } from './WarpTunnelMesh';
 import { CameraFlightController } from './CameraFlightController';
 import { PostProcessingPipeline } from './PostProcessingPipeline';
 
 export const GalaxyScene: React.FC = () => {
   const warpProgressRef = useRef(0);
+  const galaxyContainerRef = useRef<THREE.Group>(null);
   const data = useGalaxyStore((s) => s.data);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
+
+  const prefersReducedMotion = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
+
+  // Story 2 & User Request: "hacer que todo siga un movimiento lento alrededor del agujero negro"
+  // The entire cosmic disk, nebulae, genre sectors, and constellation links slowly orbit around [0, 0, 0]
+  useFrame((_, delta) => {
+    if (galaxyContainerRef.current && !prefersReducedMotion) {
+      galaxyContainerRef.current.rotation.y += delta * 0.007;
+    }
+  });
 
   // Map genre id to genre color
   const genreColorMap = useMemo(() => {
@@ -57,7 +74,7 @@ export const GalaxyScene: React.FC = () => {
 
   return (
     <>
-      {/* Atmospheric Starfield Backdrop (1 draw call) */}
+      {/* Atmospheric Starfield Backdrop (1 draw call, cosmological inertial frame) */}
       <Stars
         radius={95}
         depth={55}
@@ -68,47 +85,56 @@ export const GalaxyScene: React.FC = () => {
         speed={0.45}
       />
 
-      {/* Deep-Space Spiral Stardust Disc & Galactic Streamers (1 GPU draw call) */}
-      <GalacticDustDisc />
+      {/* Rotating Galaxy Container: Everything revolves slowly around the supermassive black hole at [0, 0, 0] */}
+      <group ref={galaxyContainerRef} name="celestial-galaxy-cosmos">
+        {/* Deep-Space Spiral Stardust Disc & Relativistic Central Black Hole */}
+        <GalacticDustDisc />
 
-      {/* Cosmic Gas & Nebula Clusters around Genre Sectors (Story 4) */}
-      <NebulaClusters />
+        {/* Cosmic Gas & Nebula Clusters around Genre Sectors with Stochastic Micro-Flashes */}
+        <NebulaClusters />
 
-      {/* Genre Core Stars (Supergiants) */}
-      {data.genres.map((genre) => (
-        <StarNodeMesh key={genre.id} node={genre} genreColor={genre.color} />
-      ))}
+        {/* Constellation Filaments & Audio-Reactive Laser Pulses */}
+        <ConstellationLinks />
 
-      {/* Artist Stars (Scaled logarithmically by song count & non-linearly by affinity) */}
-      {data.artists.map((artist) => (
-        <StarNodeMesh
-          key={artist.id}
-          node={artist}
-          genreColor={genreColorMap.get(artist.genreId) || '#00F5D4'}
+        {/* Genre Core Stars (Supergiants) */}
+        {data.genres.map((genre) => (
+          <StarNodeMesh key={genre.id} node={genre} genreColor={genre.color} />
+        ))}
+
+        {/* Artist Stars (Scaled logarithmically by song count & non-linearly by affinity) */}
+        {data.artists.map((artist) => (
+          <StarNodeMesh
+            key={artist.id}
+            node={artist}
+            genreColor={genreColorMap.get(artist.genreId) || '#00F5D4'}
+          />
+        ))}
+
+        {/* Background Song Stars Cloud for massive scalability (1 GPU draw call for thousands of stars) */}
+        <DistantSongsCloud
+          songs={data.songs}
+          genreColorMap={genreColorMap}
+          activeSongIds={activeSongIds}
         />
-      ))}
 
-      {/* Background Song Stars Cloud for massive scalability (1 GPU draw call for thousands of stars) */}
-      <DistantSongsCloud
-        songs={data.songs}
-        genreColorMap={genreColorMap}
-        activeSongIds={activeSongIds}
-      />
-
-      {/* Interactive Song Nodes (Mounted only for active cluster to guarantee 60 FPS) */}
-      {interactiveSongs.map((song) => (
-        <StarNodeMesh
-          key={song.id}
-          node={song}
-          genreColor={genreColorMap.get(song.genreId) || '#00F5D4'}
-        />
-      ))}
+        {/* Interactive Song Nodes (Mounted only for active cluster to guarantee 60 FPS) */}
+        {interactiveSongs.map((song) => (
+          <StarNodeMesh
+            key={song.id}
+            node={song}
+            genreColor={genreColorMap.get(song.genreId) || '#00F5D4'}
+          />
+        ))}
+      </group>
 
       {/* Ephemeral Hyperspace Light Streaks during intro Warp-In */}
       <WarpTunnelMesh progressRef={warpProgressRef} />
 
-      {/* Calibrated GSAP + CameraControls Trajectory Controller */}
-      <CameraFlightController warpProgressRef={warpProgressRef} />
+      {/* Calibrated GSAP + CameraControls Trajectory Controller with Orbital World Matrix Tracking */}
+      <CameraFlightController
+        warpProgressRef={warpProgressRef}
+        galaxyContainerRef={galaxyContainerRef}
+      />
 
       {/* Deferred UnrealBloomPass Post-Processing modulated by Web Audio FFT */}
       <PostProcessingPipeline />

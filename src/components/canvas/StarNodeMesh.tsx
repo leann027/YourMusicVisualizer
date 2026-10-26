@@ -17,7 +17,7 @@ interface StarNodeMeshProps {
 const UNIT_SPHERE_GEOMETRY = new THREE.SphereGeometry(1, 16, 16);
 const UNIT_RING_GEOMETRY = new THREE.RingGeometry(1.35, 1.95, 32, 8);
 const UNIT_OUTER_RING_GEOMETRY = new THREE.RingGeometry(2.0, 2.5, 36, 8);
-const UNIT_RIPPLE_GEOMETRY = new THREE.RingGeometry(1.4, 1.6, 36);
+const UNIT_RIPPLE_GEOMETRY = new THREE.RingGeometry(1.2, 1.8, 36, 4);
 const UNIT_POLAR_JET_GEOMETRY = new THREE.CylinderGeometry(0.04, 0.28, 4.0, 12, 1, true);
 const UNIT_SATELLITE_GEOMETRY = new THREE.SphereGeometry(0.05, 8, 8);
 const UNIT_DIFFRACTION_GEOMETRY = new THREE.PlaneGeometry(3.6, 0.05);
@@ -96,6 +96,13 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   const meshRef = useRef<THREE.Mesh>(null);
   const coronaRef = useRef<THREE.Mesh>(null);
   const rippleRef = useRef<THREE.Mesh>(null);
+  const ripple2Ref = useRef<THREE.Mesh>(null);
+  const ripple3Ref = useRef<THREE.Mesh>(null);
+  const audioSparksGroupRef = useRef<THREE.Group>(null);
+  const spark1Ref = useRef<THREE.Mesh>(null);
+  const spark2Ref = useRef<THREE.Mesh>(null);
+  const spark3Ref = useRef<THREE.Mesh>(null);
+  const spark4Ref = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const satelliteRef = useRef<THREE.Group>(null);
   const diffractionRef = useRef<THREE.Group>(null);
@@ -206,9 +213,11 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     if (!shouldAnimate) return;
 
     const fft = webAudioEngine.sampleFFT();
-    // Gentle, photosensitive-safe audio respiration (zero sudden flashes or strobes)
+    // Energetic, photosensitive-safe audio respiration for active stars
     const audioKick =
-      fft.isPlaying && (isPlayingNode || isSelected)
+      fft.isPlaying && isPlayingNode
+        ? fft.subBass * 0.20 + fft.energy * 0.10
+        : fft.isPlaying && isSelected
         ? fft.subBass * 0.08
         : 0;
 
@@ -221,15 +230,46 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       meshRef.current.scale.setScalar(s);
     }
 
-    // Serene, calm orbital ring for currently playing star (slow 4s smooth breathing)
-    if (rippleRef.current && isPlayingNode) {
-      const slowPhase = (t * 0.25) % 1.0;
-      const rippleScale = metrics.coreRadius * (1.1 + slowPhase * 0.8);
-      rippleRef.current.scale.setScalar(rippleScale);
-      const rippleMat = rippleRef.current.material as THREE.MeshBasicMaterial;
-      if (rippleMat) {
-        const fade = (1.0 - slowPhase) * 0.45;
-        rippleMat.opacity = Math.max(0, fade * stellarBrightness);
+    if (coronaRef.current && isPlayingNode && fft.isPlaying) {
+      const cScale = metrics.coronaRadius * (0.8 + 0.3 * stellarBrightness) * (1.0 + fft.subBass * 0.22);
+      coronaRef.current.scale.setScalar(cScale);
+    }
+
+    // Story 5 / Playback animation: Multi-ring resonant acoustic pulsar & revolving equalizer sparks
+    if (isPlayingNode) {
+      const p1 = (t * 0.55) % 1.0;
+      const p2 = (t * 0.55 + 0.33) % 1.0;
+      const p3 = (t * 0.55 + 0.66) % 1.0;
+      const baseWaveScale = metrics.coreRadius * (1.05 + (fft.isPlaying ? fft.subBass * 0.35 : 0));
+
+      if (rippleRef.current) {
+        const s1 = baseWaveScale * (1.0 + p1 * (1.5 + (fft.isPlaying ? fft.subBass * 0.7 : 0)));
+        rippleRef.current.scale.setScalar(s1);
+        const mat1 = rippleRef.current.material as THREE.MeshBasicMaterial;
+        if (mat1) mat1.opacity = Math.sin(p1 * Math.PI) * (0.65 + (fft.isPlaying ? fft.energy * 0.25 : 0)) * stellarBrightness;
+      }
+      if (ripple2Ref.current) {
+        const s2 = baseWaveScale * (1.0 + p2 * (1.5 + (fft.isPlaying ? fft.subBass * 0.7 : 0)));
+        ripple2Ref.current.scale.setScalar(s2);
+        const mat2 = ripple2Ref.current.material as THREE.MeshBasicMaterial;
+        if (mat2) mat2.opacity = Math.sin(p2 * Math.PI) * (0.58 + (fft.isPlaying ? fft.midHarmonic * 0.25 : 0)) * stellarBrightness;
+      }
+      if (ripple3Ref.current) {
+        const s3 = baseWaveScale * (1.0 + p3 * (1.5 + (fft.isPlaying ? fft.subBass * 0.7 : 0)));
+        ripple3Ref.current.scale.setScalar(s3);
+        const mat3 = ripple3Ref.current.material as THREE.MeshBasicMaterial;
+        if (mat3) mat3.opacity = Math.sin(p3 * Math.PI) * (0.50 + (fft.isPlaying ? fft.highShimmer * 0.25 : 0)) * stellarBrightness;
+      }
+
+      if (audioSparksGroupRef.current && !prefersReducedMotion) {
+        audioSparksGroupRef.current.rotation.y += delta * (1.5 + (fft.isPlaying ? fft.energy * 2.2 : 0));
+        audioSparksGroupRef.current.rotation.x = Math.sin(t * 1.8) * 0.25;
+        audioSparksGroupRef.current.rotation.z = Math.cos(t * 1.4) * 0.20;
+
+        if (spark1Ref.current) spark1Ref.current.scale.setScalar(1.0 + (fft.isPlaying ? fft.subBass * 1.8 : 0));
+        if (spark2Ref.current) spark2Ref.current.scale.setScalar(1.0 + (fft.isPlaying ? fft.midHarmonic * 1.8 : 0));
+        if (spark3Ref.current) spark3Ref.current.scale.setScalar(1.0 + (fft.isPlaying ? fft.highShimmer * 1.8 : 0));
+        if (spark4Ref.current) spark4Ref.current.scale.setScalar(1.0 + (fft.isPlaying ? fft.energy * 1.8 : 0));
       }
     }
 
@@ -503,22 +543,92 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         </group>
       )}
 
-      {/* Audio Pulsar Shockwave Ripple when track is actively playing */}
+      {/* Resonant Multi-Wave Acoustic Soundwave Pulsar & Revolving Harmonic Sparks when track is actively playing */}
       {isPlayingNode && (
-        <mesh
-          ref={rippleRef}
-          geometry={UNIT_RIPPLE_GEOMETRY}
-          rotation={[Math.PI / 2, 0, 0]}
-        >
-          <meshBasicMaterial
-            color="#00F5D4"
-            side={THREE.DoubleSide}
-            transparent
-            opacity={0.65 * stellarBrightness}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
+        <group>
+          {/* Ring 1: Primary Cyan Resonant Wavefront */}
+          <mesh
+            ref={rippleRef}
+            geometry={UNIT_RIPPLE_GEOMETRY}
+            rotation={[Math.PI / 2, 0, 0]}
+          >
+            <meshBasicMaterial
+              color="#00F5D4"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.65 * stellarBrightness}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              onBeforeCompile={softRingOnBeforeCompile}
+            />
+          </mesh>
+
+          {/* Ring 2: Secondary Neon-Lime Harmonic Wavefront */}
+          <mesh
+            ref={ripple2Ref}
+            geometry={UNIT_RIPPLE_GEOMETRY}
+            rotation={[Math.PI / 2.15, 0.22, 0]}
+          >
+            <meshBasicMaterial
+              color="#CCFF00"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.55 * stellarBrightness}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              onBeforeCompile={softRingOnBeforeCompile}
+            />
+          </mesh>
+
+          {/* Ring 3: Tertiary Cosmic Magenta Sub-Bass Wavefront */}
+          <mesh
+            ref={ripple3Ref}
+            geometry={UNIT_RIPPLE_GEOMETRY}
+            rotation={[Math.PI / 1.85, -0.22, 0]}
+          >
+            <meshBasicMaterial
+              color="#FF2A85"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.45 * stellarBrightness}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              onBeforeCompile={softRingOnBeforeCompile}
+            />
+          </mesh>
+
+          {/* 4 Orbiting Harmonic Audio Equalizer Micro-Sparks */}
+          <group ref={audioSparksGroupRef}>
+            <mesh
+              ref={spark1Ref}
+              geometry={UNIT_SATELLITE_GEOMETRY}
+              position={[metrics.coreRadius * 2.2, 0, 0]}
+            >
+              <meshBasicMaterial color="#00F5D4" />
+            </mesh>
+            <mesh
+              ref={spark2Ref}
+              geometry={UNIT_SATELLITE_GEOMETRY}
+              position={[0, metrics.coreRadius * 0.45, metrics.coreRadius * 2.2]}
+            >
+              <meshBasicMaterial color="#CCFF00" />
+            </mesh>
+            <mesh
+              ref={spark3Ref}
+              geometry={UNIT_SATELLITE_GEOMETRY}
+              position={[-metrics.coreRadius * 2.2, -metrics.coreRadius * 0.35, 0]}
+            >
+              <meshBasicMaterial color="#FF2A85" />
+            </mesh>
+            <mesh
+              ref={spark4Ref}
+              geometry={UNIT_SATELLITE_GEOMETRY}
+              position={[0, -metrics.coreRadius * 0.45, -metrics.coreRadius * 2.2]}
+            >
+              <meshBasicMaterial color="#9D4EDD" />
+            </mesh>
+          </group>
+        </group>
       )}
 
       {/* Core Star Sphere: Atmospheric limb darkening prevents flat plastic bead appearance */}
@@ -581,7 +691,9 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             renderOrder={99}
             depthOffset={-1}
           >
-            {node.type === 'song'
+            {isPlayingNode
+              ? `▶ EN REPRODUCCIÓN · ${affinityPct}%`
+              : node.type === 'song'
               ? (node.duration ? `${Math.floor(node.duration / 60)}:${Math.floor(node.duration % 60).toString().padStart(2, '0')} · ${affinityPct}%` : `${affinityPct}%`)
               : `${songCount}p · ${affinityPct}%`}
           </Text>

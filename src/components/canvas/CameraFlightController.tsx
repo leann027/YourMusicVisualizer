@@ -10,17 +10,23 @@ import { useGalaxyStore } from '../../store/useGalaxyStore';
 
 interface CameraFlightControllerProps {
   warpProgressRef?: React.MutableRefObject<number>;
+  galaxyContainerRef?: React.RefObject<THREE.Group | null>;
 }
 
-export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ warpProgressRef }) => {
+export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({
+  warpProgressRef,
+  galaxyContainerRef,
+}) => {
   const controlsRef = useRef<CameraControlsImpl>(null);
   const tweenRef = useRef<gsap.core.Tween | null>(null);
   const introTweenRef = useRef<gsap.core.Tween | null>(null);
   const warpInitiatedRef = useRef(false);
+  const lastTargetWorldPos = useRef(new THREE.Vector3());
 
   const flightVersion = useGalaxyStore((s) => s.flightVersion);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
+  const isFlying = useGalaxyStore((s) => s.isFlying);
   const setFlightState = useGalaxyStore((s) => s.setFlightState);
   const setCameraDistance = useGalaxyStore((s) => s.setCameraDistance);
   const updatePerfStats = useGalaxyStore((s) => s.updatePerfStats);
@@ -192,7 +198,14 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
       endTarget.set(0, 0, 0);
       endEye.set(0, 18, 52);
     } else {
-      const [nx, ny, nz] = selectedNode.position;
+      const localPos = new THREE.Vector3(...selectedNode.position);
+      const worldPos = galaxyContainerRef?.current
+        ? localPos.applyMatrix4(galaxyContainerRef.current.matrixWorld)
+        : localPos;
+
+      const nx = worldPos.x;
+      const ny = worldPos.y;
+      const nz = worldPos.z;
       endTarget.set(nx, ny, nz);
 
       if (cameraMode === 'sector') {
@@ -295,10 +308,54 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
         tweenRef.current = null;
       }
     };
-  }, [flightVersion, cameraMode, selectedNode, setFlightState]);
+  }, [flightVersion, cameraMode, selectedNode, setFlightState, galaxyContainerRef]);
 
-  // Sample FPS, WebGL draw calls, and camera distance every 500ms
+  // Sample FPS, WebGL draw calls, and track orbital star motion
   useFrame(() => {
+    // 1. Orbital tracking: when viewing an inspected star/cluster, maintain camera focus along its celestial orbit
+    if (
+      galaxyContainerRef?.current &&
+      selectedNode &&
+      cameraMode !== 'galaxy' &&
+      !tweenRef.current &&
+      !introTweenRef.current &&
+      !isFlying
+    ) {
+      const controls = controlsRef.current;
+      if (controls) {
+        const localPos = new THREE.Vector3(...selectedNode.position);
+        const curWorldPos = localPos.applyMatrix4(galaxyContainerRef.current.matrixWorld);
+
+        if (lastTargetWorldPos.current.lengthSq() > 0.001) {
+          const deltaX = curWorldPos.x - lastTargetWorldPos.current.x;
+          const deltaY = curWorldPos.y - lastTargetWorldPos.current.y;
+          const deltaZ = curWorldPos.z - lastTargetWorldPos.current.z;
+
+          const deltaSq = deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ;
+          // Smooth micro delta tracking (guards against sudden camera flight snaps)
+          if (deltaSq > 0.0000001 && deltaSq < 0.25) {
+            const curTarget = new THREE.Vector3();
+            const curPos = new THREE.Vector3();
+            controls.getTarget(curTarget);
+            controls.getPosition(curPos);
+
+            controls.setLookAt(
+              curPos.x + deltaX,
+              curPos.y + deltaY,
+              curPos.z + deltaZ,
+              curTarget.x + deltaX,
+              curTarget.y + deltaY,
+              curTarget.z + deltaZ,
+              false
+            );
+          }
+        }
+        lastTargetWorldPos.current.copy(curWorldPos);
+      }
+    } else {
+      lastTargetWorldPos.current.set(0, 0, 0);
+    }
+
     // Initiate warp sequence the moment CameraControls is ready on the first render frame
     if (!warpInitiatedRef.current && controlsRef.current) {
       const ok = startWarpSequence();

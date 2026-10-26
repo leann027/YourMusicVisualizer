@@ -20,6 +20,8 @@ export const ConstellationLinks: React.FC = () => {
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
+  const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
+  const isAudioPlaying = useGalaxyStore((s) => s.isAudioPlaying);
 
   const geometryRef = useRef<THREE.BufferGeometry>(null);
   const materialRef = useRef<THREE.LineBasicMaterial>(null);
@@ -82,7 +84,7 @@ export const ConstellationLinks: React.FC = () => {
       }
 
       // 2. In 'galaxy' view, declutter the cosmos by hiding dense artist-song satellite links
-      // unless that specific artist or song is selected or hovered
+      // unless that specific artist or song is selected, hovered, or actively playing
       if (link.type === 'artist-song') {
         const isFocused =
           (selectedNode &&
@@ -92,7 +94,9 @@ export const ConstellationLinks: React.FC = () => {
                 selectedNode.artistId === link.source))) ||
           (hoveredNode &&
             (link.source === hoveredNode.id ||
-              link.target === hoveredNode.id));
+              link.target === hoveredNode.id)) ||
+          (playingTrackId &&
+            (link.source === playingTrackId || link.target === playingTrackId));
 
         const isInsideActiveSector =
           cameraMode !== 'galaxy' &&
@@ -127,6 +131,7 @@ export const ConstellationLinks: React.FC = () => {
     selectedSectorId,
     selectedNode,
     hoveredNode,
+    playingTrackId,
   ]);
 
   // Explicit disposal on unmount to prevent GPU buffer leaks
@@ -150,6 +155,7 @@ export const ConstellationLinks: React.FC = () => {
     const fft = webAudioEngine.sampleFFT();
     const t = state.clock.getElapsedTime();
     const focusId = hoveredNode?.id || selectedNode?.id || null;
+    const playingArtistId = playingTrackId ? nodeMetaMap.get(playingTrackId)?.artistId : null;
 
     const arr = colorAttr.array as Float32Array;
 
@@ -158,16 +164,26 @@ export const ConstellationLinks: React.FC = () => {
       const isConnectedToFocus =
         focusId !== null &&
         (link.source === focusId || link.target === focusId);
+      const isConnectedToPlaying =
+        isAudioPlaying &&
+        Boolean(
+          (playingTrackId && (link.source === playingTrackId || link.target === playingTrackId)) ||
+          (playingArtistId && (link.source === playingArtistId || link.target === playingArtistId))
+        );
       const isCrossGenreBridge = link.type === 'influence';
 
-      const baseColor = isConnectedToFocus
+      const baseColor = isConnectedToPlaying
+        ? COLOR_HIGHLIGHT
+        : isConnectedToFocus
         ? COLOR_HIGHLIGHT
         : isCrossGenreBridge
         ? COLOR_BRIDGE
         : COLOR_DEFAULT;
 
       let intensity =
-        (isConnectedToFocus
+        (isConnectedToPlaying
+          ? 0.95
+          : isConnectedToFocus
           ? 0.85
           : isCrossGenreBridge
           ? 0.42
@@ -175,12 +191,17 @@ export const ConstellationLinks: React.FC = () => {
 
       if (fft.isPlaying) {
         const wave = 0.5 + 0.5 * Math.sin(t * 7.5 + i * 0.65);
-        const audioBoost = isCrossGenreBridge
+        const travelingPulse = isConnectedToPlaying
+          ? (0.5 + 0.5 * Math.sin(t * 11.0 - i * 1.8)) * 0.45
+          : 0;
+        const audioBoost = isConnectedToPlaying
+          ? fft.subBass * 0.8 + fft.energy * 0.4 + travelingPulse
+          : isCrossGenreBridge
           ? fft.midHarmonic * 0.65 + fft.subBass * 0.35
           : isConnectedToFocus
           ? fft.subBass * 0.7 + fft.highShimmer * 0.4
           : fft.energy * 0.25 * wave;
-        intensity = Math.min(1.2, intensity + audioBoost);
+        intensity = Math.min(1.4, intensity + audioBoost);
       }
 
       const idx = i * 6;

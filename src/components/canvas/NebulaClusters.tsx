@@ -58,7 +58,6 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
   const isSupercluster = sectorTier === 'supercluster';
 
   const seed = useMemo(() => hashStr(genre.id), [genre.id]);
-  const rotSign = seed % 2 === 0 ? 1 : -1;
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -72,6 +71,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     const count = Math.round(85 + densityFactor * 225);
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
+    const phases = new Float32Array(count);
     const scales = new Float32Array(count);
 
     const baseColor = new THREE.Color(genre.color);
@@ -100,6 +100,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
 
+      phases[i] = prng() * 6.28318;
       // Micro & macro volumetric gas billow scales
       scales[i] = 0.8 + (1.0 - normR * 0.3) * 1.2 + prng() * 0.6;
     }
@@ -107,6 +108,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geom.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
     geom.setAttribute('pointScale', new THREE.BufferAttribute(scales, 1));
     return geom;
   }, [seed, densityFactor, genre.color]);
@@ -118,6 +120,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     const count = Math.round(110 + densityFactor * 320);
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
+    const phases = new Float32Array(count);
     const scales = new Float32Array(count);
 
     const baseColor = new THREE.Color(genre.color);
@@ -148,12 +151,14 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
 
+      phases[i] = prng() * 6.28318;
       scales[i] = 1.0 + normR * 1.5 + prng() * 0.8;
     }
 
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geom.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
     geom.setAttribute('pointScale', new THREE.BufferAttribute(scales, 1));
     return geom;
   }, [seed, densityFactor, genre.color, genre.position]);
@@ -169,14 +174,22 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => `nebula-cluster-inner-v6-${genre.id}`;
+    mat.customProgramCacheKey = () => `nebula-cluster-inner-v7-${genre.id}`;
     mat.onBeforeCompile = (shader) => {
-      shader.uniforms.uBrightness = { value: 0.050 };
+      shader.uniforms.uBrightness = { value: 0.035 };
+      shader.uniforms.uTime = { value: 0 };
+      shader.uniforms.uHighShimmer = { value: 0 };
+      shader.uniforms.uSubBass = { value: 0 };
 
       shader.vertexShader = `
         attribute float pointScale;
+        attribute float aPhase;
         varying vec3 vNebulaColor;
         varying float vCamDist;
+        varying float vFlash;
+        uniform float uTime;
+        uniform float uHighShimmer;
+        uniform float uSubBass;
         ${shader.vertexShader}
       `;
 
@@ -188,13 +201,21 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         `
       );
 
-      // Proximity-safe attenuation: prevents screen-filling glare when approaching the star
+      // Proximity-safe attenuation & Stochastic Protostellar Micro-Flashes
       shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
         `
         vCamDist = -mvPosition.z;
-        float pSize = size * pointScale * (65.0 / max(9.0, -mvPosition.z));
-        gl_PointSize = clamp(pSize, 1.0, 16.0);
+        float flashClock = uTime * 2.2 + aPhase * 27.89;
+        float flashCycle = fract(flashClock);
+        float flashId = floor(flashClock);
+        float flashChance = fract(sin(flashId * 78.233 + aPhase * 137.5) * 43758.5453);
+        float isFlash = step(0.91, flashChance);
+        float flashIntensity = isFlash * pow(1.0 - flashCycle, 4.0) * (1.2 + uHighShimmer * 1.5 + uSubBass * 0.8);
+        vFlash = flashIntensity;
+
+        float pSize = size * pointScale * (1.0 + flashIntensity * 0.35) * (65.0 / max(9.0, -mvPosition.z));
+        gl_PointSize = clamp(pSize, 1.0, 18.0);
         `
       );
 
@@ -202,6 +223,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         uniform float uBrightness;
         varying vec3 vNebulaColor;
         varying float vCamDist;
+        varying float vFlash;
         ${shader.fragmentShader}
       `;
 
@@ -220,8 +242,10 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         float falloff = edgeFade * coreGlow;
         // Proximity anti-glare: smoothly fade out particles as camera approaches within 28 units (zero glare on star inspection)
         float proximityFade = smoothstep(8.0, 28.0, vCamDist);
-        diffuseColor.rgb = vNebulaColor * (0.65 + 0.35 * coreGlow);
+        vec3 sparkColor = mix(vNebulaColor, vec3(1.0, 0.98, 0.92), 0.80);
+        diffuseColor.rgb = vNebulaColor * (0.65 + 0.35 * coreGlow) + sparkColor * (vFlash * 0.90);
         diffuseColor.a *= falloff * uBrightness * proximityFade;
+        diffuseColor.a = max(diffuseColor.a, vFlash * 0.40 * proximityFade);
         `
       );
 
@@ -241,14 +265,22 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => `nebula-cluster-outer-v6-${genre.id}`;
+    mat.customProgramCacheKey = () => `nebula-cluster-outer-v7-${genre.id}`;
     mat.onBeforeCompile = (shader) => {
-      shader.uniforms.uBrightness = { value: 0.030 };
+      shader.uniforms.uBrightness = { value: 0.025 };
+      shader.uniforms.uTime = { value: 0 };
+      shader.uniforms.uHighShimmer = { value: 0 };
+      shader.uniforms.uSubBass = { value: 0 };
 
       shader.vertexShader = `
         attribute float pointScale;
+        attribute float aPhase;
         varying vec3 vNebulaColor;
         varying float vCamDist;
+        varying float vFlash;
+        uniform float uTime;
+        uniform float uHighShimmer;
+        uniform float uSubBass;
         ${shader.vertexShader}
       `;
 
@@ -260,13 +292,21 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         `
       );
 
-      // Proximity-safe attenuation
+      // Proximity-safe attenuation & Stochastic Protostellar Micro-Flashes
       shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
         `
         vCamDist = -mvPosition.z;
-        float pSize = size * pointScale * (65.0 / max(9.0, -mvPosition.z));
-        gl_PointSize = clamp(pSize, 1.0, 20.0);
+        float flashClock = uTime * 2.2 + aPhase * 27.89;
+        float flashCycle = fract(flashClock);
+        float flashId = floor(flashClock);
+        float flashChance = fract(sin(flashId * 78.233 + aPhase * 137.5) * 43758.5453);
+        float isFlash = step(0.91, flashChance);
+        float flashIntensity = isFlash * pow(1.0 - flashCycle, 4.0) * (1.2 + uHighShimmer * 1.5 + uSubBass * 0.8);
+        vFlash = flashIntensity;
+
+        float pSize = size * pointScale * (1.0 + flashIntensity * 0.35) * (65.0 / max(9.0, -mvPosition.z));
+        gl_PointSize = clamp(pSize, 1.0, 22.0);
         `
       );
 
@@ -274,6 +314,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         uniform float uBrightness;
         varying vec3 vNebulaColor;
         varying float vCamDist;
+        varying float vFlash;
         ${shader.fragmentShader}
       `;
 
@@ -292,8 +333,10 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         float falloff = edgeFade * coreGlow;
         // Proximity anti-glare: smoothly fade out particles as camera approaches within 32 units (zero glare on star inspection)
         float proximityFade = smoothstep(9.0, 32.0, vCamDist);
-        diffuseColor.rgb = vNebulaColor * (0.60 + 0.30 * coreGlow);
+        vec3 sparkColor = mix(vNebulaColor, vec3(1.0, 0.98, 0.92), 0.80);
+        diffuseColor.rgb = vNebulaColor * (0.60 + 0.30 * coreGlow) + sparkColor * (vFlash * 0.85);
         diffuseColor.a *= falloff * uBrightness * proximityFade;
+        diffuseColor.a = max(diffuseColor.a, vFlash * 0.35 * proximityFade);
         `
       );
 
@@ -324,23 +367,10 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     const t = state.clock.getElapsedTime();
     const fft = webAudioEngine.sampleFFT();
 
-    if (!prefersReducedMotion) {
-      if (innerPointsRef.current) {
-        innerPointsRef.current.rotation.y += delta * 0.012 * rotSign;
-        innerPointsRef.current.rotation.x = Math.sin(t * 0.25 + seed) * 0.05;
-        innerPointsRef.current.rotation.z = Math.cos(t * 0.20 + seed) * 0.04;
-      }
-      if (outerPointsRef.current) {
-        outerPointsRef.current.rotation.y -= delta * 0.008 * rotSign;
-        outerPointsRef.current.rotation.x = Math.cos(t * 0.16 + seed) * 0.04;
-        outerPointsRef.current.rotation.z = Math.sin(t * 0.14 + seed) * 0.05;
-      }
-      if (groupRef.current) {
-        groupRef.current.position.y =
-          genre.position[1] + Math.sin(t * 0.30 + seed) * 0.22;
-        groupRef.current.position.x =
-          genre.position[0] + Math.cos(t * 0.20 + seed) * 0.15;
-      }
+    // The user requested: "mas q movimiento de las nebulazas preferiria pequeños flasheas aleatorios en estas"
+    // Keep local cluster transform stable (no erratic wobble or spinning) while allowing global galactic drift.
+    if (groupRef.current) {
+      groupRef.current.position.set(genre.position[0], genre.position[1], genre.position[2]);
     }
 
     // Rich, luminous nebula presence with subtle harmonic fluorescence in the active genre
@@ -362,6 +392,9 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
 
     const innerMat = innerPointsRef.current?.material as THREE.PointsMaterial | undefined;
     if (innerMat?.userData?.shader) {
+      innerMat.userData.shader.uniforms.uTime.value = !prefersReducedMotion ? t : 0;
+      innerMat.userData.shader.uniforms.uHighShimmer.value = fft.isPlaying ? fft.highShimmer : 0;
+      innerMat.userData.shader.uniforms.uSubBass.value = fft.isPlaying ? fft.subBass : 0;
       innerMat.userData.shader.uniforms.uBrightness.value = THREE.MathUtils.lerp(
         innerMat.userData.shader.uniforms.uBrightness.value,
         targetInnerBrightness,
@@ -371,6 +404,9 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
 
     const outerMat = outerPointsRef.current?.material as THREE.PointsMaterial | undefined;
     if (outerMat?.userData?.shader) {
+      outerMat.userData.shader.uniforms.uTime.value = !prefersReducedMotion ? t : 0;
+      outerMat.userData.shader.uniforms.uHighShimmer.value = fft.isPlaying ? fft.highShimmer : 0;
+      outerMat.userData.shader.uniforms.uSubBass.value = fft.isPlaying ? fft.subBass : 0;
       outerMat.userData.shader.uniforms.uBrightness.value = THREE.MathUtils.lerp(
         outerMat.userData.shader.uniforms.uBrightness.value,
         targetOuterBrightness,
@@ -380,13 +416,13 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
 
     // Subtle cluster expansion breathing with sub-bass
     if (groupRef.current) {
-      const breathing = !prefersReducedMotion ? Math.sin(t * 0.60 + seed) * 0.015 : 0;
+      const breathing = !prefersReducedMotion ? Math.sin(t * 0.40 + seed) * 0.008 : 0;
       const tierBaseScale = isSupercluster ? 1.15 : 1.0;
       const targetScale =
         tierBaseScale *
-        (1.0 + (fft.isPlaying ? fft.subBass * 0.04 : breathing));
+        (1.0 + (fft.isPlaying ? fft.subBass * 0.03 : breathing));
       groupRef.current.scale.setScalar(
-        THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, Math.min(1, delta * 5))
+        THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, Math.min(1, delta * 4))
       );
     }
   });
