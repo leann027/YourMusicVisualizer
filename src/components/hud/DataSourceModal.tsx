@@ -23,6 +23,7 @@ import {
   clearSpotifySession,
   fetchSpotifyLikedSongsGalaxy,
   getActiveClientId,
+  getRedirectUri,
   getStoredAccessToken,
   getStoredTrackLimit,
   setCustomClientId,
@@ -54,12 +55,16 @@ export const DataSourceModal: React.FC = () => {
   const [statusMsg, setStatusMsg] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isSyncingSpotify, setIsSyncingSpotify] = useState(false);
+  const [dynamicRedirectUri, setDynamicRedirectUri] = useState<string>(() =>
+    typeof window !== 'undefined' ? getRedirectUri() : ''
+  );
 
   const openModal = () => {
     setErrorMsg('');
     setStatusMsg('');
     setSpotifyTrackLimit(getStoredTrackLimit());
     setClientIdInput(getActiveClientId());
+    setDynamicRedirectUri(getRedirectUri());
     dialogRef.current?.showModal();
   };
 
@@ -327,8 +332,19 @@ export const DataSourceModal: React.FC = () => {
                   </button>
                 </div>
                 <p className="text-[10px] text-[#B8DCE8] leading-tight">
-                  En tu app de <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" className="underline text-[#00F5D4]">Spotify Developer Dashboard</a>, asegúrate de añadir esta Redirect URI:{' '}
-                  <code className="text-[#CCFF00]">http://127.0.0.1:3000/callback</code>
+                  En tu app de{' '}
+                  <a
+                    href="https://developer.spotify.com/dashboard"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-[#00F5D4]"
+                  >
+                    Spotify Developer Dashboard
+                  </a>
+                  , asegúrate de presionar <strong>Add</strong> y luego <strong>Save</strong> para esta Redirect URI exacta:
+                  <code className="text-[#CCFF00] font-mono select-all block mt-1 p-1 bg-[#050508] rounded border border-[#CCFF00]/25 break-all">
+                    {dynamicRedirectUri || 'https://your-music-visualizer.vercel.app/callback'}
+                  </code>
                 </p>
               </div>
             )}
