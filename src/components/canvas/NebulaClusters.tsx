@@ -3,7 +3,7 @@
 import React, { useRef, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { GenreNode } from '../../types/music';
+import { GenreNode, getSectorEvolutionTier } from '../../types/music';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
 
@@ -46,6 +46,12 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
   const isSelected = selectedSectorId === genre.id;
   const isFilteredOut = genre.affinity < minAffinityFilter;
 
+  const sectorTier = useMemo(
+    () => getSectorEvolutionTier(genre.songCount, genre.affinity),
+    [genre.songCount, genre.affinity]
+  );
+  const isSupercluster = sectorTier === 'supercluster';
+
   const seed = useMemo(() => hashStr(genre.id), [genre.id]);
   const rotSign = seed % 2 === 0 ? 1 : -1;
 
@@ -54,20 +60,20 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // 1. Build deterministic particle positions for inner gas core (~70 particles)
+  // 1. Build deterministic particle positions for inner gas core (80 - 120 particles)
   const innerGeometry = useMemo(() => {
     const prng = createPRNG(seed + 101);
-    const count = 70;
+    const count = isSupercluster ? 120 : 80;
     const positions = new Float32Array(count * 3);
 
     for (let i = 0; i < count; i++) {
       const arm = (i % 3) * ((Math.PI * 2) / 3);
-      const rRatio = Math.pow(prng(), 1.6);
-      const r = 1.2 + rRatio * 6.5;
-      const angle = arm + r * 0.45 + (prng() - 0.5) * 0.75;
+      const rRatio = Math.pow(prng(), 1.5);
+      const r = 1.0 + rRatio * (isSupercluster ? 8.2 : 6.5);
+      const angle = arm + r * 0.42 + (prng() - 0.5) * 0.70;
       const x = Math.cos(angle) * r;
       const z = Math.sin(angle) * r;
-      const y = (prng() - 0.5) * 2.8 * (1 - r / 8.5);
+      const y = (prng() - 0.5) * 3.2 * (1 - r / 9.5);
 
       positions[i * 3] = x;
       positions[i * 3 + 1] = y;
@@ -77,22 +83,22 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     return geom;
-  }, [seed]);
+  }, [seed, isSupercluster]);
 
-  // 2. Build deterministic particle positions for outer interstellar dust veil (~90 particles)
+  // 2. Build deterministic particle positions for outer interstellar dust veil (110 - 160 particles)
   const outerGeometry = useMemo(() => {
     const prng = createPRNG(seed + 202);
-    const count = 90;
+    const count = isSupercluster ? 160 : 110;
     const positions = new Float32Array(count * 3);
 
     for (let i = 0; i < count; i++) {
       const angle = prng() * Math.PI * 2;
-      const rRatio = Math.pow(prng(), 1.3);
-      const r = 5.0 + rRatio * 11.0;
+      const rRatio = Math.pow(prng(), 1.25);
+      const r = 4.5 + rRatio * (isSupercluster ? 14.5 : 11.5);
       // Elliptical galaxy disk shape
       const x = Math.cos(angle) * r * 1.15;
       const z = Math.sin(angle) * r * 0.85;
-      const y = (prng() - 0.5) * 4.6 * (1 - r / 17.0);
+      const y = (prng() - 0.5) * 5.2 * (1 - r / 18.0);
 
       positions[i * 3] = x;
       positions[i * 3 + 1] = y;
@@ -102,21 +108,21 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     return geom;
-  }, [seed]);
+  }, [seed, isSupercluster]);
 
   // 3. Materials with AdditiveBlending and GPU-level circular fragment discard (zero square artifacts)
   const innerMaterial = useMemo(() => {
     const mat = new THREE.PointsMaterial({
-      size: 9.0,
+      size: isSupercluster ? 14.0 : 11.0,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       color: new THREE.Color(genre.color),
-      opacity: 0.045,
+      opacity: isSupercluster ? 0.075 : 0.055,
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => 'nebula-cluster-inner-point';
+    mat.customProgramCacheKey = () => `nebula-cluster-inner-point-${isSupercluster ? 'super' : 'std'}`;
     mat.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <map_particle_fragment>',
@@ -127,27 +133,27 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         if (dist > 0.5) discard;
         // Volumetric gas puff with cosine bell curve falloff
         float smoke = cos(dist * 3.14159265);
-        diffuseColor.rgb *= 0.45;
-        diffuseColor.a *= (smoke * smoke * 0.7);
+        diffuseColor.rgb *= 0.60;
+        diffuseColor.a *= (smoke * smoke * 0.85);
         `
       );
     };
 
     return mat;
-  }, [genre.color]);
+  }, [genre.color, isSupercluster]);
 
   const outerMaterial = useMemo(() => {
     const mat = new THREE.PointsMaterial({
-      size: 16.0,
+      size: isSupercluster ? 24.0 : 18.0,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       color: new THREE.Color(genre.color),
-      opacity: 0.025,
+      opacity: isSupercluster ? 0.045 : 0.032,
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => 'nebula-cluster-outer-point';
+    mat.customProgramCacheKey = () => `nebula-cluster-outer-point-${isSupercluster ? 'super' : 'std'}`;
     mat.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <map_particle_fragment>',
@@ -158,14 +164,14 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         if (dist > 0.5) discard;
         // Volumetric gas puff with cosine bell curve falloff
         float smoke = cos(dist * 3.14159265);
-        diffuseColor.rgb *= 0.35;
-        diffuseColor.a *= (smoke * smoke * 0.5);
+        diffuseColor.rgb *= 0.50;
+        diffuseColor.a *= (smoke * smoke * 0.70);
         `
       );
     };
 
     return mat;
-  }, [genre.color]);
+  }, [genre.color, isSupercluster]);
 
   const hazeMaterial = useMemo(() => {
     return new THREE.MeshBasicMaterial({
@@ -174,9 +180,9 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       side: THREE.BackSide,
-      opacity: 0.012,
+      opacity: isSupercluster ? 0.024 : 0.016,
     });
-  }, [genre.color]);
+  }, [genre.color, isSupercluster]);
 
   // Clean up WebGL resources when component unmounts
   useEffect(() => {
@@ -262,7 +268,9 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     // Subtle cluster expansion breathing with sub-bass
     if (groupRef.current) {
       const breathing = !prefersReducedMotion ? Math.sin(t * 0.75 + seed) * 0.018 : 0;
+      const tierBaseScale = isSupercluster ? 1.35 : 1.0;
       const targetScale =
+        tierBaseScale *
         (1.0 + (fft.isPlaying ? fft.subBass * 0.075 : breathing)) *
         (isSelected ? 1.06 : 1.0);
       groupRef.current.scale.setScalar(
@@ -281,7 +289,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       <mesh
         geometry={UNIT_HAZE_GEOMETRY}
         material={hazeMaterial}
-        scale={[6.5, 3.8, 6.5]}
+        scale={isSupercluster ? [8.5, 5.0, 8.5] : [6.5, 3.8, 6.5]}
       />
 
       {/* Inner Dense Gas Nebular Core */}

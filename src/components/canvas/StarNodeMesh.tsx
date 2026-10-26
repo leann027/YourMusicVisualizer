@@ -16,13 +16,18 @@ interface StarNodeMeshProps {
 // Shared unit geometries across all stars to minimize WebGL memory & state switches
 const UNIT_SPHERE_GEOMETRY = new THREE.SphereGeometry(1, 16, 16);
 const UNIT_RING_GEOMETRY = new THREE.RingGeometry(1.42, 1.82, 28);
+const UNIT_OUTER_RING_GEOMETRY = new THREE.RingGeometry(2.05, 2.32, 32);
 const UNIT_RIPPLE_GEOMETRY = new THREE.RingGeometry(1.4, 1.6, 36);
+const UNIT_POLAR_JET_GEOMETRY = new THREE.CylinderGeometry(0.04, 0.28, 4.0, 12, 1, true);
+const UNIT_SATELLITE_GEOMETRY = new THREE.SphereGeometry(0.05, 8, 8);
 
 export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) => {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const coronaRef = useRef<THREE.Mesh>(null);
   const rippleRef = useRef<THREE.Mesh>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+  const satelliteRef = useRef<THREE.Group>(null);
 
   // Performance-critical: Selective subscriptions prevent mass re-renders across 100+ stars
   const isSelected = useGalaxyStore((s) => s.selectedNode?.id === node.id);
@@ -68,7 +73,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   }, [node.type, metrics.coreRadius]);
 
   // Calibrated stellar respiration, orbital drift & FFT audio-reactive corona shimmer
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (isFilteredOut) return;
     const t = state.clock.getElapsedTime();
 
@@ -133,6 +138,14 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         const fade = (1.0 - slowPhase) * 0.45;
         rippleMat.opacity = Math.max(0, fade * stellarBrightness);
       }
+    }
+
+    if (ringRef.current && !prefersReducedMotion) {
+      ringRef.current.rotation.z += delta * 0.20;
+    }
+
+    if (satelliteRef.current && !prefersReducedMotion) {
+      satelliteRef.current.rotation.y += delta * 0.75;
     }
   });
 
@@ -269,11 +282,12 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         />
       </mesh>
 
-      {/* High-affinity Equatorial Diffraction Ring (O-Supergiant & Selected stars) */}
-      {(node.type === 'genre' || node.affinity >= 0.92 || isSelected) && (
+      {/* Primary Equatorial Accretion Ring (Tier 2/3 artists, genres, or selected) */}
+      {(metrics.hasAccretionRing || isSelected) && (
         <mesh
+          ref={ringRef}
           geometry={UNIT_RING_GEOMETRY}
-          scale={metrics.coreRadius * (isSelected ? 1.2 : 1.0)}
+          scale={metrics.coreRadius * (isSelected ? 1.25 : 1.05)}
           rotation={[Math.PI / 2.3, 0.25, 0]}
         >
           <meshBasicMaterial
@@ -281,12 +295,87 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             side={THREE.DoubleSide}
             transparent
             opacity={
-              (isSelected ? 0.55 : 0.25 * node.affinity) * stellarBrightness
+              (isSelected ? 0.60 : Math.min(0.45, 0.18 + 0.25 * node.affinity)) * stellarBrightness
             }
             blending={THREE.AdditiveBlending}
             depthWrite={false}
           />
         </mesh>
+      )}
+
+      {/* Secondary Counter-Rotating Accretion Ring (Tier 3 Supergiants & Dominant Sectors) */}
+      {metrics.hasDoubleRing && (
+        <mesh
+          geometry={UNIT_OUTER_RING_GEOMETRY}
+          scale={metrics.coreRadius * 1.15}
+          rotation={[-Math.PI / 2.6, -0.35, 0]}
+        >
+          <meshBasicMaterial
+            color={isSelected ? '#00F5D4' : '#CCFF00'}
+            side={THREE.DoubleSide}
+            transparent
+            opacity={(isSelected ? 0.65 : 0.35) * stellarBrightness}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+
+      {/* Relativistic Polar Energy Jets (Tier 3 Dominant Sector Active Galactic Nuclei) */}
+      {metrics.hasPolarJets && (
+        <group>
+          {/* North Polar Jet */}
+          <mesh
+            geometry={UNIT_POLAR_JET_GEOMETRY}
+            position={[0, 2.2 * metrics.coreRadius, 0]}
+          >
+            <meshBasicMaterial
+              color={starColor}
+              transparent
+              opacity={0.35 * stellarBrightness}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          {/* South Polar Jet */}
+          <mesh
+            geometry={UNIT_POLAR_JET_GEOMETRY}
+            position={[0, -2.2 * metrics.coreRadius, 0]}
+            rotation={[Math.PI, 0, 0]}
+          >
+            <meshBasicMaterial
+              color={starColor}
+              transparent
+              opacity={0.35 * stellarBrightness}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+      )}
+
+      {/* Orbiting Micro-Satellites (Tier 3 Supergiant Artists) */}
+      {metrics.hasOrbitalSatellites && (
+        <group ref={satelliteRef}>
+          <mesh
+            geometry={UNIT_SATELLITE_GEOMETRY}
+            position={[metrics.coreRadius * 2.2, 0, 0]}
+          >
+            <meshBasicMaterial color="#CCFF00" />
+          </mesh>
+          <mesh
+            geometry={UNIT_SATELLITE_GEOMETRY}
+            position={[-metrics.coreRadius * 1.8, metrics.coreRadius * 0.35, metrics.coreRadius * 1.1]}
+          >
+            <meshBasicMaterial color="#00F5D4" />
+          </mesh>
+          <mesh
+            geometry={UNIT_SATELLITE_GEOMETRY}
+            position={[metrics.coreRadius * 0.9, -metrics.coreRadius * 0.45, -metrics.coreRadius * 1.9]}
+          >
+            <meshBasicMaterial color="#FF2A85" />
+          </mesh>
+        </group>
       )}
 
       {/* Audio Pulsar Shockwave Ripple when track is actively playing */}

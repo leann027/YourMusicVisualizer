@@ -20,7 +20,7 @@ import { ArtistSleeveCard } from './ArtistSleeveCard';
 import { DataSourceModal } from './DataSourceModal';
 import { FFTSpectrumDock } from './FFTSpectrumDock';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
-import { SongNode } from '../../types/music';
+import { SongNode, getSectorEvolutionTier } from '../../types/music';
 
 const AFFINITY_THRESHOLDS = [
   { label: 'Todas', value: 0 },
@@ -253,6 +253,9 @@ export const TelemetryHUD: React.FC = () => {
                     const isActive =
                       selectedSectorId === genre.id && cameraMode !== 'galaxy';
                     const affinityPct = Math.round(genre.affinity * 100);
+                    const isDominant =
+                      getSectorEvolutionTier(genre.songCount, genre.affinity) ===
+                      'supercluster';
                     return (
                       <button
                         key={genre.id}
@@ -265,6 +268,8 @@ export const TelemetryHUD: React.FC = () => {
                         className={`min-h-8 flex items-center justify-between px-2.5 py-1.5 text-left text-xs transition-all duration-150 rounded-lg border ${
                           isActive
                             ? 'bg-[#131826] border-[#CCFF00] text-[#F2F4F8] shadow-[0_0_10px_rgba(204,255,0,0.3)]'
+                            : isDominant
+                            ? 'bg-[#050508]/90 border-[#FFB800]/40 text-[#F2F4F8] hover:border-[#FFB800]'
                             : 'bg-[#050508]/80 border-[#00F5D4]/20 text-[#B8DCE8] hover:border-[#00F5D4]/60 hover:text-[#F2F4F8]'
                         }`}
                       >
@@ -273,8 +278,13 @@ export const TelemetryHUD: React.FC = () => {
                             className="h-2 w-2 rounded-full shrink-0"
                             style={{ backgroundColor: genre.color }}
                           />
-                          <span className="truncate font-semibold">
-                            {genre.name.split('&')[0].trim()}
+                          <span className="truncate font-semibold flex items-center gap-1.5">
+                            <span>{genre.name.split('&')[0].trim()}</span>
+                            {isDominant && (
+                              <span className="text-[9px] text-[#FFB800] font-mono px-1 rounded bg-[#FFB800]/15 border border-[#FFB800]/40 shrink-0">
+                                ★ Dominante
+                              </span>
+                            )}
                           </span>
                         </span>
                         <span className="text-[10px] tabular-nums text-[#CCFF00] shrink-0">

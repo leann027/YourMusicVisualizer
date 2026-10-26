@@ -362,8 +362,28 @@ export const ArtistSleeveCard: React.FC = () => {
         </div>
       </div>
 
-      {/* Post-heading metadata badges (Catalog, Affinity, Spectral Class, Song count, Spotify Link) */}
+      {/* Post-heading metadata badges (Catalog, Affinity, Spectral Class, Song count, Spotify Link, Tier Seal) */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] tabular-nums">
+        {selectedMetrics.artistTier === 'supergiant' && (
+          <span className="rounded bg-gradient-to-r from-[#FFB800] via-[#CCFF00] to-[#00F5D4] px-2 py-0.5 font-extrabold text-[#050508] text-[10px] tracking-wider uppercase shadow-[0_0_12px_rgba(204,255,0,0.45)]">
+            ★ SUPERGIGANTE ALFA
+          </span>
+        )}
+        {selectedMetrics.sectorTier === 'supercluster' && (
+          <span className="rounded bg-gradient-to-r from-[#FF2A85] via-[#A855F7] to-[#00F5D4] px-2 py-0.5 font-extrabold text-[#F2F4F8] text-[10px] tracking-wider uppercase shadow-[0_0_12px_rgba(255,42,133,0.45)]">
+            ★ SECTOR DOMINANTE
+          </span>
+        )}
+        {selectedMetrics.artistTier === 'giant' && (
+          <span className="rounded border border-[#CCFF00]/60 bg-[#CCFF00]/15 px-2 py-0.5 font-bold text-[#CCFF00] text-[10px]">
+            GIGANTE RADIAL
+          </span>
+        )}
+        {selectedMetrics.sectorTier === 'active' && (
+          <span className="rounded border border-[#00F5D4]/60 bg-[#00F5D4]/15 px-2 py-0.5 font-bold text-[#00F5D4] text-[10px]">
+            SECTOR ACTIVO
+          </span>
+        )}
         <span className="rounded bg-[#FF2A85] px-2 py-0.5 font-bold text-[#050508]">
           AFINIDAD {Math.round(selectedNode.affinity * 100)}%
         </span>

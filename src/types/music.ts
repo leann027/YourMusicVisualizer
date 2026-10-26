@@ -76,6 +76,9 @@ export interface MusicGalaxyData {
   links: MusicLink[];
 }
 
+export type ArtistEvolutionTier = 'dwarf' | 'giant' | 'supergiant';
+export type SectorEvolutionTier = 'emerging' | 'active' | 'supercluster';
+
 export interface StarVisualMetrics {
   coreRadius: number;
   coronaRadius: number;
@@ -83,6 +86,36 @@ export interface StarVisualMetrics {
   coronaOpacity: number;
   pulseFrequency: number;
   spectralClass: SpectralClass;
+  artistTier?: ArtistEvolutionTier;
+  sectorTier?: SectorEvolutionTier;
+  hasAccretionRing: boolean;
+  hasDoubleRing: boolean;
+  hasPolarJets: boolean;
+  hasOrbitalSatellites: boolean;
+}
+
+/**
+ * Evaluates the evolution milestone of an artist based on track count and listening affinity.
+ */
+export function getArtistEvolutionTier(
+  songCount: number,
+  affinity: number
+): ArtistEvolutionTier {
+  if (songCount >= 5 || affinity >= 0.95) return 'supergiant';
+  if (songCount >= 3 || affinity >= 0.82) return 'giant';
+  return 'dwarf';
+}
+
+/**
+ * Evaluates the evolution milestone of a sector/genre based on track density.
+ */
+export function getSectorEvolutionTier(
+  songCount: number,
+  affinity: number
+): SectorEvolutionTier {
+  if (songCount >= 24 || (songCount >= 18 && affinity >= 0.90)) return 'supercluster';
+  if (songCount >= 8) return 'active';
+  return 'emerging';
 }
 
 /**
@@ -110,7 +143,7 @@ export function calculateStarRadius(
 
 /**
  * Derives the full set of visual parameters (radius, corona spread, emissive glow,
- * and spectral class) from a node's songCount and user affinity.
+ * spectral class, and tier milestones) from a node's songCount and user affinity.
  */
 export function calculateStarVisualMetrics(node: MusicNode): StarVisualMetrics {
   const songCount = 'songCount' in node ? node.songCount : 1;
@@ -136,6 +169,20 @@ export function calculateStarVisualMetrics(node: MusicNode): StarVisualMetrics {
   else if (affinity >= 0.82) spectralClass = 'B-LUMINOUS';
   else if (affinity >= 0.68) spectralClass = 'A-MAIN';
 
+  const artistTier =
+    node.type === 'artist' ? getArtistEvolutionTier(songCount, affinity) : undefined;
+  const sectorTier =
+    node.type === 'genre' ? getSectorEvolutionTier(songCount, affinity) : undefined;
+
+  const hasDoubleRing =
+    artistTier === 'supergiant' || (node.type === 'genre' && sectorTier === 'supercluster');
+  const hasAccretionRing =
+    hasDoubleRing || artistTier === 'giant' || node.type === 'genre';
+  const hasPolarJets =
+    node.type === 'genre' && sectorTier === 'supercluster';
+  const hasOrbitalSatellites =
+    artistTier === 'supergiant' || (node.type === 'genre' && sectorTier === 'supercluster');
+
   return {
     coreRadius,
     coronaRadius,
@@ -143,5 +190,11 @@ export function calculateStarVisualMetrics(node: MusicNode): StarVisualMetrics {
     coronaOpacity,
     pulseFrequency,
     spectralClass,
+    artistTier,
+    sectorTier,
+    hasAccretionRing,
+    hasDoubleRing,
+    hasPolarJets,
+    hasOrbitalSatellites,
   };
 }
