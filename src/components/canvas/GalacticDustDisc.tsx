@@ -42,7 +42,6 @@ export const GalacticDustDisc: React.FC = () => {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
-    const phases = new Float32Array(count);
 
     const coreColor = new THREE.Color('#F2F4F8');
     const midColorA = new THREE.Color('#00F5D4'); // Cyan
@@ -94,19 +93,17 @@ export const GalacticDustDisc: React.FC = () => {
       colors[i * 3 + 1] = particleColor.g;
       colors[i * 3 + 2] = particleColor.b;
 
-      // Particle size: larger near core, fine dust at outer perimeter
-      sizes[i] = 1.2 + (1.0 - normalizedR) * 2.2 + prng() * 1.2;
-      phases[i] = prng() * Math.PI * 2.0;
+      // Particle scale: larger near core, fine dust at outer perimeter
+      sizes[i] = 0.8 + (1.0 - normalizedR) * 1.4 + prng() * 0.8;
     }
 
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geom.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    geom.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+    geom.setAttribute('pointScale', new THREE.BufferAttribute(sizes, 1));
 
     const mat = new THREE.PointsMaterial({
-      size: 2.2,
+      size: 2.0,
       vertexColors: true,
       transparent: true,
       opacity: 0.35,
@@ -121,7 +118,7 @@ export const GalacticDustDisc: React.FC = () => {
       shader.uniforms.uBrightness = { value: 0.25 };
 
       shader.vertexShader = `
-        attribute float size;
+        attribute float pointScale;
         ${shader.vertexShader}
       `;
 
@@ -129,7 +126,7 @@ export const GalacticDustDisc: React.FC = () => {
         'gl_PointSize = size;',
         `
         // Steady, non-flickering star dust size (photosensitive safe)
-        gl_PointSize = size * (260.0 / -mvPosition.z);
+        gl_PointSize = size * pointScale * (220.0 / -mvPosition.z);
         `
       );
 
