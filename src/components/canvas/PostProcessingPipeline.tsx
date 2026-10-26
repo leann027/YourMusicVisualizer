@@ -40,9 +40,9 @@ export const PostProcessingPipeline: React.FC = () => {
       const renderPass = new RenderPass(scene, camera);
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(size.width, size.height),
-        0.18, // calibrated base strength (crisp stars, no overexposure)
-        0.28, // tight bloom radius
-        0.85  // high threshold so only bright star cores & active filaments bloom, stardust never washes out
+        0.13, // calibrated base strength (crisp stars, zero screen wash-out)
+        0.22, // tight bloom radius
+        0.89  // high threshold so only bright star cores bloom, prevents blinding glare
       );
       const outputPass = new OutputPass();
 
@@ -103,9 +103,9 @@ export const PostProcessingPipeline: React.FC = () => {
     const fft = webAudioEngine.sampleFFT();
     // Photosensitive-safe, gentle ambient bloom with heavy dampening (zero strobing or sudden flashes)
     const targetStrength = fft.isPlaying
-      ? 0.22 + fft.subBass * 0.06
-      : 0.20;
-    const targetRadius = 0.32;
+      ? 0.15 + fft.subBass * 0.03
+      : 0.13;
+    const targetRadius = 0.22;
 
     bloomPass.strength = THREE.MathUtils.lerp(
       bloomPass.strength,

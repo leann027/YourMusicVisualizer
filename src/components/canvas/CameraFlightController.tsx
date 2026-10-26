@@ -16,7 +16,7 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
   const controlsRef = useRef<CameraControlsImpl>(null);
   const tweenRef = useRef<gsap.core.Tween | null>(null);
   const introTweenRef = useRef<gsap.core.Tween | null>(null);
-  const hasIntroPlayedRef = useRef(false);
+  const warpInitiatedRef = useRef(false);
 
   const flightVersion = useGalaxyStore((s) => s.flightVersion);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
@@ -93,13 +93,10 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
   }, [isWarpActive, skipWarp, setFlightState, warpProgressRef]);
 
   // Story 1: Cinematic Intro Warp-in Sequence upon entering the galaxy (Hyperspace Warp Drive)
-  // Guaranteed to run ONLY ONCE on initial page mount. Never re-runs when selecting stars or sectors.
-  useEffect(() => {
-    if (hasIntroPlayedRef.current) return;
-    hasIntroPlayedRef.current = true;
-
+  // Initiated reliably via useFrame as soon as CameraControls instance is mounted.
+  const startWarpSequence = React.useCallback(() => {
     const controls = controlsRef.current;
-    if (!controls) return;
+    if (!controls) return false;
 
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
@@ -109,7 +106,7 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
       if (warpProgressRef) warpProgressRef.current = 1.0;
       controls.setLookAt(0, 18, 52, 0, 0, 0, false);
       finishWarp();
-      return;
+      return true;
     }
 
     // High-speed approach vantage point from deep space along straight/sweeping trajectory
@@ -128,7 +125,6 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
     introTweenRef.current = gsap.to(proxy, {
       t: 1,
       duration: 3.4,
-      delay: 0.1,
       ease: 'power4.out',
       onUpdate: () => {
         const p = proxy.t;
@@ -153,13 +149,18 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
       },
     });
 
+    return true;
+  }, [finishWarp, setFlightState, warpProgressRef]);
+
+  // Clean up GSAP intro tween on component unmount
+  useEffect(() => {
     return () => {
       if (introTweenRef.current) {
         introTweenRef.current.kill();
         introTweenRef.current = null;
       }
     };
-  }, [setFlightState, finishWarp, warpProgressRef]);
+  }, []);
 
   // Execute calibrated GSAP camera flight whenever flightVersion increments
   useEffect(() => {
@@ -206,11 +207,11 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
           nz + 21.0
         );
       } else if (cameraMode === 'artist') {
-        // Offset slightly right of target so the selected star & its songs sit clear of the right HUD card
-        endEye.set(nx + 2.0, ny + 1.8, nz + 11.5);
+        // Offset slightly right of target with comfortable clearance so corona never overwhelms
+        endEye.set(nx + 2.4, ny + 2.0, nz + 13.5);
       } else {
-        // 'song' micro satellite close-up (spacious framing so the song and parent star stay visible)
-        endEye.set(nx + 1.2, ny + 0.9, nz + 6.2);
+        // 'song' micro satellite close-up with comfortable depth margin
+        endEye.set(nx + 1.6, ny + 1.2, nz + 8.5);
       }
     }
 
@@ -298,6 +299,14 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
 
   // Sample FPS, WebGL draw calls, and camera distance every 500ms
   useFrame(() => {
+    // Initiate warp sequence the moment CameraControls is ready on the first render frame
+    if (!warpInitiatedRef.current && controlsRef.current) {
+      const ok = startWarpSequence();
+      if (ok) {
+        warpInitiatedRef.current = true;
+      }
+    }
+
     frameCountRef.current += 1;
     const now = performance.now();
     const elapsed = now - lastSampleTimeRef.current;
@@ -327,7 +336,7 @@ export const CameraFlightController: React.FC<CameraFlightControllerProps> = ({ 
     <CameraControls
       ref={controlsRef}
       makeDefault
-      minDistance={3.2}
+      minDistance={4.8}
       maxDistance={140}
       smoothTime={0.35}
       draggingSmoothTime={0.16}

@@ -22,7 +22,7 @@ export const MusicVisualizerCanvas: React.FC = () => {
   return (
     <div className="relative w-full h-[100dvh] bg-[#050508] overflow-hidden select-none">
       <Canvas
-        camera={{ position: [0, 18, 52], fov: 52, near: 0.1, far: 500 }}
+        camera={{ position: [12, 46, 295], fov: 52, near: 0.1, far: 800 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         raycaster={{

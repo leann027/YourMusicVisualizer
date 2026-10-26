@@ -18,15 +18,16 @@ interface WarpTunnelMeshProps {
   progressRef: React.MutableRefObject<number>;
 }
 
-const STREAK_COUNT = 650;
-const UNIT_LINE_GEOMETRY = new THREE.CylinderGeometry(0.045, 0.045, 1, 6, 1, true);
+const STREAK_COUNT = 680;
+// Sturdy, clearly visible light beams (radius 0.26 instead of 0.045 subpixel)
+const UNIT_LINE_GEOMETRY = new THREE.CylinderGeometry(0.26, 0.26, 1, 6, 1, true);
 
 /**
  * Ephemeral Hyperspace Light Streaks (`WarpTunnelMesh`).
  *
- * Rendered strictly during the initial warp-in sequence (3.4s).
- * - 650 streamlined instanced light cylinders stretched along Z.
- * - Single GPU draw call with AdditiveBlending and soft chromatic palette.
+ * Rendered strictly during the initial warp-in sequence.
+ * - 680 streamlined instanced light beams aligned along the camera entry trajectory.
+ * - Single GPU draw call with AdditiveBlending and high-chroma cyber-galactic palette.
  * - Dynamically shortens and fades out as the camera decelerates into orbit.
  * - Disables rendering completely (`visible = false`) once in orbit for zero GPU overhead.
  */
@@ -35,27 +36,33 @@ export const WarpTunnelMesh: React.FC<WarpTunnelMeshProps> = ({ progressRef }) =
   const isWarpActive = useGalaxyStore((s) => s.isWarpActive);
   const hasWarpCompleted = useGalaxyStore((s) => s.hasWarpCompleted);
 
-  // Precompute instance parameters: radial placement around the camera trajectory
   const instances = useMemo(() => {
     const prng = createPRNG(98765);
     const data = [];
     const colors = [
       new THREE.Color('#00F5D4'), // Cyan
       new THREE.Color('#38BDF8'), // Azure
-      new THREE.Color('#F2F4F8'), // Starlight
+      new THREE.Color('#F2F4F8'), // Starlight white
       new THREE.Color('#CCFF00'), // Acid lime accent
       new THREE.Color('#A855F7'), // Violet pulsar
+      new THREE.Color('#FF2A85'), // Infrared magenta
     ];
 
     for (let i = 0; i < STREAK_COUNT; i++) {
       const angle = prng() * Math.PI * 2;
-      // Cylindrical distribution around camera approach path (radius 7.5 to 58)
-      const radius = 7.5 + Math.pow(prng(), 1.3) * 50.5;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius * 0.75 + 10.0;
-      // Stretched along Z axis from deep outer space (Z=340 down to Z=-40)
-      const z = -40 + prng() * 380;
-      const baseLength = 18 + prng() * 36;
+      // Cylindrical distribution around camera approach vector (radius 6.0 to 52.0)
+      const radius = 6.0 + Math.pow(prng(), 1.25) * 46.0;
+      // Z along approach path from deep space (Z=360 down to Z=15)
+      const z = 15 + prng() * 345;
+      // Camera trajectory slopes down from Y=46 at Z=295 to Y=18 at Z=52
+      const tZ = (z - 52) / (295 - 52);
+      const centerY = THREE.MathUtils.lerp(18, 46, tZ);
+      const centerX = THREE.MathUtils.lerp(0, 12, tZ);
+
+      const x = centerX + Math.cos(angle) * radius;
+      const y = centerY + Math.sin(angle) * radius * 0.85;
+
+      const baseLength = 32 + prng() * 58;
       const speedFactor = 0.85 + prng() * 0.35;
       const color = colors[Math.floor(prng() * colors.length)];
 
@@ -78,12 +85,12 @@ export const WarpTunnelMesh: React.FC<WarpTunnelMeshProps> = ({ progressRef }) =
 
     const p = progressRef.current; // 0.0 (start warp) -> 1.0 (in orbit)
     // Speed factor drops sharply as camera decelerates
-    const speedRatio = Math.max(0, 1.0 - Math.pow(p, 0.7));
-    const opacityRatio = Math.max(0, 1.0 - Math.pow(p, 1.6));
+    const speedRatio = Math.max(0, 1.0 - Math.pow(p, 0.65));
+    const opacityRatio = Math.max(0, 1.0 - Math.pow(p, 1.4));
 
     const material = meshRef.current.material as THREE.MeshBasicMaterial;
     if (material) {
-      material.opacity = opacityRatio * 0.85;
+      material.opacity = opacityRatio * 0.90;
     }
 
     if (opacityRatio <= 0.01) {
@@ -95,10 +102,10 @@ export const WarpTunnelMesh: React.FC<WarpTunnelMeshProps> = ({ progressRef }) =
 
     for (let i = 0; i < STREAK_COUNT; i++) {
       const item = instances[i];
-      const length = Math.max(0.2, item.baseLength * speedRatio);
+      const length = Math.max(0.4, item.baseLength * speedRatio * item.speedFactor);
 
       dummy.position.set(item.baseX, item.baseY, item.baseZ);
-      // Align cylinder along Z (default CylinderGeometry is along Y)
+      // Align cylinder along Z axis (pointing towards the galactic core)
       dummy.rotation.set(Math.PI / 2, 0, 0);
       dummy.scale.set(1.0, length, 1.0);
       dummy.updateMatrix();
@@ -125,7 +132,7 @@ export const WarpTunnelMesh: React.FC<WarpTunnelMeshProps> = ({ progressRef }) =
     >
       <meshBasicMaterial
         transparent
-        opacity={0.85}
+        opacity={0.90}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
       />

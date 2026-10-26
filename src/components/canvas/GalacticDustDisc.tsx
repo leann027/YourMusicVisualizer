@@ -134,6 +134,7 @@ export const GalacticDustDisc: React.FC = () => {
         attribute float pointScale;
         varying vec3 vDustColor;
         varying float vPhase;
+        varying float vCamDist;
         uniform float uTime;
         uniform float uSubBass;
         ${shader.vertexShader}
@@ -145,6 +146,7 @@ export const GalacticDustDisc: React.FC = () => {
         #include <color_vertex>
         vDustColor = color;
         vPhase = aPhase;
+        vCamDist = -mvPosition.z;
         `
       );
 
@@ -179,6 +181,7 @@ export const GalacticDustDisc: React.FC = () => {
         uniform float uBrightness;
         varying vec3 vDustColor;
         varying float vPhase;
+        varying float vCamDist;
         ${shader.fragmentShader}
       `;
 
@@ -194,8 +197,10 @@ export const GalacticDustDisc: React.FC = () => {
         float coreGlow = exp(-dist * dist * 5.5);
         float falloff = edgeFade * coreGlow;
         float shimmer = 0.88 + 0.12 * sin(uTime * 0.75 + vPhase);
+        // Proximity anti-glare: smoothly fade out particles as camera approaches within 18 units
+        float proximityFade = smoothstep(4.0, 18.0, vCamDist);
         diffuseColor.rgb = vDustColor * (0.70 + 0.30 * coreGlow);
-        diffuseColor.a *= falloff * uBrightness * shimmer;
+        diffuseColor.a *= falloff * uBrightness * shimmer * proximityFade;
         `
       );
 

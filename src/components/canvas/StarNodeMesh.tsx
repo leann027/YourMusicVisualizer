@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import { MusicNode, calculateStarVisualMetrics } from '../../types/music';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
@@ -51,12 +51,14 @@ function softRingOnBeforeCompile(shader: THREE.WebGLProgramParametersWithUniform
 }
 
 export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) => {
+  const { camera } = useThree();
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const coronaRef = useRef<THREE.Mesh>(null);
   const rippleRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const satelliteRef = useRef<THREE.Group>(null);
+  const diffractionRef = useRef<THREE.Group>(null);
 
   // Performance-critical: Selective subscriptions prevent mass re-renders across 100+ stars
   const isSelected = useGalaxyStore((s) => s.selectedNode?.id === node.id);
@@ -126,6 +128,30 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       }
     }
 
+    // Proximity anti-glare: calculate camera distance to star node
+    let proximityFactor = 1.0;
+    if (groupRef.current) {
+      const distToCam = camera.position.distanceTo(groupRef.current.position);
+      // As camera comes closer than 22 units, smoothly reduce corona opacity and radius
+      proximityFactor = THREE.MathUtils.clamp((distToCam - 4.5) / 16.0, 0.08, 1.0);
+    }
+
+    if (coronaRef.current) {
+      const baseScale = metrics.coreRadius * 1.35;
+      const fullScale = metrics.coronaRadius * (1.05 + Math.cos(t * 0.5 + node.position[1]) * 0.02);
+      const curScale = baseScale + (fullScale - baseScale) * proximityFactor;
+      coronaRef.current.scale.setScalar(curScale);
+
+      const coronaMat = coronaRef.current.material as THREE.MeshBasicMaterial;
+      if (coronaMat) {
+        coronaMat.opacity = metrics.coronaOpacity * stellarBrightness * 0.40 * proximityFactor;
+      }
+    }
+
+    if (diffractionRef.current) {
+      diffractionRef.current.visible = proximityFactor > 0.45;
+    }
+
     if (prefersReducedMotion) return;
 
     // Performance optimization: only compute dynamic scale animations for active/hovered/playing stars
@@ -146,13 +172,6 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
           Math.sin(t * 0.8 + node.position[0]) * 0.035 +
           audioKick);
       meshRef.current.scale.setScalar(s);
-    }
-
-    if (coronaRef.current) {
-      const coronaScale =
-        metrics.coronaRadius *
-        (1.05 + Math.cos(t * 0.5 + node.position[1]) * 0.02);
-      coronaRef.current.scale.setScalar(coronaScale);
     }
 
     // Serene, calm orbital ring for currently playing star (slow 4s smooth breathing)
@@ -342,32 +361,34 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         </mesh>
       )}
 
-      {/* 4-Point Optical Diffraction Spikes (Tier 3 Supergiant Artists) */}
+      {/* 4-Point Optical Diffraction Spikes (Tier 3 Supergiant Artists - fades on close approach) */}
       {node.type === 'artist' && metrics.artistTier === 'supergiant' && (
-        <Billboard follow lockX={false} lockY={false} lockZ={false}>
-          <mesh geometry={UNIT_DIFFRACTION_GEOMETRY} scale={metrics.coreRadius * 2.8}>
-            <meshBasicMaterial
-              color={starColor}
-              transparent
-              opacity={0.28 * stellarBrightness}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-            />
-          </mesh>
-          <mesh
-            geometry={UNIT_DIFFRACTION_GEOMETRY}
-            scale={metrics.coreRadius * 2.8}
-            rotation={[0, 0, Math.PI / 2]}
-          >
-            <meshBasicMaterial
-              color={starColor}
-              transparent
-              opacity={0.28 * stellarBrightness}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-            />
-          </mesh>
-        </Billboard>
+        <group ref={diffractionRef}>
+          <Billboard follow lockX={false} lockY={false} lockZ={false}>
+            <mesh geometry={UNIT_DIFFRACTION_GEOMETRY} scale={metrics.coreRadius * 2.8}>
+              <meshBasicMaterial
+                color={starColor}
+                transparent
+                opacity={0.28 * stellarBrightness}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+              />
+            </mesh>
+            <mesh
+              geometry={UNIT_DIFFRACTION_GEOMETRY}
+              scale={metrics.coreRadius * 2.8}
+              rotation={[0, 0, Math.PI / 2]}
+            >
+              <meshBasicMaterial
+                color={starColor}
+                transparent
+                opacity={0.28 * stellarBrightness}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+              />
+            </mesh>
+          </Billboard>
+        </group>
       )}
 
       {/* Relativistic Polar Energy Jets (Tier 3 Dominant Sector Active Galactic Nuclei) */}

@@ -169,13 +169,14 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => `nebula-cluster-inner-v5-${genre.id}`;
+    mat.customProgramCacheKey = () => `nebula-cluster-inner-v6-${genre.id}`;
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uBrightness = { value: 0.050 };
 
       shader.vertexShader = `
         attribute float pointScale;
         varying vec3 vNebulaColor;
+        varying float vCamDist;
         ${shader.vertexShader}
       `;
 
@@ -184,6 +185,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         `
         #include <color_vertex>
         vNebulaColor = color;
+        vCamDist = -mvPosition.z;
         `
       );
 
@@ -199,6 +201,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       shader.fragmentShader = `
         uniform float uBrightness;
         varying vec3 vNebulaColor;
+        varying float vCamDist;
         ${shader.fragmentShader}
       `;
 
@@ -213,8 +216,10 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         float edgeFade = smoothstep(0.5, 0.05, dist);
         float coreGlow = exp(-dist * dist * 6.0);
         float falloff = edgeFade * coreGlow;
+        // Proximity anti-glare: smoothly fade out particles as camera approaches within 22 units
+        float proximityFade = smoothstep(4.0, 22.0, vCamDist);
         diffuseColor.rgb = vNebulaColor * (0.65 + 0.35 * coreGlow);
-        diffuseColor.a *= falloff * uBrightness;
+        diffuseColor.a *= falloff * uBrightness * proximityFade;
         `
       );
 
@@ -234,13 +239,14 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => `nebula-cluster-outer-v5-${genre.id}`;
+    mat.customProgramCacheKey = () => `nebula-cluster-outer-v6-${genre.id}`;
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uBrightness = { value: 0.030 };
 
       shader.vertexShader = `
         attribute float pointScale;
         varying vec3 vNebulaColor;
+        varying float vCamDist;
         ${shader.vertexShader}
       `;
 
@@ -249,6 +255,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         `
         #include <color_vertex>
         vNebulaColor = color;
+        vCamDist = -mvPosition.z;
         `
       );
 
@@ -264,6 +271,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       shader.fragmentShader = `
         uniform float uBrightness;
         varying vec3 vNebulaColor;
+        varying float vCamDist;
         ${shader.fragmentShader}
       `;
 
@@ -278,8 +286,10 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         float edgeFade = smoothstep(0.5, 0.06, dist);
         float coreGlow = exp(-dist * dist * 5.5);
         float falloff = edgeFade * coreGlow;
+        // Proximity anti-glare: smoothly fade out particles as camera approaches within 26 units
+        float proximityFade = smoothstep(5.0, 26.0, vCamDist);
         diffuseColor.rgb = vNebulaColor * (0.60 + 0.30 * coreGlow);
-        diffuseColor.a *= falloff * uBrightness;
+        diffuseColor.a *= falloff * uBrightness * proximityFade;
         `
       );
 
