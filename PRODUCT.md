@@ -6,54 +6,46 @@
 
 web
 
-## Stack
-
-- **Framework UI & Routing:** Next.js 15+ (App Router) with TypeScript and Tailwind CSS (for the overlay HUD).
-- **3D Graphics Engine:** Three.js via `@react-three/fiber` and `@react-three/drei`.
-- **Post-Processing:** `@react-three/postprocessing` (`UnrealBloomPass` for stellar glow and nebulae).
-- **Graph Physics Engine:** `d3-force-3d` or `3d-force-graph` running inside a Web Worker to keep the main thread unblocked.
-- **Camera Animation:** `camera-controls` (Three.js) + `GSAP` for cinematic camera interpolations toward selected sectors and nodes.
-- **State & Audio Analysis:** `Zustand` (reactive selection/zoom state) + **Web Audio API** (FFT frequency analysis so star nodes pulse and react to music playback in real time).
-
 ## Users
 
-Music listeners and enthusiasts who want to explore, visualize, and interact with their personal musical universe—discovering how their favorite artists, tracks, and musical genres connect spatially rather than browsing flat lists or static tables.
+Audiófilos, melómanos y usuarios de plataformas de streaming (Spotify, Last.fm) que desean explorar, redescubrir y escuchar su catálogo musical personal transformado en un universo tridimensional interactivo, estético y envolvente.
 
 ## Product Purpose
 
-YourMusicVisualizer transforms a listener's music library and taste profile into an interactive 3D celestial graph. Artists, songs, and musical styles appear as star-like nodes arranged in relational constellations and sectors, where node scale and luminosity reflect user affinity and song count, and selecting any sector or star triggers smooth cinematic camera flights into that cluster while audio frequencies animate the cosmos in real time.
+YourMusicVisualizer transforma colecciones de canciones y hábitos de escucha en un cosmos 3D navegable a 60 FPS. Mapea la taxonomía musical jerárquicamente: los géneros son constelaciones y cúmulos galácticos, los artistas son cuerpos estelares (gigantes y supergigantes según densidad de catálogo) y las pistas son satélites orbitales interactivos. El éxito significa ofrecer una experiencia sensorial donde el descubrimiento sonoro y la belleza visual convergen con alta fidelidad y respuesta auditiva en tiempo real.
 
 ## Positioning
 
-Unlike flat streaming dashboards or static annual summary cards, YourMusicVisualizer renders music taste as a navigable 3D force-directed starfield where topology encodes genre/artist/song relationships, star scale encodes affinity and track volume, and Web Audio FFT analysis drives live visual resonance across the constellation.
+A diferencia de los visualizadores de música convencionales basados en osciloscopios o túneles de partículas genéricos, YourMusicVisualizer genera una cartografía astronómica personalizada basada en datos reales de afinidad, metadatos y frecuencia de escucha, fusionando simulación de polvo cósmico (estilo James Webb / Hubble) con reproducción de audio nativa mediante Web Audio API.
 
 ## Operating Context
 
-- **Primary environment:** Desktop and modern web browsers capable of WebGL2 / 3D canvas rendering with stereo audio output.
-- **Core flow:** Overview of the entire musical galaxy -> filtering or hovering over genre/style sectors -> cinematic camera fly-to (`camera-controls` + `GSAP`) into a sector or artist node -> inspecting related tracks/artists and triggering audio playback with live FFT reactivity.
-- **Data source (open decision / inferred default):** Streaming account integration (e.g., Spotify / Last.fm) paired with an immediate interactive sample/demo dataset so the visualizer is playable out of the box.
+Navegadores web modernos de escritorio y dispositivos con aceleración WebGL. Interacción fluida mediante controles orbitales de cámara (CameraControls + GSAP), selector de constelaciones en el HUD, preajustes de escala cósmica (50, 150 y 300 pistas), atajos de teclado y reproducción de audio interactiva con análisis FFT de subgraves.
 
 ## Capabilities and Constraints
 
-- **Relational Node Graph:** Three node types—Artists, Songs, and Musical Styles/Genres—connected by shared authorship, style, and listener affinity.
-- **Data-Driven Star Sizing:** Node radius, corona intensity, and bloom scale dynamically from user affinity weight and song count.
-- **Off-Thread Physics:** Force-directed 3D layout calculation (`d3-force-3d` / `3d-force-graph`) must execute in a Web Worker to preserve 60fps camera motion and rendering.
-- **Cinematic Sector Navigation:** Smooth, non-jarring camera transitions zooming from macro galaxy view into micro local clusters and individual nodes.
-- **Audio-Reactive Visuals:** Real-time Web Audio API FFT spectrum data modulates node brightness, bloom intensity, and connection pulses.
-- **HUD Overlay:** Lightweight Tailwind CSS interface floating over the 3D WebGL canvas for search, sector jumping, audio controls, and node inspection without obstructing the starfield.
+- **Visualización WebGL 60 FPS**: Renderizado eficiente en un único canvas Three.js utilizando mallas compartidas, sistemas de partículas con shaders GLSL personalizados y billboard SDF text para evitar colisiones DOM.
+- **Fidelidad Cósmica Etérea**: Niebla galáctica difusa en flujo fluido continuo (rotación kepleriana diferencial y ondas senoidales 3D), nebulosas volumétricas cuya masa y zarcillos escalan con la cantidad de canciones del género, y estrellas nítidas sin encandilamiento ni saltos bruscos de brillo.
+- **Jerarquía y Evolución Visual**: Hitos visuales para artistas destacados (anillos planetarios sinusoidales suaves, satélites orbitales, picos de difracción óptica de 4 puntas) y géneros dominantes (jets de energía polar relativistas).
+- **Seguridad Fotosensible (WCAG 2.3)**: Prohibición estricta de parpadeos estroboscópicos o ráfagas repentinas de luz; transiciones suaves mediante amortiguación (lerp) temporal.
+- **Privacidad y Conexión Híbrida**: Soporte para perfiles curados instantáneos sin login, además de integración con API de Spotify / Last.fm con resiliencia ante límites de tasa (429 rate limit).
 
 ## Brand Commitments
 
-- **Name:** YourMusicVisualizer
-- **Core Metaphor (User-Pinned):** Musical entities (artists, songs, genres) represented as stars and celestial clusters whose size and glow depend on user affinity and song count, navigated via dynamic camera zoom animations into each sector.
+- **Identidad**: YourMusicVisualizer — Cosmos Musical 3D.
+- **Estética Nuclear**: Cian espacial `#00F5D4`, magenta cósmico `#FF2A85`, lima iónica `#CCFF00`, violeta estelar `#A855F7`, sobre fondo de vacío profundo `#050508`.
+- **Tipografía**: Fuentes monoespaciadas y sans-serif de precisión instrumental (`Space Grotesk`, `JetBrains Mono`).
 
 ## Evidence on Hand
 
-- Greenfield repository (`PRODUCT.md`, `README.md`). No real user streaming credentials or audio assets committed yet; initial implementation requires a rich, realistic mock/demo musical graph dataset and royalty-free/synthesized or preview audio sources clearly labeled as demo data when no account is connected.
+- Código base Next.js 16 (App Router, Turbopack) con React 19 y Three.js.
+- Motor de audio procedural y streaming [`WebAudioEngine.ts`](src/lib/audio/WebAudioEngine.ts).
+- Preajustes deterministas de galaxias de 50, 150 y 300 pistas en [`galaxyPresets.ts`](src/data/galaxyPresets.ts).
+- Pipeline de post-procesamiento [`PostProcessingPipeline.tsx`](src/components/canvas/PostProcessingPipeline.tsx) con Bloom calibrado.
 
 ## Product Principles
 
-1. **Spatial Truth Over Flat Lists:** Every visual property of a star (size, brightness, clustering distance, orbital links) must encode real musical data—affinity, track volume, and stylistic proximity—never arbitrary decoration.
-2. **Unbroken 60fps Immersion:** Physics calculations stay in Web Workers and HUD state updates stay isolated in Zustand so camera flights and audio-reactive bloom never stutter.
-3. **The HUD Serves the Cosmos:** 2D interface overlays act as precision telemetry instruments—translucent, unobtrusive, and subordinate to the 3D starfield canvas.
-4. **Dynamic Multi-Scale Exploration:** Moving between the macro galaxy view (genres/constellations), mid-range sector view (artists), and micro view (songs/audio playback) must feel like a continuous cinematic journey rather than page reloads.
+1. **La Música Manda en la Geometría**: Cada elemento visual (tamaño estelar, radio de la nebulosa, satélites) debe reflejar directamente datos musicales reales (afinidad, pistas, densidad de artistas).
+2. **Fidelidad Astronómica antes que Artificios**: Priorizar polvo cósmico etéreo, fluidez de fluidos y luz suave sobre efectos invasivos o geométricos rígidos.
+3. **Claridad y Serenidad Óptica**: Nunca sacrificar la legibilidad de títulos ni cegar al usuario con destellos o cambios violentos de iluminación al interactuar.
+4. **Respuesta Rítmica Orgánica**: Las pulsaciones y expansiones con el audio deben respirar con el ritmo natural de la música sin interrumpir la navegación.
