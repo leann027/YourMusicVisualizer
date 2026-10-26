@@ -101,10 +101,10 @@ export function getArtistEvolutionTier(
   songCount: number,
   affinity: number
 ): ArtistEvolutionTier {
-  // Supergiant: Unlocked when the user has deeply explored this artist (>= 5 songs with high affinity, or >= 8 songs)
-  if ((songCount >= 5 && affinity >= 0.88) || songCount >= 8) return 'supergiant';
-  // Giant: Notable catalog presence (>= 3 songs with affinity, or >= 5 songs)
-  if ((songCount >= 3 && affinity >= 0.78) || songCount >= 5) return 'giant';
+  // Supergiant: Artists with a rich library presence (>= 4 songs, or >= 3 songs with top affinity >= 0.88)
+  if ((songCount >= 3 && affinity >= 0.88) || songCount >= 4) return 'supergiant';
+  // Giant: Notable catalog presence (>= 2 songs with solid affinity >= 0.78, or >= 3 songs)
+  if ((songCount >= 2 && affinity >= 0.78) || songCount >= 3) return 'giant';
   return 'dwarf';
 }
 
@@ -115,8 +115,10 @@ export function getSectorEvolutionTier(
   songCount: number,
   affinity: number
 ): SectorEvolutionTier {
-  if (songCount >= 24 || (songCount >= 18 && affinity >= 0.90)) return 'supercluster';
-  if (songCount >= 8) return 'active';
+  // Supercluster: Dominant sector with substantial songs (>= 14 songs, or >= 10 songs with high affinity)
+  if (songCount >= 14 || (songCount >= 10 && affinity >= 0.88)) return 'supercluster';
+  // Active sector (>= 5 songs)
+  if (songCount >= 5) return 'active';
   return 'emerging';
 }
 

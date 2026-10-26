@@ -78,27 +78,33 @@ export function getDynamicSectorPlacement(
   totalCount: number,
   _genreName: string
 ): { color: string; bg: string; center: [number, number, number] } {
-  // If total genres fit within curated palette, use the handcrafted positions
-  if (index < SECTOR_PALETTE.length && totalCount <= SECTOR_PALETTE.length) {
-    return SECTOR_PALETTE[index];
-  }
+  // Cohesive, dynamic clustering:
+  // Dynamically spaces genres around the galaxy disc so they never collide and don't drift into distant voids
+  const count = Math.max(1, totalCount);
+  const baseRadius =
+    count <= 4
+      ? 16.5
+      : count <= 8
+      ? 19.5
+      : count <= 14
+      ? 23.5
+      : Math.min(30.0, 22.0 + Math.sqrt(count) * 1.5);
 
-  // Vogel's Golden-Angle phyllotaxis spiral on galactic plane
-  const goldenAngle = 2.3999632;
-  const radius = 24.0 + Math.sqrt(index + 0.6) * 4.6;
-  const angle = index * goldenAngle;
-  const elevation = ((index % 5) - 2) * 5.2 + Math.sin(index * 1.5) * 3.6;
+  // Harmonious angular distribution around the galactic disk
+  const angle = (index * (Math.PI * 2)) / count + (index % 2 === 0 ? 0.12 : -0.12);
+  // Natural radial variance gives organic wispiness without clumping
+  const r = baseRadius * (0.90 + (index % 3) * 0.10);
+  // Gentle vertical elevation preserves the unified galactic disc
+  const elevation = Math.sin(index * 1.9) * (count <= 8 ? 2.0 : 3.0);
 
-  const cx = Number((Math.cos(angle) * radius).toFixed(2));
+  const cx = Number((Math.cos(angle) * r).toFixed(2));
   const cy = Number(elevation.toFixed(2));
-  const cz = Number((Math.sin(angle) * radius * 0.92).toFixed(2));
+  const cz = Number((Math.sin(angle) * r * 0.88).toFixed(2));
 
-  // Golden Ratio chromatic distribution gives unique, vibrant neon colors
-  const hue = Math.round((index * 137.508) % 360);
-  const color = `hsl(${hue}, 95%, 55%)`;
-  const bg = `hsl(${hue}, 45%, 7%)`;
+  const paletteColor = SECTOR_PALETTE[index % SECTOR_PALETTE.length].color;
+  const paletteBg = SECTOR_PALETTE[index % SECTOR_PALETTE.length].bg;
 
-  return { color, bg, center: [cx, cy, cz] };
+  return { color: paletteColor, bg: paletteBg, center: [cx, cy, cz] };
 }
 
 function hashString(str: string): number {
@@ -386,12 +392,12 @@ export function buildMusicGalaxyFromPayload(
     const goldenAngle = 2.3999632; // Golden-Ratio angle (Phyllotaxis spiral)
     for (const [, aBucket] of gBucket.artists) {
       const artistId = `artist-${slugify(aBucket.name)}`;
-      // Gravitational Golden-Spiral ensures tight clustering inside the sector nebula (capped radius)
-      const spiralRadius = 3.6 + Math.sqrt(artistIdx + 0.5) * 1.65;
-      const angle = artistIdx * goldenAngle + genreIdx * 0.85;
+      // Even angular distribution around the genre star: zero overlapping labels
+      const spiralRadius = 3.4 + (artistIdx % 2 === 0 ? 0 : 0.65);
+      const angle = (artistIdx * (Math.PI * 2)) / Math.max(1, artistCount) + (genreIdx * 0.45);
       const ax = Number((gx + Math.cos(angle) * spiralRadius).toFixed(2));
       const ay = Number(
-        (gy + Math.sin(artistIdx * 1.35) * 1.4 + (artistIdx % 3 - 1) * 0.75).toFixed(2)
+        (gy + (artistIdx % 2 === 0 ? 0.45 : -0.45)).toFixed(2)
       );
       const az = Number((gz + Math.sin(angle) * spiralRadius).toFixed(2));
 

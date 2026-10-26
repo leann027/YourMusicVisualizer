@@ -20,6 +20,7 @@ const UNIT_OUTER_RING_GEOMETRY = new THREE.RingGeometry(2.0, 2.5, 36, 8);
 const UNIT_RIPPLE_GEOMETRY = new THREE.RingGeometry(1.4, 1.6, 36);
 const UNIT_POLAR_JET_GEOMETRY = new THREE.CylinderGeometry(0.04, 0.28, 4.0, 12, 1, true);
 const UNIT_SATELLITE_GEOMETRY = new THREE.SphereGeometry(0.05, 8, 8);
+const UNIT_DIFFRACTION_GEOMETRY = new THREE.PlaneGeometry(3.6, 0.05);
 
 /**
  * Injects a smooth sinusoidal radial falloff into RingGeometry materials
@@ -80,13 +81,13 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     return genreColor || '#00F5D4';
   }, [node, genreColor]);
 
-  // High-affinity stars have a hotter, brighter core tint
+  // Authentic stellar core tint: preserves natural color with subtle high-affinity thermal heat (no white flash on select)
   const coreColor = useMemo(() => {
     const base = new THREE.Color(starColor);
     const white = new THREE.Color('#F2F4F8');
-    base.lerp(white, isSelected ? 0.55 : node.affinity * 0.35);
+    base.lerp(white, node.affinity * 0.22);
     return '#' + base.getHexString();
-  }, [starColor, isSelected, node.affinity]);
+  }, [starColor, node.affinity]);
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -139,11 +140,10 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         : 0;
 
     if (meshRef.current) {
-      const amp = isSelected ? 0.06 : 0.04;
       const s =
         metrics.coreRadius *
         (1 +
-          Math.sin(t * 0.8 + node.position[0]) * amp +
+          Math.sin(t * 0.8 + node.position[0]) * 0.035 +
           audioKick);
       meshRef.current.scale.setScalar(s);
     }
@@ -151,8 +151,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     if (coronaRef.current) {
       const coronaScale =
         metrics.coronaRadius *
-        ((isSelected ? 1.18 : 1.08) +
-          Math.cos(t * 0.6 + node.position[1]) * 0.03);
+        (1.05 + Math.cos(t * 0.5 + node.position[1]) * 0.02);
       coronaRef.current.scale.setScalar(coronaScale);
     }
 
@@ -288,7 +287,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         <meshBasicMaterial visible={false} />
       </mesh>
 
-      {/* Outer Bioluminescent Corona (scaled by affinity^1.6 & stellarBrightness) */}
+      {/* Outer Bioluminescent Corona (steady, calm ambient glow - zero glare/flare-up on approach) */}
       <mesh
         ref={coronaRef}
         geometry={UNIT_SPHERE_GEOMETRY}
@@ -298,13 +297,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         <meshBasicMaterial
           color={starColor}
           transparent
-          opacity={
-            (isSelected
-              ? Math.min(0.38, metrics.coronaOpacity + 0.12)
-              : isHovered
-              ? Math.min(0.28, metrics.coronaOpacity + 0.08)
-              : metrics.coronaOpacity) * stellarBrightness
-          }
+          opacity={metrics.coronaOpacity * stellarBrightness * 0.70}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
@@ -315,16 +308,14 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         <mesh
           ref={ringRef}
           geometry={UNIT_RING_GEOMETRY}
-          scale={metrics.coreRadius * (isSelected ? 1.25 : 1.05)}
+          scale={metrics.coreRadius * 1.05}
           rotation={[Math.PI / 2.3, 0.25, 0]}
         >
           <meshBasicMaterial
             color={isSelected ? '#CCFF00' : starColor}
             side={THREE.DoubleSide}
             transparent
-            opacity={
-              (isSelected ? 0.60 : Math.min(0.45, 0.18 + 0.25 * node.affinity)) * stellarBrightness
-            }
+            opacity={Math.min(0.35, 0.16 + 0.18 * node.affinity) * stellarBrightness}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
             onBeforeCompile={softRingOnBeforeCompile}
@@ -343,12 +334,40 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             color={isSelected ? '#00F5D4' : '#CCFF00'}
             side={THREE.DoubleSide}
             transparent
-            opacity={(isSelected ? 0.65 : 0.35) * stellarBrightness}
+            opacity={0.28 * stellarBrightness}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
             onBeforeCompile={softRingOnBeforeCompile}
           />
         </mesh>
+      )}
+
+      {/* 4-Point Optical Diffraction Spikes (Tier 3 Supergiant Artists) */}
+      {node.type === 'artist' && metrics.artistTier === 'supergiant' && (
+        <Billboard follow lockX={false} lockY={false} lockZ={false}>
+          <mesh geometry={UNIT_DIFFRACTION_GEOMETRY} scale={metrics.coreRadius * 2.8}>
+            <meshBasicMaterial
+              color={starColor}
+              transparent
+              opacity={0.28 * stellarBrightness}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh
+            geometry={UNIT_DIFFRACTION_GEOMETRY}
+            scale={metrics.coreRadius * 2.8}
+            rotation={[0, 0, Math.PI / 2]}
+          >
+            <meshBasicMaterial
+              color={starColor}
+              transparent
+              opacity={0.28 * stellarBrightness}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </Billboard>
       )}
 
       {/* Relativistic Polar Energy Jets (Tier 3 Dominant Sector Active Galactic Nuclei) */}
@@ -448,18 +467,18 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       {/* Native WebGL SDF Text & Billboard: zero DOM nodes, 60 FPS GPU-rendered, completely eliminates React 19 removeChild collision */}
       {node.type !== 'song' && shouldShowLabel && (
         <Billboard
-          position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.85 : 0.45), 0]}
+          position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.90 : 0.40), 0]}
           follow={true}
           lockX={false}
           lockY={false}
           lockZ={false}
         >
           <Text
-            fontSize={node.type === 'genre' ? 0.72 : 0.44}
+            fontSize={node.type === 'genre' ? 0.65 : 0.36}
             color={isSelected ? '#CCFF00' : isHovered ? '#00F5D4' : '#F2F4F8'}
             anchorX="center"
             anchorY="bottom"
-            outlineWidth={0.045}
+            outlineWidth={0.04}
             outlineColor="#050508"
             renderOrder={99}
             depthOffset={-1}
@@ -468,12 +487,12 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             {nodeLabel}
           </Text>
           <Text
-            position={[0, -0.06, 0]}
-            fontSize={node.type === 'genre' ? 0.36 : 0.25}
+            position={[0, -0.05, 0]}
+            fontSize={node.type === 'genre' ? 0.30 : 0.20}
             color={isSelected ? '#CCFF00' : '#00F5D4'}
             anchorX="center"
             anchorY="top"
-            outlineWidth={0.03}
+            outlineWidth={0.025}
             outlineColor="#050508"
             renderOrder={99}
             depthOffset={-1}

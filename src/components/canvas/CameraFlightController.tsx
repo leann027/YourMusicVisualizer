@@ -65,7 +65,7 @@ export const CameraFlightController: React.FC = () => {
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (prefersReducedMotion) {
-      controls.setLookAt(0, 24, 72, 0, 0, 0, false);
+      controls.setLookAt(0, 18, 52, 0, 0, 0, false);
       return;
     }
 
@@ -88,8 +88,8 @@ export const CameraFlightController: React.FC = () => {
       onUpdate: () => {
         const p = proxy.t;
         // Helical spiral curve easing into the galactic observation plane
-        const curY = THREE.MathUtils.lerp(startY, 24, p);
-        const curRadius = THREE.MathUtils.lerp(startRadius, 72, p);
+        const curY = THREE.MathUtils.lerp(startY, 18, p);
+        const curRadius = THREE.MathUtils.lerp(startRadius, 52, p);
         const curAngle = startAngle * (1 - p);
         const curEyeX = Math.sin(curAngle) * curRadius;
         const curEyeZ = Math.cos(curAngle) * curRadius;
@@ -139,7 +139,7 @@ export const CameraFlightController: React.FC = () => {
 
     if (cameraMode === 'galaxy' || !selectedNode) {
       endTarget.set(0, 0, 0);
-      endEye.set(0, 24, 76);
+      endEye.set(0, 18, 52);
     } else {
       const [nx, ny, nz] = selectedNode.position;
       endTarget.set(nx, ny, nz);

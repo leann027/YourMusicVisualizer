@@ -34,11 +34,14 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
   const outerPointsRef = useRef<THREE.Points>(null);
 
   const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
-  const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const minAffinityFilter = useGalaxyStore((s) => s.minAffinityFilter);
 
-  const isSelected = selectedSectorId === genre.id;
   const isFilteredOut = genre.affinity < minAffinityFilter;
+
+  // Direct songCount-based nebula density scaling:
+  // Genres with many songs produce vast, dense, majestic cosmic nebulae!
+  const songCount = genre.songCount || 1;
+  const densityFactor = Math.min(1.0, Math.max(0.12, (songCount - 1) / 20.0));
 
   const sectorTier = useMemo(
     () => getSectorEvolutionTier(genre.songCount, genre.affinity),
@@ -54,28 +57,28 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // 1. Organic multi-spectral ionized gas core (120 - 180 fine ethereal puffs)
+  // 1. Organic multi-spectral ionized gas core (density & particle count scale with songCount)
   const innerGeometry = useMemo(() => {
     const prng = createPRNG(seed + 101);
-    const count = isSupercluster ? 180 : 120;
+    // Scales from ~85 particles for small sectors up to 300+ particles for dominant genres
+    const count = Math.round(85 + densityFactor * 225);
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const scales = new Float32Array(count);
 
     const baseColor = new THREE.Color(genre.color);
     const coreTint = new THREE.Color(genre.color).lerp(new THREE.Color('#FFFFFF'), 0.20);
+    const maxR = 3.6 + densityFactor * 4.6;
 
     for (let i = 0; i < count; i++) {
       // 3-lobed logarithmic spiral tendrils for natural celestial wispiness
       const arm = (i % 3) * ((Math.PI * 2) / 3);
       const rRatio = Math.pow(prng(), 1.5);
-      const maxR = isSupercluster ? 6.5 : 5.0;
-      const r = 0.5 + rRatio * maxR;
+      const r = 0.4 + rRatio * maxR;
 
       const angle = arm + Math.log(r + 1.2) * 1.4 + (prng() - 0.5) * 0.75;
       const x = Math.cos(angle) * r;
       const z = Math.sin(angle) * r;
-      // Exponential vertical concentration near midplane
       const y = (prng() - 0.5) * 2.2 * Math.exp(-r * 0.35);
 
       positions[i * 3] = x;
@@ -98,12 +101,13 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geom.setAttribute('pointScale', new THREE.BufferAttribute(scales, 1));
     return geom;
-  }, [seed, isSupercluster, genre.color]);
+  }, [seed, densityFactor, genre.color]);
 
-  // 2. Interstellar dust filament veil & streamers (160 - 240 particles)
+  // 2. Interstellar dust filament veil & streamers (reaches out broader with more songs)
   const outerGeometry = useMemo(() => {
     const prng = createPRNG(seed + 202);
-    const count = isSupercluster ? 240 : 160;
+    // Scales from ~110 particles up to 420+ particles for rich, expansive sectors
+    const count = Math.round(110 + densityFactor * 320);
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const scales = new Float32Array(count);
@@ -113,11 +117,11 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
 
     // Orient outer filaments along the sector's galactic position angle
     const galAngle = Math.atan2(genre.position[2] || 0.01, genre.position[0] || 0.01);
+    const maxR = 7.5 + densityFactor * 9.5;
 
     for (let i = 0; i < count; i++) {
       const rRatio = Math.pow(prng(), 1.35);
-      const maxR = isSupercluster ? 14.5 : 11.0;
-      const r = 2.8 + rRatio * maxR;
+      const r = 2.4 + rRatio * maxR;
 
       // Asymmetric dust streamers flowing with galactic curvature
       const theta = galAngle + (prng() - 0.5) * 1.4 + Math.sin(r * 0.35) * 0.5;
@@ -130,7 +134,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       positions[i * 3 + 2] = z;
 
       // Deep celestial chromatic shift toward cosmic background
-      const normR = Math.min(1.0, (r - 2.8) / maxR);
+      const normR = Math.min(1.0, (r - 2.4) / maxR);
       const c = new THREE.Color().copy(baseColor).lerp(deepCosmicVeil, normR * 0.7);
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
@@ -144,12 +148,12 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geom.setAttribute('pointScale', new THREE.BufferAttribute(scales, 1));
     return geom;
-  }, [seed, isSupercluster, genre.color, genre.position]);
+  }, [seed, densityFactor, genre.color, genre.position]);
 
-  // 3. Materials with GPU-level smoothstep-gaussian falloff (Strictly zero disc/circle rim)
+  // 3. Materials with GPU-level smoothstep-gaussian falloff & proximity-safe attenuation
   const innerMaterial = useMemo(() => {
     const mat = new THREE.PointsMaterial({
-      size: isSupercluster ? 2.6 : 2.0,
+      size: 2.2,
       vertexColors: true,
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -157,9 +161,9 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => `nebula-cluster-inner-v4-${isSupercluster ? 'super' : 'std'}`;
+    mat.customProgramCacheKey = () => `nebula-cluster-inner-v5-${genre.id}`;
     mat.onBeforeCompile = (shader) => {
-      shader.uniforms.uBrightness = { value: 0.055 };
+      shader.uniforms.uBrightness = { value: 0.050 };
 
       shader.vertexShader = `
         attribute float pointScale;
@@ -175,11 +179,12 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         `
       );
 
+      // Proximity-safe attenuation: prevents screen-filling glare when approaching the star
       shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
         `
-        float pSize = size * pointScale * (120.0 / -mvPosition.z);
-        gl_PointSize = clamp(pSize, 1.0, 24.0);
+        float pSize = size * pointScale * (65.0 / max(9.0, -mvPosition.z));
+        gl_PointSize = clamp(pSize, 1.0, 16.0);
         `
       );
 
@@ -209,11 +214,11 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     };
 
     return mat;
-  }, [isSupercluster]);
+  }, [genre.id]);
 
   const outerMaterial = useMemo(() => {
     const mat = new THREE.PointsMaterial({
-      size: isSupercluster ? 3.8 : 3.0,
+      size: 3.2,
       vertexColors: true,
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -221,9 +226,9 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => `nebula-cluster-outer-v4-${isSupercluster ? 'super' : 'std'}`;
+    mat.customProgramCacheKey = () => `nebula-cluster-outer-v5-${genre.id}`;
     mat.onBeforeCompile = (shader) => {
-      shader.uniforms.uBrightness = { value: 0.035 };
+      shader.uniforms.uBrightness = { value: 0.030 };
 
       shader.vertexShader = `
         attribute float pointScale;
@@ -239,11 +244,12 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         `
       );
 
+      // Proximity-safe attenuation
       shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
         `
-        float pSize = size * pointScale * (120.0 / -mvPosition.z);
-        gl_PointSize = clamp(pSize, 1.2, 32.0);
+        float pSize = size * pointScale * (65.0 / max(9.0, -mvPosition.z));
+        gl_PointSize = clamp(pSize, 1.0, 20.0);
         `
       );
 
@@ -273,7 +279,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     };
 
     return mat;
-  }, [isSupercluster]);
+  }, [genre.id]);
 
   // Clean up WebGL resources when component unmounts
   useEffect(() => {
@@ -285,7 +291,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     };
   }, [innerGeometry, outerGeometry, innerMaterial, outerMaterial]);
 
-  // 4. Per-frame slow harmonic rotation, audio-reactive respiration, and stellar brightness modulation
+  // 4. Per-frame slow harmonic rotation, audio-reactive respiration, and steady brightness modulation
   useFrame((state, delta) => {
     if (isFilteredOut) {
       if (groupRef.current) groupRef.current.visible = false;
@@ -309,26 +315,23 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       }
       if (groupRef.current) {
         groupRef.current.position.y =
-          genre.position[1] + Math.sin(t * 0.30 + seed) * 0.25;
+          genre.position[1] + Math.sin(t * 0.30 + seed) * 0.22;
         groupRef.current.position.x =
-          genre.position[0] + Math.cos(t * 0.20 + seed) * 0.18;
+          genre.position[0] + Math.cos(t * 0.20 + seed) * 0.15;
       }
     }
 
-    const selectionBoost = isSelected ? 1.4 : 1.0;
-
-    // Photosensitive-safe, serene opacity with smooth ambient modulation
-    // Calibrated to provide a luminous ethereal backdrop without washing out stars or HUD labels
+    // Steady, serene brightness: NO sudden spike or flare-up when approaching or selecting!
     const targetInnerBrightness = THREE.MathUtils.clamp(
-      0.065 * stellarBrightness * selectionBoost,
+      0.055 * stellarBrightness,
       0.01,
-      0.12
+      0.10
     );
 
     const targetOuterBrightness = THREE.MathUtils.clamp(
-      0.040 * stellarBrightness * selectionBoost,
+      0.035 * stellarBrightness,
       0.006,
-      0.08
+      0.07
     );
 
     if (innerMaterial.userData.shader) {
@@ -350,11 +353,10 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     // Subtle cluster expansion breathing with sub-bass
     if (groupRef.current) {
       const breathing = !prefersReducedMotion ? Math.sin(t * 0.60 + seed) * 0.015 : 0;
-      const tierBaseScale = isSupercluster ? 1.2 : 1.0;
+      const tierBaseScale = isSupercluster ? 1.15 : 1.0;
       const targetScale =
         tierBaseScale *
-        (1.0 + (fft.isPlaying ? fft.subBass * 0.05 : breathing)) *
-        (isSelected ? 1.06 : 1.0);
+        (1.0 + (fft.isPlaying ? fft.subBass * 0.04 : breathing));
       groupRef.current.scale.setScalar(
         THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, Math.min(1, delta * 5))
       );
@@ -388,6 +390,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
  * Milky Way-style cosmic dust and interstellar nebular gas clusters (`NebulaClusters`).
  *
  * Renders radiant, organic gas clouds around genre sector centers (`data.genres`).
+ * Density and particle count scale directly with genre song count.
  * Modulates opacity gently with `stellarBrightness` and breathes synchronously
  * with real-time Web Audio sub-bass frequencies. Zero geometric sphere silhouettes.
  */
