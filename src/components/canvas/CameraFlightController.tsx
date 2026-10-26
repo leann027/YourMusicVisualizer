@@ -139,7 +139,7 @@ export const CameraFlightController: React.FC = () => {
 
     if (cameraMode === 'galaxy' || !selectedNode) {
       endTarget.set(0, 0, 0);
-      endEye.set(0, 24, 72);
+      endEye.set(0, 24, 76);
     } else {
       const [nx, ny, nz] = selectedNode.position;
       endTarget.set(nx, ny, nz);
@@ -153,19 +153,19 @@ export const CameraFlightController: React.FC = () => {
         endEye.set(
           nx + radial.x * 6.5 + 2.0,
           ny + 5.5,
-          nz + 18.5
+          nz + 21.0
         );
       } else if (cameraMode === 'artist') {
         // Offset slightly right of target so the selected star & its songs sit clear of the right HUD card
-        endEye.set(nx + 1.8, ny + 1.6, nz + 9.5);
+        endEye.set(nx + 2.0, ny + 1.8, nz + 11.5);
       } else {
-        // 'song' micro satellite close-up
-        endEye.set(nx + 0.9, ny + 0.7, nz + 4.6);
+        // 'song' micro satellite close-up (spacious framing so the song and parent star stay visible)
+        endEye.set(nx + 1.2, ny + 0.9, nz + 6.2);
       }
     }
 
     const travelDistance = startEye.distanceTo(endEye);
-    if (travelDistance < 0.25) {
+    if (travelDistance < 0.15) {
       setFlightState(false);
       return;
     }
@@ -174,18 +174,30 @@ export const CameraFlightController: React.FC = () => {
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Calibrated duration: 520ms for local hops within a sector up to 880ms across the galaxy
-    const durationSec = prefersReducedMotion
-      ? 0.16
-      : Math.min(0.88, Math.max(0.50, 0.46 + travelDistance * 0.008));
+    // Smooth, cinematic flight duration:
+    // Short hops (e.g. song within artist cluster, < 8 units): ~0.72s
+    // Medium flights (artist to artist within sector, 8 - 25 units): ~1.05s - 1.35s
+    // Long cross-galaxy flights (> 25 units, or going back to galaxy overview): ~1.4s - 1.7s
+    let durationSec = 1.25;
+    if (prefersReducedMotion) {
+      durationSec = 0.2;
+    } else if (travelDistance < 8.0) {
+      durationSec = 0.72 + travelDistance * 0.035;
+    } else if (travelDistance < 25.0) {
+      durationSec = 1.05 + (travelDistance - 8.0) * 0.018;
+    } else {
+      durationSec = Math.min(1.70, 1.35 + (travelDistance - 25.0) * 0.007);
+    }
 
-    // Parabolic swooping altitude & orbital banking so cross-galaxy flights arc cleanly over constellations
-    const arcLift = prefersReducedMotion
+    // Parabolic arc lift: only for long/medium cross-constellation flights!
+    // Never arc on small local hops (e.g. selecting songs or nearby artists) to prevent nauseating bounces!
+    const isLocalHop = travelDistance < 10.0;
+    const arcLift = (prefersReducedMotion || isLocalHop)
       ? 0
-      : Math.min(10, Math.max(2.2, travelDistance * 0.14));
-    const lateralSway = prefersReducedMotion
+      : Math.min(6.5, (travelDistance - 10.0) * 0.10);
+    const lateralSway = (prefersReducedMotion || isLocalHop)
       ? 0
-      : Math.min(4.5, travelDistance * 0.05);
+      : Math.min(2.5, (travelDistance - 10.0) * 0.035);
 
     const proxy = { t: 0 };
     const durationMs = Math.round(durationSec * 1000);
@@ -194,16 +206,16 @@ export const CameraFlightController: React.FC = () => {
     tweenRef.current = gsap.to(proxy, {
       t: 1,
       duration: durationSec,
-      ease: 'power2.out',
+      ease: 'power3.inOut',
       onUpdate: () => {
         const p = proxy.t;
-        const bellCurve = 4 * p * (1 - p); // 0 at start, 1.0 at midpoint, 0 at end
+        // Smooth sine bell curve for altitude arc (zero jump at start/end)
+        const bellCurve = Math.sin(p * Math.PI);
         const arcY = bellCurve * arcLift;
         const swayX = bellCurve * lateralSway * (startEye.z > endEye.z ? 1 : -1);
 
         const curEyeX = THREE.MathUtils.lerp(startEye.x, endEye.x, p) + swayX;
-        const curEyeY =
-          THREE.MathUtils.lerp(startEye.y, endEye.y, p) + arcY;
+        const curEyeY = THREE.MathUtils.lerp(startEye.y, endEye.y, p) + arcY;
         const curEyeZ = THREE.MathUtils.lerp(startEye.z, endEye.z, p);
 
         const curTargetX = THREE.MathUtils.lerp(startTarget.x, endTarget.x, p);
@@ -267,11 +279,11 @@ export const CameraFlightController: React.FC = () => {
       makeDefault
       minDistance={3.2}
       maxDistance={140}
-      smoothTime={0.25}
-      draggingSmoothTime={0.12}
-      azimuthRotateSpeed={0.55}
-      polarRotateSpeed={0.55}
-      dollySpeed={0.8}
+      smoothTime={0.35}
+      draggingSmoothTime={0.16}
+      azimuthRotateSpeed={0.50}
+      polarRotateSpeed={0.50}
+      dollySpeed={0.75}
     />
   );
 };
