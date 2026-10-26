@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Activity, Volume2, VolumeX } from 'lucide-react';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
+import { SongNode } from '../../types/music';
 
 /**
  * Cyber-Galactic High-Fidelity 24-Band FFT Audio Visualizer Dock (`FFTSpectrumDock`).
@@ -96,15 +97,24 @@ export const FFTSpectrumDock: React.FC = () => {
       return;
     }
 
-    // Find playable track from current focus
-    const matchSong =
-      selectedNode?.type === 'song'
-        ? selectedNode
-        : selectedNode?.type === 'artist'
-        ? data.songs.find((s) => s.artistId === selectedNode.id && s.previewUrl) ||
-          data.songs.find((s) => s.artistId === selectedNode.id)
-        : data.songs.find((s) => s.genreId === selectedNode?.id && s.previewUrl) ||
-          data.songs[0];
+    // Find playable track from current focus (prioritizing random selection for artists/genres)
+    let matchSong: SongNode | undefined;
+    if (selectedNode?.type === 'song') {
+      matchSong = selectedNode;
+    } else if (selectedNode?.type === 'artist') {
+      const artistSongs = data.songs.filter((s) => s.artistId === selectedNode.id);
+      const withPreview = artistSongs.filter((s) => s.previewUrl);
+      const candidates = withPreview.length > 0 ? withPreview : artistSongs;
+      matchSong = candidates[Math.floor(Math.random() * candidates.length)];
+    } else if (selectedNode?.type === 'genre') {
+      const genreSongs = data.songs.filter((s) => s.genreId === selectedNode.id);
+      const withPreview = genreSongs.filter((s) => s.previewUrl);
+      const candidates = withPreview.length > 0 ? withPreview : genreSongs;
+      matchSong = candidates[Math.floor(Math.random() * candidates.length)];
+    }
+    if (!matchSong) {
+      matchSong = data.songs.find((s) => s.previewUrl) || data.songs[0];
+    }
 
     if (matchSong) {
       webAudioEngine.playTrack(

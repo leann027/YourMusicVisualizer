@@ -20,6 +20,7 @@ import { ArtistSleeveCard } from './ArtistSleeveCard';
 import { DataSourceModal } from './DataSourceModal';
 import { FFTSpectrumDock } from './FFTSpectrumDock';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
+import { SongNode } from '../../types/music';
 
 const AFFINITY_THRESHOLDS = [
   { label: 'Todas', value: 0 },
@@ -99,27 +100,29 @@ export const TelemetryHUD: React.FC = () => {
       return;
     }
 
-    // Pick selected song, or first song of selected artist/genre, or first song in galaxy
-    let targetSong =
-      selectedNode?.type === 'song'
-        ? selectedNode
-        : selectedNode?.type === 'artist'
-        ? data.songs.find(
-            (s) => s.artistId === selectedNode.id && s.previewUrl
-          ) || data.songs.find((s) => s.artistId === selectedNode.id)
-        : selectedNode?.type === 'genre'
-        ? data.songs.find(
-            (s) => s.genreId === selectedNode.id && s.previewUrl
-          ) || data.songs.find((s) => s.genreId === selectedNode.id)
-        : undefined;
+    // Pick selected song, or random song of selected artist/genre, or first song in galaxy
+    let targetSong: SongNode | undefined;
+    if (selectedNode?.type === 'song') {
+      targetSong = selectedNode;
+    } else if (selectedNode?.type === 'artist') {
+      const artistSongs = data.songs.filter((s) => s.artistId === selectedNode.id);
+      const withPreview = artistSongs.filter((s) => s.previewUrl);
+      const candidates = withPreview.length > 0 ? withPreview : artistSongs;
+      targetSong = candidates[Math.floor(Math.random() * candidates.length)];
+    } else if (selectedNode?.type === 'genre') {
+      const genreSongs = data.songs.filter((s) => s.genreId === selectedNode.id);
+      const withPreview = genreSongs.filter((s) => s.previewUrl);
+      const candidates = withPreview.length > 0 ? withPreview : genreSongs;
+      targetSong = candidates[Math.floor(Math.random() * candidates.length)];
+    }
     if (!targetSong && selectedSectorId) {
-      targetSong =
-        data.songs.find(
-          (s) => s.genreId === selectedSectorId && s.previewUrl
-        ) || data.songs.find((s) => s.genreId === selectedSectorId);
+      const sectorSongs = data.songs.filter((s) => s.genreId === selectedSectorId);
+      const withPreview = sectorSongs.filter((s) => s.previewUrl);
+      const candidates = withPreview.length > 0 ? withPreview : sectorSongs;
+      targetSong = candidates[Math.floor(Math.random() * candidates.length)];
     }
     if (!targetSong) {
-      targetSong = data.songs[0];
+      targetSong = data.songs.find((s) => s.previewUrl) || data.songs[0];
     }
     if (targetSong) {
       webAudioEngine.playTrack(

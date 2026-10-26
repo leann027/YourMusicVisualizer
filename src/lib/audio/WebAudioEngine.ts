@@ -21,7 +21,6 @@ export interface AudioFFTFrame {
   bins: Uint8Array;    // 24 downsampled bars (0 - 255) for HUD visualizer
 }
 
-const MAX_CACHED_BUFFERS = 16;
 const MAX_PREVIEW_BUFFERS = 16;
 
 class WebAudioEngine {
@@ -31,8 +30,11 @@ class WebAudioEngine {
   private activeSource: AudioBufferSourceNode | null = null;
   private activeTrackGain: GainNode | null = null;
 
-  // Separate caches for synthesized harmonic loops vs real 30s decoded MP3 previews
-  private synthBufferCache = new Map<string, AudioBuffer>();
+  // Real-time progressive HTML5 audio stream element + single WebAudio MediaElementSourceNode
+  private audioElement: HTMLAudioElement | null = null;
+  private mediaSourceNode: MediaElementAudioSourceNode | null = null;
+
+  // Memory cache for decoded preview buffers
   private previewBufferCache = new Map<string, AudioBuffer>();
   private pendingPreviewFetches = new Set<string>();
 
@@ -77,7 +79,7 @@ class WebAudioEngine {
       this.analyser.smoothingTimeConstant = 0.78;
 
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.28;
+      this.masterGain.gain.value = 0.32;
 
       this.masterGain.connect(this.analyser);
       this.analyser.connect(this.ctx.destination);
@@ -88,14 +90,56 @@ class WebAudioEngine {
       this.ctx.resume().catch(() => {});
     }
 
+    // Lazy instantiate HTMLAudioElement and connect once to the WebAudio graph
+    if (!this.audioElement && typeof Audio !== 'undefined' && this.masterGain) {
+      try {
+        const audio = new Audio();
+        audio.crossOrigin = 'anonymous';
+        audio.preload = 'auto';
+        audio.loop = true;
+
+        audio.onplaying = () => {
+          this.playing = true;
+          this.currentFrame.isPlaying = true;
+          this.notify();
+        };
+
+        audio.onpause = () => {
+          if (this.playing && this.audioElement?.paused) {
+            this.playing = false;
+            this.currentFrame.isPlaying = false;
+            this.notify();
+          }
+        };
+
+        audio.onerror = () => {
+          this.pendingPreviewFetches.delete(this.currentTrackId || '');
+        };
+
+        this.mediaSourceNode = this.ctx.createMediaElementSource(audio);
+        this.mediaSourceNode.connect(this.masterGain);
+        this.audioElement = audio;
+      } catch (err) {
+        console.warn('[WebAudioEngine] Audio streaming initialization:', err);
+      }
+    }
+
     return this.ctx;
   }
 
   /**
-   * Explicitly stops and disconnects the active AudioBufferSourceNode and GainNode
-   * so V8 / Blink WebAudio graph releases all references immediately.
+   * Explicitly stops and disconnects active audio streams and releases nodes.
    */
   public stopCurrentSource(): void {
+    if (this.audioElement) {
+      try {
+        this.audioElement.pause();
+        this.audioElement.currentTime = 0;
+      } catch {
+        // Ignore
+      }
+    }
+
     if (this.activeSource) {
       try {
         this.activeSource.onended = null;
@@ -130,94 +174,7 @@ class WebAudioEngine {
     this.notify();
   }
 
-  /**
-   * Generates a deterministic, multi-layered harmonic loop for a given song/artist star
-   * (sub-bass pulse + chord pad + arpeggio harmonics) and stores it in a bounded LRU cache.
-   */
-  private getOrCreateTrackBuffer(
-    ctx: AudioContext,
-    trackId: string,
-    seedString: string,
-    affinity: number
-  ): AudioBuffer {
-    const existing = this.synthBufferCache.get(trackId);
-    if (existing) {
-      // Refresh LRU order
-      this.synthBufferCache.delete(trackId);
-      this.synthBufferCache.set(trackId, existing);
-      return existing;
-    }
 
-    // Evict oldest AudioBuffer if cache exceeds MAX_CACHED_BUFFERS
-    if (this.synthBufferCache.size >= MAX_CACHED_BUFFERS) {
-      const oldestKey = this.synthBufferCache.keys().next().value;
-      if (oldestKey) {
-        this.synthBufferCache.delete(oldestKey);
-      }
-    }
-
-    const durationSec = 4.0;
-    const sampleRate = ctx.sampleRate;
-    const length = Math.floor(sampleRate * durationSec);
-    const buffer = ctx.createBuffer(1, length, sampleRate);
-    const data = buffer.getChannelData(0);
-
-    let hash = 0;
-    for (let i = 0; i < seedString.length; i++) {
-      hash = (hash * 31 + seedString.charCodeAt(i)) | 0;
-    }
-    const absHash = Math.abs(hash);
-
-    const rootNotes = [55.0, 65.41, 73.42, 82.41, 98.0, 110.0]; // A1, C2, D2, E2, G2, A2
-    const rootFreq = rootNotes[absHash % rootNotes.length];
-    const bpm = 105 + (absHash % 28);
-    const beatFreq = bpm / 60;
-
-    for (let i = 0; i < length; i++) {
-      const t = i / sampleRate;
-
-      // Rhythmic kick / sub-bass envelope
-      const beatPhase = (t * beatFreq) % 1;
-      const kickEnv = Math.exp(-beatPhase * 7.5);
-      const kickPitch = rootFreq * (1 + 1.4 * Math.exp(-beatPhase * 28));
-      const subWave = Math.sin(2 * Math.PI * kickPitch * t) * kickEnv * 0.52;
-
-      // Warm fifth & octave synth pad
-      const padMod = 0.5 + 0.5 * Math.sin(2 * Math.PI * 0.5 * t);
-      const padWave =
-        (Math.sin(2 * Math.PI * (rootFreq * 2) * t) * 0.22 +
-          Math.sin(2 * Math.PI * (rootFreq * 3) * t) * 0.16 +
-          Math.sin(2 * Math.PI * (rootFreq * 4) * t) * 0.1) *
-        padMod;
-
-      // High harmonic arpeggio shimmer (drives high-frequency FFT bins)
-      const arpStep = Math.floor(t * beatFreq * 4) % 4;
-      const arpMultipliers = [4, 5, 6, 8];
-      const arpFreq = rootFreq * arpMultipliers[arpStep];
-      const arpPhase = (t * beatFreq * 4) % 1;
-      const arpEnv = Math.exp(-arpPhase * 9.0) * (0.18 + affinity * 0.14);
-      const shimmerWave =
-        (Math.sin(2 * Math.PI * arpFreq * t) +
-          0.4 * Math.sin(2 * Math.PI * (arpFreq * 1.5) * t)) *
-        arpEnv;
-
-      // Smooth fade at loop boundaries to prevent clicks
-      const loopFade =
-        t < 0.04
-          ? t / 0.04
-          : t > durationSec - 0.04
-          ? (durationSec - t) / 0.04
-          : 1.0;
-
-      data[i] = Math.max(
-        -0.95,
-        Math.min(0.95, (subWave + padWave + shimmerWave) * loopFade)
-      );
-    }
-
-    this.synthBufferCache.set(trackId, buffer);
-    return buffer;
-  }
 
   public toggleTrack(
     trackId: string,
@@ -238,22 +195,30 @@ class WebAudioEngine {
   }
 
   /**
-   * Plays a track with 0ms instant auditory and FFT feedback:
-   * - If real preview is already decoded, plays it immediately.
-   * - If not yet decoded, plays the synthesized celestial harmonic buffer instantly (0 delay),
-   *   while fetching and decoding the preview in the background.
-   * - Once decoded, crossfades smoothly into the real audio stream.
+   * Plays a track dynamically with 0ms instant auditory and FFT feedback:
+   * - Streams real audio preview immediately via progressive HTMLAudioElement
+   *   without waiting for a 30s buffer to decode or playing disconnected generic synth loops.
+   * - Feeds the live audio directly through AnalyserNode for real-time visualizer reaction.
    */
   public playTrack(
     trackId: string,
-    seedString: string,
-    affinity = 0.9,
+    _seedString: string,
+    _affinity = 0.9,
     previewUrl?: string
   ): void {
     const ctx = this.ensureContext();
     if (!this.masterGain) return;
 
-    // Always dispose previous source before starting a new one
+    // If already playing this exact track in active stream, don't restart
+    if (
+      this.playing &&
+      this.currentTrackId === trackId &&
+      this.audioElement &&
+      !this.audioElement.paused
+    ) {
+      return;
+    }
+
     this.stopCurrentSource();
 
     this.currentTrackId = trackId;
@@ -262,23 +227,34 @@ class WebAudioEngine {
     this.currentFrame.trackId = trackId;
     this.notify();
 
-    // 1. If real preview is already cached, play it immediately (0ms latency!)
+    // 1. Play real audio preview immediately via progressive streaming HTMLAudioElement
+    if (this.audioElement && previewUrl) {
+      try {
+        this.audioElement.src = previewUrl;
+        this.audioElement.currentTime = 0;
+        const playPromise = this.audioElement.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            // AbortError is normal during rapid star selection
+            if (err?.name !== 'AbortError') {
+              console.warn('[WebAudioEngine] Audio playback notice:', err);
+            }
+          });
+        }
+        return;
+      } catch (err) {
+        console.warn('[WebAudioEngine] Error initiating stream:', err);
+      }
+    }
+
+    // 2. Play cached AudioBuffer if available
     const cachedPreview = this.previewBufferCache.get(trackId);
     if (cachedPreview) {
       this.startBufferSource(ctx, cachedPreview, trackId);
       return;
     }
 
-    // 2. Instant start with synthesized harmonic audio (0ms feedback!)
-    const synthBuffer = this.getOrCreateTrackBuffer(
-      ctx,
-      trackId,
-      seedString,
-      affinity
-    );
-    this.startBufferSource(ctx, synthBuffer, trackId);
-
-    // 3. Background fetch of the real 30s preview; crossfades in when ready
+    // 3. Background fetch fallback if previewUrl exists and HTMLAudioElement wasn't available
     if (previewUrl && !this.pendingPreviewFetches.has(trackId)) {
       this.pendingPreviewFetches.add(trackId);
 
@@ -297,72 +273,17 @@ class WebAudioEngine {
           }
           this.previewBufferCache.set(trackId, decodedBuffer);
 
-          // If the listener is still playing this exact track, smoothly crossfade to real audio!
           if (this.playing && this.currentTrackId === trackId) {
-            this.crossfadeToBuffer(ctx, decodedBuffer, trackId);
+            this.startBufferSource(ctx, decodedBuffer, trackId);
           }
         })
         .catch(() => {
           this.pendingPreviewFetches.delete(trackId);
-          // Listener continues listening to the synthesized harmonic loop without interruption
         });
     }
   }
 
-  /**
-   * Smoothly crossfades between the active synthesized ambient buffer and the newly
-   * decoded real track audio buffer over 280ms without clicks or pops.
-   */
-  private crossfadeToBuffer(
-    ctx: AudioContext,
-    newBuffer: AudioBuffer,
-    trackId: string
-  ): void {
-    if (!this.masterGain || !this.playing || this.currentTrackId !== trackId) return;
 
-    const oldSource = this.activeSource;
-    const oldGain = this.activeTrackGain;
-
-    const newSource = ctx.createBufferSource();
-    const newGain = ctx.createGain();
-    newSource.buffer = newBuffer;
-    newSource.loop = true;
-
-    // Fade in new audio source
-    newGain.gain.setValueAtTime(0.001, ctx.currentTime);
-    newGain.gain.exponentialRampToValueAtTime(1.0, ctx.currentTime + 0.28);
-
-    newSource.connect(newGain);
-    newGain.connect(this.masterGain);
-    newSource.start(0);
-
-    // Fade out previous synthesized source
-    if (oldGain && oldSource) {
-      try {
-        oldGain.gain.setValueAtTime(
-          Math.max(0.01, oldGain.gain.value),
-          ctx.currentTime
-        );
-        oldGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-        setTimeout(() => {
-          try {
-            oldSource.stop();
-            oldSource.disconnect();
-            oldGain.disconnect();
-          } catch {
-            // Ignore
-          }
-        }, 290);
-      } catch {
-        // Ignore
-      }
-    }
-
-    this.activeSource = newSource;
-    this.activeTrackGain = newGain;
-    this.currentTrackId = trackId;
-    this.notify();
-  }
 
   private startBufferSource(
     ctx: AudioContext,
@@ -492,32 +413,40 @@ class WebAudioEngine {
     return {
       isPlaying: this.playing,
       trackId: this.currentTrackId,
-      cachedBuffers: this.synthBufferCache.size + this.previewBufferCache.size,
+      cachedBuffers: this.previewBufferCache.size,
     };
   }
 
   /**
-   * Full teardown of all audio nodes, cached AudioBuffers, and AudioContext.
+   * Full teardown of all audio nodes, cached AudioBuffers, streaming elements, and AudioContext.
    */
   public dispose(): void {
     this.stopCurrentSource();
-    this.synthBufferCache.clear();
+    if (this.audioElement) {
+      try {
+        this.audioElement.pause();
+        this.audioElement.src = '';
+      } catch {}
+      this.audioElement = null;
+    }
+    if (this.mediaSourceNode) {
+      try {
+        this.mediaSourceNode.disconnect();
+      } catch {}
+      this.mediaSourceNode = null;
+    }
     this.previewBufferCache.clear();
     this.pendingPreviewFetches.clear();
     if (this.masterGain) {
       try {
         this.masterGain.disconnect();
-      } catch {
-        // Ignore
-      }
+      } catch {}
       this.masterGain = null;
     }
     if (this.analyser) {
       try {
         this.analyser.disconnect();
-      } catch {
-        // Ignore
-      }
+      } catch {}
       this.analyser = null;
     }
     if (this.ctx) {

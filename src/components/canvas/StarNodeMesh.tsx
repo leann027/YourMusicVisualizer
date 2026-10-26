@@ -169,6 +169,8 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       e.stopPropagation();
     }
     selectNode(node);
+    const allSongs = useGalaxyStore.getState().data.songs;
+
     if (node.type === 'song') {
       webAudioEngine.playTrack(
         node.id,
@@ -177,22 +179,35 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         node.previewUrl
       );
       setAudioPlayback(node.id, true);
-    } else if (useGalaxyStore.getState().isAudioPlaying) {
-      const allSongs = useGalaxyStore.getState().data.songs;
-      const matchSong =
-        node.type === 'artist'
-          ? allSongs.find((s) => s.artistId === node.id && s.previewUrl) ||
-            allSongs.find((s) => s.artistId === node.id)
-          : allSongs.find((s) => s.genreId === node.id && s.previewUrl) ||
-            allSongs.find((s) => s.genreId === node.id);
-      if (matchSong) {
+    } else if (node.type === 'artist') {
+      // Story 1: Touching an artist star immediately picks a random song by that artist and plays it
+      const artistSongs = allSongs.filter((s) => s.artistId === node.id);
+      if (artistSongs.length > 0) {
+        const withPreview = artistSongs.filter((s) => s.previewUrl);
+        const candidates = withPreview.length > 0 ? withPreview : artistSongs;
+        const randomSong = candidates[Math.floor(Math.random() * candidates.length)];
         webAudioEngine.playTrack(
-          matchSong.id,
-          matchSong.title,
-          matchSong.affinity,
-          matchSong.previewUrl
+          randomSong.id,
+          randomSong.title,
+          randomSong.affinity,
+          randomSong.previewUrl
         );
-        setAudioPlayback(matchSong.id, true);
+        setAudioPlayback(randomSong.id, true);
+      }
+    } else if (node.type === 'genre') {
+      // Touching a genre star plays a random track from that celestial constellation
+      const genreSongs = allSongs.filter((s) => s.genreId === node.id);
+      if (genreSongs.length > 0) {
+        const withPreview = genreSongs.filter((s) => s.previewUrl);
+        const candidates = withPreview.length > 0 ? withPreview : genreSongs;
+        const randomSong = candidates[Math.floor(Math.random() * candidates.length)];
+        webAudioEngine.playTrack(
+          randomSong.id,
+          randomSong.title,
+          randomSong.affinity,
+          randomSong.previewUrl
+        );
+        setAudioPlayback(randomSong.id, true);
       }
     }
   };

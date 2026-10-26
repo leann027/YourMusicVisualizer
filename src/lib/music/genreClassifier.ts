@@ -134,11 +134,11 @@ export const JAPANESE_SCRIPT_REGEX = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9faf\u
 
 function matchesPattern(text: string, pattern: string): boolean {
   if (text === pattern) return true;
-  if (pattern.length <= 4) {
-    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`(^|\\s)${escaped}(\\s|$)`, 'i').test(text);
-  }
-  return text.includes(pattern);
+  // Unicode-aware word boundary matching: ensures "sting" doesn't falsely match "Polkadot Stingray",
+  // "air" doesn't match "Airbag", etc.
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}([^\\p{L}\\p{N}]|$)`, 'iu');
+  return regex.test(text);
 }
 
 const INSTANT_ARTIST_PATTERNS: Array<{
@@ -430,6 +430,10 @@ const INSTANT_ARTIST_PATTERNS: Array<{
       'uyama hiroto', 'dj krush', 'ken ishii', 'susumu hirasawa', 'p-model', 'the seatbelts',
       'bradio', 'co shu nie', 'cö shu nie', 'galileo galilei', 'back number',
       'sekai no owari', 'end of the world', 'alexandros', '[alexandros]',
+      'fear, and loathing in las vegas', 'fear and loathing in las vegas', 'stereopony',
+      'ali', 'eir aoi', 'luna haruna', 'garnidelia', 'sid', 'boøwy', 'yui', 'miwa',
+      'ai otsuka', 'mika nakashima', 'kumi koda', 'bump of chicken', 'spitz',
+      'sayuri', 'kano', 'superfly', 'do as infinity', 'b\'z', 'porno graffitti',
     ],
     genre: 'J-POP, J-ROCK & ANIME',
     secondaryGenre: 'SYNTHWAVE & FRENCH TOUCH',
@@ -486,6 +490,27 @@ export function formatDynamicGenreTitle(raw: string): string {
  */
 export function deriveSisterConstellation(genreTitle: string): string {
   const lower = genreTitle.toLowerCase();
+  // Japanese / Anime / Asian subgenres take precedence so J-Rock / J-Metal stay linked to J-Pop / Anime
+  if (
+    lower.includes('anime') ||
+    lower.includes('japan') ||
+    lower.includes('j-pop') ||
+    lower.includes('j-rock') ||
+    lower.includes('j-metal') ||
+    lower.includes('vocaloid') ||
+    lower.includes('utaite') ||
+    lower.includes('city pop') ||
+    lower.includes('touhou')
+  ) {
+    return 'J-POP, J-ROCK & ANIME';
+  }
+  if (
+    lower.includes('k-pop') ||
+    lower.includes('kpop') ||
+    lower.includes('korean')
+  ) {
+    return 'POP INTERNACIONAL & SYNTH-POP';
+  }
   if (
     lower.includes('rock') ||
     lower.includes('punk') ||

@@ -324,33 +324,66 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
   }
 
-  // 3. Collect unique primary artist IDs (up to 16) for individual /v1/artists/{id} portrait/genre lookup
-  // Note: Spotify Dev Mode restricts batch /v1/artists?ids=..., so we query individual artist endpoints
-  // in parallel AND enrich all 50 tracks via our server-side /api/enrich-tracks catalog endpoint.
+  // 3. Collect unique primary artist IDs for batch /v1/artists?ids=... portrait/genre lookup
+  // In batches of 50 artists, 500 artists take only 10 requests, avoiding rate limits.
   const uniqueArtistIds = Array.from(
     new Set(
       validItems
         .map((item) => item.track.artists[0]?.id)
         .filter((id): id is string => Boolean(id))
     )
-  ).slice(0, 16);
+  );
 
   const artistDetailsMap = new Map<string, SpotifyApiArtistDetail>();
   if (uniqueArtistIds.length > 0) {
-    await Promise.allSettled(
-      uniqueArtistIds.map(async (artistId) => {
-        const res = await fetch(
-          `https://api.spotify.com/v1/artists/${artistId}`,
-          { headers }
-        );
-        if (res.ok) {
-          const detail = (await res.json()) as SpotifyApiArtistDetail;
-          if (detail && detail.id) {
-            artistDetailsMap.set(detail.id, detail);
+    const artistBatchSize = 50;
+    const artistChunks: string[][] = [];
+    for (let i = 0; i < uniqueArtistIds.length; i += artistBatchSize) {
+      artistChunks.push(uniqueArtistIds.slice(i, i + artistBatchSize));
+    }
+
+    const concurrentLimit = 4;
+    for (let i = 0; i < artistChunks.length; i += concurrentLimit) {
+      const slice = artistChunks.slice(i, i + concurrentLimit);
+      await Promise.allSettled(
+        slice.map(async (chunk) => {
+          try {
+            const batchRes = await fetch(
+              `https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`,
+              { headers }
+            );
+            if (batchRes.ok) {
+              const batchJson = (await batchRes.json()) as {
+                artists?: (SpotifyApiArtistDetail | null)[];
+              };
+              batchJson.artists?.forEach((detail) => {
+                if (detail && detail.id) {
+                  artistDetailsMap.set(detail.id, detail);
+                }
+              });
+            } else {
+              // Fallback to individual requests for this chunk if batch fails
+              await Promise.allSettled(
+                chunk.map(async (artistId) => {
+                  const res = await fetch(
+                    `https://api.spotify.com/v1/artists/${artistId}`,
+                    { headers }
+                  );
+                  if (res.ok) {
+                    const detail = (await res.json()) as SpotifyApiArtistDetail;
+                    if (detail && detail.id) {
+                      artistDetailsMap.set(detail.id, detail);
+                    }
+                  }
+                })
+              );
+            }
+          } catch {
+            // Non-fatal
           }
-        }
-      })
-    );
+        })
+      );
+    }
   }
 
   // 4. Enrich all tracks with canonical musical genres, secondary genres & on-demand 30s audio previews
@@ -420,17 +453,20 @@ export async function fetchSpotifyLikedSongsGalaxy(
     const enriched = enrichmentMap.get(key);
     const artistId = item.track.artists[0]?.id;
     const details = artistId ? artistDetailsMap.get(artistId) : undefined;
+    const allArtistGenres =
+      details?.genres?.join(', ') || enriched?.rawGenre || '';
 
     const fastClass = classifyUniversalMusic(
       primaryArtist,
-      details?.genres?.[0] || enriched?.rawGenre,
+      allArtistGenres,
       item.track.name
     );
 
     const candidateGenre = (
+      fastClass.genre ||
       enriched?.genre ||
       details?.genres?.[0] ||
-      fastClass.genre
+      'POP INTERNACIONAL & SYNTH-POP'
     ).toUpperCase();
 
     if (!artistPrimaryGenre.has(primaryArtist)) {
@@ -463,16 +499,18 @@ export async function fetchSpotifyLikedSongsGalaxy(
     const key = `${track.id || idx}`;
     const enriched = enrichmentMap.get(key);
 
+    const artistGenresStr =
+      artistDetail?.genres?.join(', ') || enriched?.rawGenre || '';
     const fallbackClass = classifyUniversalMusic(
       primaryArtist.name,
-      artistDetail?.genres?.[0],
+      artistGenresStr,
       track.name
     );
 
     const artistGenre =
       artistPrimaryGenre.get(primaryArtist.name) ||
-      enriched?.genre ||
-      fallbackClass.genre;
+      fallbackClass.genre ||
+      enriched?.genre;
 
     const matchedGenre = artistGenre;
 

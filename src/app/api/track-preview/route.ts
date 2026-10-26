@@ -205,6 +205,7 @@ export async function GET(req: NextRequest) {
         'Content-Type': memoryCachedAudio.contentType,
         'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
         'Accept-Ranges': 'bytes',
+        'Access-Control-Allow-Origin': '*',
         'X-Preview-Cache': 'RAM-HIT',
       },
     });
@@ -217,6 +218,7 @@ export async function GET(req: NextRequest) {
       status: 404,
       headers: {
         'Cache-Control': 'public, max-age=180',
+        'Access-Control-Allow-Origin': '*',
       },
     });
   }
@@ -230,7 +232,12 @@ export async function GET(req: NextRequest) {
 
     if (!audioRes.ok) {
       previewUrlCache.delete(audioKey);
-      return new NextResponse('Upstream audio unavailable', { status: 502 });
+      return new NextResponse('Upstream audio unavailable', {
+        status: 502,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
     }
 
     const arrayBuffer = await audioRes.arrayBuffer();
@@ -253,10 +260,27 @@ export async function GET(req: NextRequest) {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
         'Accept-Ranges': 'bytes',
+        'Access-Control-Allow-Origin': '*',
         'X-Preview-Cache': 'FETCH-OK',
       },
     });
   } catch {
-    return new NextResponse('Failed to stream audio preview', { status: 500 });
+    return new NextResponse('Failed to stream audio preview', {
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': '*',
+    },
+  });
 }

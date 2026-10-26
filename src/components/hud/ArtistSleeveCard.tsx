@@ -254,21 +254,34 @@ export const ArtistSleeveCard: React.FC = () => {
 
   const handleJumpToBridgeNode = (target: ArtistNode | GenreNode) => {
     selectNode(target);
-    if (isAudioPlaying) {
-      const nextSong =
-        target.type === 'artist'
-          ? data.songs.find((s) => s.artistId === target.id && s.previewUrl) ||
-            data.songs.find((s) => s.artistId === target.id)
-          : data.songs.find((s) => s.genreId === target.id && s.previewUrl) ||
-            data.songs.find((s) => s.genreId === target.id);
-      if (nextSong) {
+    const allSongs = data.songs;
+    if (target.type === 'artist') {
+      const artistSongs = allSongs.filter((s) => s.artistId === target.id);
+      if (artistSongs.length > 0) {
+        const withPreview = artistSongs.filter((s) => s.previewUrl);
+        const candidates = withPreview.length > 0 ? withPreview : artistSongs;
+        const randomSong = candidates[Math.floor(Math.random() * candidates.length)];
         webAudioEngine.playTrack(
-          nextSong.id,
-          nextSong.title,
-          nextSong.affinity,
-          nextSong.previewUrl
+          randomSong.id,
+          randomSong.title,
+          randomSong.affinity,
+          randomSong.previewUrl
         );
-        setAudioPlayback(nextSong.id, true);
+        setAudioPlayback(randomSong.id, true);
+      }
+    } else if (target.type === 'genre') {
+      const genreSongs = allSongs.filter((s) => s.genreId === target.id);
+      if (genreSongs.length > 0) {
+        const withPreview = genreSongs.filter((s) => s.previewUrl);
+        const candidates = withPreview.length > 0 ? withPreview : genreSongs;
+        const randomSong = candidates[Math.floor(Math.random() * candidates.length)];
+        webAudioEngine.playTrack(
+          randomSong.id,
+          randomSong.title,
+          randomSong.affinity,
+          randomSong.previewUrl
+        );
+        setAudioPlayback(randomSong.id, true);
       }
     }
   };
