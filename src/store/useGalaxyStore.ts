@@ -86,7 +86,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   playingTrackId: null,
   isAudioPlaying: false,
   bloomEnabled: true,
-  linksVisible: true,
+  linksVisible: false,
   stellarBrightness: 0.25,
   perfStats: {
     fps: 60,

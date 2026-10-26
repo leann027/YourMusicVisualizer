@@ -21,6 +21,7 @@ export const GalaxyScene: React.FC = () => {
   const selectedSectorId = useGalaxyStore((s) => s.selectedSectorId);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
+  const linksVisible = useGalaxyStore((s) => s.linksVisible);
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -94,7 +95,7 @@ export const GalaxyScene: React.FC = () => {
         <NebulaClusters />
 
         {/* Constellation Filaments & Audio-Reactive Laser Pulses */}
-        <ConstellationLinks />
+        {linksVisible && <ConstellationLinks />}
 
         {/* Genre Core Stars (Supergiants) */}
         {data.genres.map((genre) => (
