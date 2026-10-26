@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { JetBrains_Mono, Syne } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
 const syne = Syne({
@@ -32,6 +33,7 @@ export default function RootLayout({
     >
       <body className="h-full w-full overflow-hidden bg-[#050508] text-[#F2F4F8]">
         {children}
+        <Analytics />
       </body>
     </html>
   );
