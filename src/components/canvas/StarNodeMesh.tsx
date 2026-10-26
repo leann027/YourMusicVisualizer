@@ -15,11 +15,39 @@ interface StarNodeMeshProps {
 
 // Shared unit geometries across all stars to minimize WebGL memory & state switches
 const UNIT_SPHERE_GEOMETRY = new THREE.SphereGeometry(1, 16, 16);
-const UNIT_RING_GEOMETRY = new THREE.RingGeometry(1.42, 1.82, 28);
-const UNIT_OUTER_RING_GEOMETRY = new THREE.RingGeometry(2.05, 2.32, 32);
+const UNIT_RING_GEOMETRY = new THREE.RingGeometry(1.35, 1.95, 32, 8);
+const UNIT_OUTER_RING_GEOMETRY = new THREE.RingGeometry(2.0, 2.5, 36, 8);
 const UNIT_RIPPLE_GEOMETRY = new THREE.RingGeometry(1.4, 1.6, 36);
 const UNIT_POLAR_JET_GEOMETRY = new THREE.CylinderGeometry(0.04, 0.28, 4.0, 12, 1, true);
 const UNIT_SATELLITE_GEOMETRY = new THREE.SphereGeometry(0.05, 8, 8);
+
+/**
+ * Injects a smooth sinusoidal radial falloff into RingGeometry materials
+ * so planetary dust rings fade out seamlessly with zero sharp cutoffs.
+ */
+function softRingOnBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms) {
+  shader.vertexShader = `
+    varying vec2 vRingUv;
+    ${shader.vertexShader}
+  `.replace(
+    '#include <uv_vertex>',
+    `
+    #include <uv_vertex>
+    vRingUv = uv;
+    `
+  );
+  shader.fragmentShader = `
+    varying vec2 vRingUv;
+    ${shader.fragmentShader}
+  `.replace(
+    '#include <color_fragment>',
+    `
+    #include <color_fragment>
+    float ringAlpha = sin(vRingUv.y * 3.14159265);
+    diffuseColor.a *= (ringAlpha * ringAlpha);
+    `
+  );
+}
 
 export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) => {
   const groupRef = useRef<THREE.Group>(null);
@@ -282,8 +310,8 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         />
       </mesh>
 
-      {/* Primary Equatorial Accretion Ring (Tier 2/3 artists, genres, or selected) */}
-      {(metrics.hasAccretionRing || isSelected) && (
+      {/* Primary Equatorial Accretion Ring (Tier 2/3 artists or selected artist/song, never on genres) */}
+      {node.type !== 'genre' && (metrics.hasAccretionRing || isSelected) && (
         <mesh
           ref={ringRef}
           geometry={UNIT_RING_GEOMETRY}
@@ -299,12 +327,13 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             }
             blending={THREE.AdditiveBlending}
             depthWrite={false}
+            onBeforeCompile={softRingOnBeforeCompile}
           />
         </mesh>
       )}
 
-      {/* Secondary Counter-Rotating Accretion Ring (Tier 3 Supergiants & Dominant Sectors) */}
-      {metrics.hasDoubleRing && (
+      {/* Secondary Counter-Rotating Accretion Ring (Tier 3 Supergiant Artists only) */}
+      {node.type !== 'genre' && metrics.hasDoubleRing && (
         <mesh
           geometry={UNIT_OUTER_RING_GEOMETRY}
           scale={metrics.coreRadius * 1.15}
@@ -317,6 +346,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             opacity={(isSelected ? 0.65 : 0.35) * stellarBrightness}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
+            onBeforeCompile={softRingOnBeforeCompile}
           />
         </mesh>
       )}

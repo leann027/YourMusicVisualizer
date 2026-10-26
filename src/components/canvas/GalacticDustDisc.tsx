@@ -37,7 +37,7 @@ export const GalacticDustDisc: React.FC = () => {
 
   const { geometry, material } = useMemo(() => {
     const prng = createPRNG(424242);
-    const count = 3600;
+    const count = 4800;
 
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
@@ -148,7 +148,7 @@ export const GalacticDustDisc: React.FC = () => {
         `
         // Rich volumetric stardust points with perspective attenuation
         float pSize = size * pointScale * (150.0 / -mvPosition.z);
-        gl_PointSize = clamp(pSize, 1.2, 5.0);
+        gl_PointSize = clamp(pSize, 1.0, 3.8);
         `
       );
 
@@ -166,9 +166,11 @@ export const GalacticDustDisc: React.FC = () => {
         vec2 coord = gl_PointCoord - vec2(0.5);
         float dist = length(coord);
         if (dist > 0.5) discard;
-        // Soft billowing volumetric falloff with rich chromatic core
-        float falloff = exp(-dist * dist * 6.5);
-        diffuseColor.rgb = vDustColor * (0.65 + 0.35 * falloff);
+        // Asymptotic zero-slope Hermite falloff: strictly zero visible boundary
+        float edgeFade = smoothstep(0.5, 0.05, dist);
+        float coreGlow = exp(-dist * dist * 6.0);
+        float falloff = edgeFade * coreGlow;
+        diffuseColor.rgb = vDustColor * (0.75 + 0.35 * coreGlow);
         diffuseColor.a *= falloff * uBrightness;
         `
       );
@@ -206,7 +208,7 @@ export const GalacticDustDisc: React.FC = () => {
     if (material.userData.shader) {
       material.userData.shader.uniforms.uTime.value = t;
       // Modulate with user's stellarBrightness setting (steady, calm alpha with zero strobe)
-      const baseAlpha = THREE.MathUtils.clamp(stellarBrightness * 0.65, 0.12, 0.38);
+      const baseAlpha = THREE.MathUtils.clamp(stellarBrightness * 0.35, 0.05, 0.18);
       material.userData.shader.uniforms.uBrightness.value = baseAlpha;
     }
   });

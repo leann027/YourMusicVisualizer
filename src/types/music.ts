@@ -101,8 +101,10 @@ export function getArtistEvolutionTier(
   songCount: number,
   affinity: number
 ): ArtistEvolutionTier {
-  if (songCount >= 5 || affinity >= 0.95) return 'supergiant';
-  if (songCount >= 3 || affinity >= 0.82) return 'giant';
+  // Supergiant: Unlocked when the user has deeply explored this artist (>= 5 songs with high affinity, or >= 8 songs)
+  if ((songCount >= 5 && affinity >= 0.88) || songCount >= 8) return 'supergiant';
+  // Giant: Notable catalog presence (>= 3 songs with affinity, or >= 5 songs)
+  if ((songCount >= 3 && affinity >= 0.78) || songCount >= 5) return 'giant';
   return 'dwarf';
 }
 
@@ -174,14 +176,13 @@ export function calculateStarVisualMetrics(node: MusicNode): StarVisualMetrics {
   const sectorTier =
     node.type === 'genre' ? getSectorEvolutionTier(songCount, affinity) : undefined;
 
-  const hasDoubleRing =
-    artistTier === 'supergiant' || (node.type === 'genre' && sectorTier === 'supercluster');
-  const hasAccretionRing =
-    hasDoubleRing || artistTier === 'giant' || node.type === 'genre';
+  // Accretion rings are reserved exclusively for massive individual artist stars (Giant/Supergiant).
+  // Genres represent deep-space galactic constellations and do not have planar planetary rings.
+  const hasDoubleRing = artistTier === 'supergiant';
+  const hasAccretionRing = hasDoubleRing || artistTier === 'giant';
   const hasPolarJets =
     node.type === 'genre' && sectorTier === 'supercluster';
-  const hasOrbitalSatellites =
-    artistTier === 'supergiant' || (node.type === 'genre' && sectorTier === 'supercluster');
+  const hasOrbitalSatellites = artistTier === 'supergiant';
 
   return {
     coreRadius,
