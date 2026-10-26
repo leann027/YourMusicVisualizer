@@ -444,10 +444,9 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
   });
 
-  // Keep up to 20 distinct musical genre constellations so large 2,000-3,000 song galaxies span a rich spectrum
+  // Dynamic constellations: scale smoothly to accommodate any number of distinct musical genres
   const topGenres = Array.from(genreFrequency.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 20)
     .map(([g]) => g);
 
   const rawTracks: RawLibraryTrackInput[] = validItems.map((item, idx) => {

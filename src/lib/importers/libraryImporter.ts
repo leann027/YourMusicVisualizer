@@ -66,6 +66,38 @@ const SECTOR_PALETTE = [
   { color: '#FF3399', bg: '#26071B', center: [14, 18, 22] as [number, number, number] }, // 21. Sakura Ciber-Neón (J-Pop, J-Rock & Anime)
 ];
 
+/**
+ * Dynamically computes non-colliding 3D celestial coordinates and harmonious neon palettes
+ * for ANY arbitrary number of dynamic constellations created from user libraries.
+ */
+export function getDynamicSectorPlacement(
+  index: number,
+  totalCount: number,
+  _genreName: string
+): { color: string; bg: string; center: [number, number, number] } {
+  // If total genres fit within curated palette, use the handcrafted positions
+  if (index < SECTOR_PALETTE.length && totalCount <= SECTOR_PALETTE.length) {
+    return SECTOR_PALETTE[index];
+  }
+
+  // Vogel's Golden-Angle phyllotaxis spiral on galactic plane
+  const goldenAngle = 2.3999632;
+  const radius = 24.0 + Math.sqrt(index + 0.6) * 4.6;
+  const angle = index * goldenAngle;
+  const elevation = ((index % 5) - 2) * 5.2 + Math.sin(index * 1.5) * 3.6;
+
+  const cx = Number((Math.cos(angle) * radius).toFixed(2));
+  const cy = Number(elevation.toFixed(2));
+  const cz = Number((Math.sin(angle) * radius * 0.92).toFixed(2));
+
+  // Golden Ratio chromatic distribution gives unique, vibrant neon colors
+  const hue = Math.round((index * 137.508) % 360);
+  const color = `hsl(${hue}, 95%, 55%)`;
+  const bg = `hsl(${hue}, 45%, 7%)`;
+
+  return { color, bg, center: [cx, cy, cz] };
+}
+
 function hashString(str: string): number {
   let h = 0;
   for (let i = 0; i < str.length; i++) {
@@ -337,8 +369,9 @@ export function buildMusicGalaxyFromPayload(
   }> = [];
 
   let genreIdx = 0;
+  const totalGenres = genreBuckets.size;
   for (const [, gBucket] of genreBuckets) {
-    const palette = SECTOR_PALETTE[genreIdx % SECTOR_PALETTE.length];
+    const palette = getDynamicSectorPlacement(genreIdx, totalGenres, gBucket.name);
     const genreId = `genre-${slugify(gBucket.name)}-${genreIdx}`;
     const [gx, gy, gz] = palette.center;
 

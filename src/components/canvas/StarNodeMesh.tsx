@@ -281,54 +281,58 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         <meshBasicMaterial color={coreColor} />
       </mesh>
 
-      {/* Performance & UX optimization: only mount Drei <Html> when label is visible */}
-      {shouldShowLabel && (
-        <Html
-          key={`star-label-${node.id}`}
-          position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.55 : 0.3), 0]}
-          center
-          distanceFactor={node.type === 'genre' ? 28 : 20}
-          zIndexRange={[1, 5]}
-          className="select-none pointer-events-auto"
+      {/* Memory & UX optimization: keep Drei <Html> mounted with CSS visibility to prevent React 19 removeChild portal collisions */}
+      <Html
+        key={`star-label-${node.id}`}
+        position={[0, metrics.coronaRadius + (node.type === 'genre' ? 0.55 : 0.3), 0]}
+        center
+        distanceFactor={node.type === 'genre' ? 28 : 20}
+        zIndexRange={[1, 5]}
+        className="select-none pointer-events-auto"
+        style={{
+          display: shouldShowLabel ? 'block' : 'none',
+          pointerEvents: shouldShowLabel ? 'auto' : 'none',
+        }}
+      >
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSelect(e);
+          }}
+          onPointerOver={() => hoverNode(node)}
+          onPointerOut={() => hoverNode(null)}
+          className={`cursor-pointer whitespace-nowrap font-mono tabular-nums tracking-tight transition-transform hover:scale-105 active:scale-95 ${
+            node.type === 'genre'
+              ? `px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider border shadow-[0_0_14px_rgba(0,245,212,0.35)] backdrop-blur-md ${
+                  isSelected
+                    ? 'bg-[#F2F4F8] text-[#050508] border-[#CCFF00] shadow-[0_0_18px_rgba(204,255,0,0.5)]'
+                    : isHovered
+                    ? 'bg-[#050508]/95 text-[#00F5D4] border-[#00F5D4]'
+                    : 'bg-[#050508]/85 text-[#F2F4F8] border-[#00F5D4]/40'
+                }`
+              : `px-2 py-0.5 rounded text-[10px] ${
+                  isSelected
+                    ? 'bg-[#F2F4F8] text-[#050508] font-bold shadow-[0_4px_14px_rgba(0,245,212,0.45)]'
+                    : isHovered
+                    ? 'bg-[#050508]/95 text-[#F2F4F8] border border-[#00F5D4]'
+                    : 'bg-[#050508]/80 text-[#B8DCE8] border border-[#00F5D4]/20'
+                }`
+          }`}
         >
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={handleSelect}
-            onPointerDown={handleSelect}
-            onPointerOver={() => hoverNode(node)}
-            onPointerOut={() => hoverNode(null)}
-            className={`cursor-pointer whitespace-nowrap font-mono tabular-nums tracking-tight transition-transform hover:scale-105 active:scale-95 ${
-              node.type === 'genre'
-                ? `px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider border shadow-[0_0_14px_rgba(0,245,212,0.35)] backdrop-blur-md ${
-                    isSelected
-                      ? 'bg-[#F2F4F8] text-[#050508] border-[#CCFF00] shadow-[0_0_18px_rgba(204,255,0,0.5)]'
-                      : isHovered
-                      ? 'bg-[#050508]/95 text-[#00F5D4] border-[#00F5D4]'
-                      : 'bg-[#050508]/85 text-[#F2F4F8] border-[#00F5D4]/40'
-                  }`
-                : `px-2 py-0.5 rounded text-[10px] ${
-                    isSelected
-                      ? 'bg-[#F2F4F8] text-[#050508] font-bold shadow-[0_4px_14px_rgba(0,245,212,0.45)]'
-                      : isHovered
-                      ? 'bg-[#050508]/95 text-[#F2F4F8] border border-[#00F5D4]'
-                      : 'bg-[#050508]/80 text-[#B8DCE8] border border-[#00F5D4]/20'
-                  }`
-            }`}
-          >
-            <span>{nodeLabel}</span>
-            {node.type !== 'song' && (
-              <span
-                className={`ml-1.5 text-[9px] ${
-                  isSelected ? 'text-[#050508]/80' : 'text-[#00F5D4]'
-                }`}
-              >
-                {songCount}p · {affinityPct}%
-              </span>
-            )}
-          </div>
-        </Html>
-      )}
+          <span>{nodeLabel}</span>
+          {node.type !== 'song' && (
+            <span
+              className={`ml-1.5 text-[9px] ${
+                isSelected ? 'text-[#050508]/80' : 'text-[#00F5D4]'
+              }`}
+            >
+              {songCount}p · {affinityPct}%
+            </span>
+          )}
+        </div>
+      </Html>
     </group>
   );
 };

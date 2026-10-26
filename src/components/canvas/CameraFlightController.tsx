@@ -11,6 +11,8 @@ import { useGalaxyStore } from '../../store/useGalaxyStore';
 export const CameraFlightController: React.FC = () => {
   const controlsRef = useRef<CameraControlsImpl>(null);
   const tweenRef = useRef<gsap.core.Tween | null>(null);
+  const introTweenRef = useRef<gsap.core.Tween | null>(null);
+  const hasIntroPlayedRef = useRef(false);
 
   const flightVersion = useGalaxyStore((s) => s.flightVersion);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
@@ -32,11 +34,15 @@ export const CameraFlightController: React.FC = () => {
     if (!controls) return;
 
     const handleUserControlStart = () => {
+      if (introTweenRef.current) {
+        introTweenRef.current.kill();
+        introTweenRef.current = null;
+      }
       if (tweenRef.current) {
         tweenRef.current.kill();
         tweenRef.current = null;
-        setFlightState(false);
       }
+      setFlightState(false);
     };
 
     controls.addEventListener('controlstart', handleUserControlStart);
@@ -46,7 +52,11 @@ export const CameraFlightController: React.FC = () => {
   }, [setFlightState]);
 
   // Story 1: Cinematic Intro Warp-in Sequence upon entering the galaxy (Helical / Orbital Descent)
+  // Guaranteed to run ONLY ONCE on initial page mount. Never re-runs when selecting stars or sectors.
   useEffect(() => {
+    if (hasIntroPlayedRef.current) return;
+    hasIntroPlayedRef.current = true;
+
     const controls = controlsRef.current;
     if (!controls) return;
 
@@ -70,7 +80,7 @@ export const CameraFlightController: React.FC = () => {
     setFlightState(true, 4800);
 
     const proxy = { t: 0 };
-    const introTween = gsap.to(proxy, {
+    introTweenRef.current = gsap.to(proxy, {
       t: 1,
       duration: 4.8,
       delay: 0.1,
@@ -88,12 +98,16 @@ export const CameraFlightController: React.FC = () => {
         controls.setLookAt(curEyeX, curY, curEyeZ, 0, curTargetY, 0, false);
       },
       onComplete: () => {
+        introTweenRef.current = null;
         setFlightState(false, 4800);
       },
     });
 
     return () => {
-      introTween.kill();
+      if (introTweenRef.current) {
+        introTweenRef.current.kill();
+        introTweenRef.current = null;
+      }
     };
   }, [setFlightState]);
 
@@ -102,6 +116,12 @@ export const CameraFlightController: React.FC = () => {
     if (flightVersion === 0) return;
     const controls = controlsRef.current;
     if (!controls) return;
+
+    // Immediately cancel any intro sequence if the user selected a star or sector
+    if (introTweenRef.current) {
+      introTweenRef.current.kill();
+      introTweenRef.current = null;
+    }
 
     // Kill any in-progress flight before starting the new trajectory
     if (tweenRef.current) {
@@ -145,7 +165,10 @@ export const CameraFlightController: React.FC = () => {
     }
 
     const travelDistance = startEye.distanceTo(endEye);
-    if (travelDistance < 0.25) return;
+    if (travelDistance < 0.25) {
+      setFlightState(false);
+      return;
+    }
 
     const prefersReducedMotion =
       typeof window !== 'undefined' &&

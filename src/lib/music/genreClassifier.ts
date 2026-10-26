@@ -445,8 +445,160 @@ function hashStr(str: string): number {
 }
 
 /**
- * Universal classifier matching artist name, album, or raw genre tag against
- * the instant knowledge base, CJK script detection, and keyword heuristics.
+ * Cleans and formats an incoming raw genre string into an elegant, capitalized constellation name.
+ * Handles abbreviations (K-POP, J-ROCK, DNB, R&B, IDM, EDM, LO-FI, OST) cleanly.
+ */
+export function formatDynamicGenreTitle(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+
+  const cleaned = trimmed
+    .replace(/^classic\s+/i, '')
+    .replace(/\band\b/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const words = cleaned.split(/[\s/]+/).map((word) => {
+    const l = word.toLowerCase();
+    if (l === 'kpop' || l === 'k-pop') return 'K-POP';
+    if (l === 'jpop' || l === 'j-pop') return 'J-POP';
+    if (l === 'jrock' || l === 'j-rock') return 'J-ROCK';
+    if (l === 'dnb') return 'DRUM & BASS';
+    if (l === 'idm') return 'IDM';
+    if (l === 'edm') return 'EDM';
+    if (l === 'r&b' || l === 'rnb') return 'R&B';
+    if (l === 'lofi' || l === 'lo-fi') return 'LO-FI';
+    if (l === 'ost') return 'SOUNDTRACK';
+    return word.toUpperCase();
+  });
+
+  let title = words.join(' ');
+  if (title === 'KPOP') title = 'K-POP';
+  if (title === 'JPOP') title = 'J-POP';
+  if (title === 'JROCK') title = 'J-ROCK';
+  if (title === 'LOFI') title = 'LO-FI';
+  return title;
+}
+
+/**
+ * Derives a harmonious sister constellation for any dynamically created musical genre
+ * so cross-genre influence bridges always link to related sectors.
+ */
+export function deriveSisterConstellation(genreTitle: string): string {
+  const lower = genreTitle.toLowerCase();
+  if (
+    lower.includes('rock') ||
+    lower.includes('punk') ||
+    lower.includes('metal') ||
+    lower.includes('grunge') ||
+    lower.includes('emo') ||
+    lower.includes('core')
+  ) {
+    if (lower.includes('metal') || lower.includes('heavy') || lower.includes('death')) {
+      return 'HARD ROCK & HEAVY METAL';
+    }
+    return 'ROCK CLÁSICO & PSICODELIA';
+  }
+  if (
+    lower.includes('electro') ||
+    lower.includes('techno') ||
+    lower.includes('house') ||
+    lower.includes('bass') ||
+    lower.includes('trance') ||
+    lower.includes('dance') ||
+    lower.includes('dnb') ||
+    lower.includes('drum')
+  ) {
+    return 'ELECTRÓNICA, HOUSE & TECHNO';
+  }
+  if (
+    lower.includes('synth') ||
+    lower.includes('wave') ||
+    lower.includes('cyber') ||
+    lower.includes('chiptune') ||
+    lower.includes('8-bit')
+  ) {
+    return 'SYNTHWAVE & FRENCH TOUCH';
+  }
+  if (
+    lower.includes('ambient') ||
+    lower.includes('idm') ||
+    lower.includes('drone') ||
+    lower.includes('glitch') ||
+    lower.includes('experimental') ||
+    lower.includes('lo-fi')
+  ) {
+    return 'IDM & AMBIENT EXPERIMENTAL';
+  }
+  if (
+    lower.includes('hip-hop') ||
+    lower.includes('rap') ||
+    lower.includes('trap') ||
+    lower.includes('drill') ||
+    lower.includes('boom bap')
+  ) {
+    return 'HIP-HOP, RAP & BOOM BAP';
+  }
+  if (
+    lower.includes('jazz') ||
+    lower.includes('bossa') ||
+    lower.includes('blues') ||
+    lower.includes('soul') ||
+    lower.includes('funk') ||
+    lower.includes('motown')
+  ) {
+    return 'JAZZ, BLUES & FOLK';
+  }
+  if (
+    lower.includes('cumbia') ||
+    lower.includes('cuarteto') ||
+    lower.includes('salsa') ||
+    lower.includes('tropical') ||
+    lower.includes('bachata') ||
+    lower.includes('reggaeton') ||
+    lower.includes('dembow')
+  ) {
+    return 'CUMBIA, CUARTETO & TROPICAL';
+  }
+  if (
+    lower.includes('tango') ||
+    lower.includes('folklore') ||
+    lower.includes('latin') ||
+    lower.includes('latino') ||
+    lower.includes('balada')
+  ) {
+    return 'POP LATINO & BALADA';
+  }
+  if (
+    lower.includes('anime') ||
+    lower.includes('japan') ||
+    lower.includes('vocaloid') ||
+    lower.includes('utaite') ||
+    lower.includes('touhou')
+  ) {
+    return 'J-POP, J-ROCK & ANIME';
+  }
+  if (
+    lower.includes('classical') ||
+    lower.includes('orchestral') ||
+    lower.includes('soundtrack') ||
+    lower.includes('score') ||
+    lower.includes('piano')
+  ) {
+    return 'MÚSICA CLÁSICA & SOUNDTRACK';
+  }
+  return 'POP INTERNACIONAL & SYNTH-POP';
+}
+
+/**
+ * Dynamic Universal Music Classifier.
+ *
+ * Dynamically classifies tracks into musical constellations:
+ * 1. If a track possesses its own raw genre metadata (from Spotify, Last.fm, Deezer, or JSON),
+ *    it cleans and formats it, DYNAMICALLY CREATING a new constellation in the universe.
+ * 2. If untagged, uses Japanese CJK script detection, 400+ curated artist knowledge bases,
+ *    and audio keyword heuristics.
+ * 3. Fallbacks distribute safely across universal global genres, never leaking into regional categories.
  */
 export function classifyUniversalMusic(
   artistName: string,
@@ -458,9 +610,7 @@ export function classifyUniversalMusic(
   const t = (trackTitle || '').trim().toLowerCase();
   const combined = `${a} ${g} ${t}`;
 
-  // 1. Script Analysis: If the artist name, song title, or raw genre contains Japanese/CJK characters,
-  // it is definitively Japanese / East Asian music. Route directly to 'J-POP, J-ROCK & ANIME'
-  // (unless explicit classical/ambient cues are present), completely avoiding any regional misclassification.
+  // 1. Script Analysis: Japanese / CJK characters route directly to 'J-POP, J-ROCK & ANIME'
   const hasJapaneseScript =
     JAPANESE_SCRIPT_REGEX.test(artistName || '') ||
     JAPANESE_SCRIPT_REGEX.test(trackTitle || '') ||
@@ -488,7 +638,34 @@ export function classifyUniversalMusic(
     };
   }
 
-  // 2. Direct Pattern Match against curated 400+ artist dictionary (with word-boundary protection)
+  // 2. Dynamic Genre Creation from incoming metadata:
+  // If the user's library or streaming API provides a specific musical genre tag,
+  // we dynamically create and register that constellation!
+  if (rawGenreText && rawGenreText.trim()) {
+    const rawUpper = rawGenreText.trim().toUpperCase();
+    // Direct canonical match
+    if (CANONICAL_GENRES[rawUpper]) {
+      return {
+        genre: rawUpper,
+        secondaryGenre: CANONICAL_GENRES[rawUpper].sister,
+        rawGenre: rawGenreText,
+      };
+    }
+
+    // Dynamic clean title (e.g. "math rock" -> "MATH ROCK", "k-pop" -> "K-POP", "bossa nova" -> "BOSSA NOVA")
+    const dynamicGenre = formatDynamicGenreTitle(rawGenreText);
+    const ignoreList = ['MUSIC', 'TRACK', 'SONG', 'UNKNOWN', 'AUDIO', 'DEFAULT'];
+    if (dynamicGenre.length >= 2 && !ignoreList.includes(dynamicGenre)) {
+      const sister = deriveSisterConstellation(dynamicGenre);
+      return {
+        genre: dynamicGenre,
+        secondaryGenre: sister,
+        rawGenre: rawGenreText,
+      };
+    }
+  }
+
+  // 3. Direct Pattern Match against curated 400+ artist dictionary (with word-boundary protection)
   for (const entry of INSTANT_ARTIST_PATTERNS) {
     if (entry.patterns.some((p) => matchesPattern(a, p))) {
       return {
@@ -499,7 +676,7 @@ export function classifyUniversalMusic(
     }
   }
 
-  // 3. Keyword heuristic analysis across combined metadata
+  // 4. Keyword heuristic analysis across combined metadata
   let matchedGenre = '';
 
   if (
@@ -654,16 +831,14 @@ export function classifyUniversalMusic(
     matchedGenre = 'ROCK CLÁSICO & PSICODELIA';
   }
 
-  // 4. Safe Universal Distribution Fallback:
+  // 5. Safe Universal Distribution Fallback:
   // Distributes unfamiliar artists evenly across UNIVERSAL global genres.
-  // Regional genres ('ROCK NACIONAL & ARGENTINO', 'CUMBIA, CUARTETO & TROPICAL', etc.)
-  // are never picked here, preventing unintended cross-cultural leaks.
   if (!matchedGenre) {
     const idx = hashStr(a || 'music') % UNIVERSAL_FALLBACK_GENRES.length;
     matchedGenre = UNIVERSAL_FALLBACK_GENRES[idx];
   }
 
-  const sister = CANONICAL_GENRES[matchedGenre]?.sister || 'ROCK CLÁSICO & PSICODELIA';
+  const sister = CANONICAL_GENRES[matchedGenre]?.sister || deriveSisterConstellation(matchedGenre);
 
   return {
     genre: matchedGenre,
