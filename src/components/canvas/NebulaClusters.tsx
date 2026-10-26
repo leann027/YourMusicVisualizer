@@ -79,10 +79,10 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     const maxR = 3.6 + densityFactor * 4.6;
 
     for (let i = 0; i < count; i++) {
-      // 3-lobed logarithmic spiral tendrils for natural celestial wispiness
+      // 3-lobed logarithmic spiral tendrils with Strömgren central cavity (leaves star core crystal clear)
       const arm = (i % 3) * ((Math.PI * 2) / 3);
-      const rRatio = Math.pow(prng(), 1.5);
-      const r = 0.4 + rRatio * maxR;
+      const rRatio = Math.pow(prng(), 1.25);
+      const r = 3.2 + rRatio * maxR;
 
       const angle = arm + Math.log(r + 1.2) * 1.4 + (prng() - 0.5) * 0.75;
       const x = Math.cos(angle) * r;
@@ -94,7 +94,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       positions[i * 3 + 2] = z;
 
       // Chromatic ionization gradient: gentle core shimmer lerping to sector hue
-      const normR = Math.min(1.0, r / maxR);
+      const normR = Math.min(1.0, (r - 3.2) / maxR);
       const c = new THREE.Color().copy(coreTint).lerp(baseColor, normR);
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
@@ -128,8 +128,8 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
     const maxR = 7.5 + densityFactor * 9.5;
 
     for (let i = 0; i < count; i++) {
-      const rRatio = Math.pow(prng(), 1.35);
-      const r = 2.4 + rRatio * maxR;
+      const rRatio = Math.pow(prng(), 1.25);
+      const r = 4.8 + rRatio * maxR;
 
       // Asymmetric dust streamers flowing with galactic curvature
       const theta = galAngle + (prng() - 0.5) * 1.4 + Math.sin(r * 0.35) * 0.5;
@@ -142,7 +142,7 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       positions[i * 3 + 2] = z;
 
       // Deep celestial chromatic shift toward cosmic background
-      const normR = Math.min(1.0, (r - 2.4) / maxR);
+      const normR = Math.min(1.0, (r - 4.8) / maxR);
       const c = new THREE.Color().copy(baseColor).lerp(deepCosmicVeil, normR * 0.7);
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
@@ -212,9 +212,11 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         vec2 ptCoord = gl_PointCoord - vec2(0.5);
         float dist = length(ptCoord);
         if (dist > 0.5) discard;
-        // Asymptotic zero-slope Hermite falloff: mathematically 0 at edge, completely eliminating circular stamp edges
-        float edgeFade = smoothstep(0.5, 0.05, dist);
-        float coreGlow = exp(-dist * dist * 6.0);
+        // 2D fractal smoke turbulence: breaks round stamps into organic cosmic tendrils & filaments
+        float noiseVal = sin(ptCoord.x * 14.0 + vNebulaColor.r * 6.28) * cos(ptCoord.y * 14.0 + vNebulaColor.g * 6.28);
+        float organicDist = dist + noiseVal * 0.07;
+        float edgeFade = smoothstep(0.48, 0.05, organicDist);
+        float coreGlow = exp(-organicDist * organicDist * 6.5);
         float falloff = edgeFade * coreGlow;
         // Proximity anti-glare: smoothly fade out particles as camera approaches within 28 units (zero glare on star inspection)
         float proximityFade = smoothstep(8.0, 28.0, vCamDist);
@@ -282,9 +284,11 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
         vec2 ptCoord = gl_PointCoord - vec2(0.5);
         float dist = length(ptCoord);
         if (dist > 0.5) discard;
-        // Asymptotic zero-slope Hermite falloff: strictly zero visible boundary
-        float edgeFade = smoothstep(0.5, 0.06, dist);
-        float coreGlow = exp(-dist * dist * 5.5);
+        // 2D fractal smoke turbulence: breaks round stamps into organic cosmic tendrils & filaments
+        float noiseVal = sin(ptCoord.x * 12.0 + vNebulaColor.b * 6.28) * cos(ptCoord.y * 12.0 + vNebulaColor.r * 6.28);
+        float organicDist = dist + noiseVal * 0.08;
+        float edgeFade = smoothstep(0.48, 0.06, organicDist);
+        float coreGlow = exp(-organicDist * organicDist * 5.8);
         float falloff = edgeFade * coreGlow;
         // Proximity anti-glare: smoothly fade out particles as camera approaches within 32 units (zero glare on star inspection)
         float proximityFade = smoothstep(9.0, 32.0, vCamDist);
@@ -345,15 +349,15 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       : 0;
 
     const targetInnerBrightness = THREE.MathUtils.clamp(
-      0.08 + 0.16 * stellarBrightness + activeBoost,
-      0.04,
-      0.24
+      0.025 + 0.045 * stellarBrightness + activeBoost * 0.4,
+      0.015,
+      0.070
     );
 
     const targetOuterBrightness = THREE.MathUtils.clamp(
-      0.05 + 0.12 * stellarBrightness + activeBoost * 0.7,
-      0.03,
-      0.18
+      0.018 + 0.035 * stellarBrightness + activeBoost * 0.3,
+      0.010,
+      0.055
     );
 
     const innerMat = innerPointsRef.current?.material as THREE.PointsMaterial | undefined;

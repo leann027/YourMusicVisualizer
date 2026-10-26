@@ -15,31 +15,143 @@ function createPRNG(seed: number) {
   };
 }
 
-// Static geometry declarations for the central Supermassive Singularity (Gargantua Core)
-const SINGULARITY_GEOMETRY = new THREE.SphereGeometry(0.85, 32, 32);
-const ACCRETION_RING_GEOMETRY = new THREE.RingGeometry(1.15, 1.80, 64);
-const LENSING_RING_GEOMETRY = new THREE.RingGeometry(1.22, 1.52, 64);
-const POLAR_JET_GEOMETRY = new THREE.CylinderGeometry(0.04, 0.55, 4.2, 16, 1, true);
+// Procedural GLSL shaders for the Gargantua Relativistic Accretion Disk (Zero Plastic Meshes)
+const ACCRETION_DISK_VERTEX_SHADER = `
+  varying vec2 vUv;
+  varying vec3 vViewPosition;
+  void main() {
+    vUv = uv;
+    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = -mvPos.xyz;
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+const ACCRETION_DISK_FRAGMENT_SHADER = `
+  uniform float uTime;
+  uniform float uSubBass;
+  uniform float uEnergy;
+  varying vec2 vUv;
+  varying vec3 vViewPosition;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+  }
+
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+
+  void main() {
+    vec2 coord = vUv - vec2(0.5);
+    float r = length(coord) * 2.0; // 0.0 at center, 1.0 at outer edge
+    if (r < 0.28 || r > 0.98) discard;
+
+    float theta = atan(coord.y, coord.x);
+
+    // Relativistic Keplerian spiral plasma flow: inner flows faster
+    float flowSpeed = uTime * (1.8 + uEnergy * 0.9);
+    float spiral = theta + 3.2 / max(0.12, r) - flowSpeed;
+
+    // Multi-octave fractal plasma turbulence
+    float n1 = vnoise(vec2(spiral * 2.0, r * 12.0));
+    float n2 = vnoise(vec2(spiral * 4.0, r * 24.0 + flowSpeed * 0.4));
+    float plasma = n1 * 0.65 + n2 * 0.35;
+
+    // Radial ISCO (Innermost Stable Circular Orbit) sharp cut and smooth outer edge
+    float innerCut = smoothstep(0.28, 0.38, r);
+    float outerFade = smoothstep(0.98, 0.55, r);
+    float radialEnvelope = innerCut * outerFade;
+
+    // Relativistic Doppler Beaming: approaching side (theta > 0) is hotter and significantly brighter
+    float doppler = 1.0 + 0.48 * sin(theta + 0.35);
+
+    // Chromatic temperature gradient: ultra-hot incandescent gold near ISCO -> warm solar amber -> cosmic magenta
+    vec3 colCore = vec3(1.0, 0.96, 0.82);
+    vec3 colMid = vec3(0.96, 0.60, 0.08);
+    vec3 colOuter = vec3(1.0, 0.16, 0.52);
+
+    float tGrad = smoothstep(0.30, 0.85, r);
+    vec3 color = mix(mix(colCore, colMid, tGrad), colOuter, pow(tGrad, 2.0));
+
+    float alpha = radialEnvelope * (0.35 + 0.65 * plasma) * doppler * (0.65 + uSubBass * 0.35);
+    gl_FragColor = vec4(color * (1.05 + uSubBass * 0.25), clamp(alpha, 0.0, 0.85));
+  }
+`;
+
+const LENSING_ARCH_FRAGMENT_SHADER = `
+  uniform float uTime;
+  uniform float uSubBass;
+  uniform float uEnergy;
+  varying vec2 vUv;
+  varying vec3 vViewPosition;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+  }
+
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+
+  void main() {
+    vec2 coord = vUv - vec2(0.5);
+    // Vertical arch coordinates: light deflected around singularity
+    float r = length(coord) * 2.0;
+    if (r < 0.32 || r > 0.85) discard;
+
+    float theta = atan(coord.y, coord.x);
+    // Curved gravitational deflection arch
+    float archFade = pow(abs(sin(theta)), 1.2);
+
+    float flowSpeed = uTime * (1.4 + uEnergy * 0.7);
+    float n = vnoise(vec2(theta * 3.0, r * 16.0 - flowSpeed));
+
+    float innerCut = smoothstep(0.32, 0.42, r);
+    float outerFade = smoothstep(0.85, 0.50, r);
+    float radialEnvelope = innerCut * outerFade;
+
+    vec3 color = mix(vec3(0.96, 0.55, 0.08), vec3(1.0, 0.16, 0.52), r);
+    float alpha = radialEnvelope * archFade * (0.30 + 0.70 * n) * (0.45 + uSubBass * 0.3);
+
+    gl_FragColor = vec4(color, clamp(alpha, 0.0, 0.65));
+  }
+`;
 
 /**
  * Supermassive Galactic Core & 4-Arm Logarithmic Spiral Galaxy (`GalacticDustDisc`).
  *
- * Replaces the simplistic flat dust circle with an authentic, majestic 3D cosmos:
- * 1. Central Supermassive Singularity: Black hole event horizon, incandescent tilted photon ring,
- *    gravitational lensing light-deflection arch, and twin relativistic polar energy jets.
- * 2. 4 Grand Logarithmic Spiral Arms: Density wave geometry with differential Keplerian rotation,
- *    interstellar dust extinction, and 3D S-shaped galactic disc warp.
- * 3. Multi-Band Web Audio FFT Fluid Dynamics:
+ * 1. Central Supermassive Singularity (Gargantua Aesthetic):
+ *    - Event Horizon black hole sphere with gravitational limb redshift.
+ *    - Procedural Relativistic Accretion Disk Shader with Doppler beaming and Keplerian plasma turbulence.
+ *    - Gravitational Lensing Arch Shader rendering curved light rays over the singularity.
+ * 2. 4 Grand Logarithmic Spiral Arms:
+ *    - 5,600 GPU stardust particles with 3D S-shaped galactic warp and Keplerian differential velocity.
+ * 3. Multi-Band FFT Acoustic Fluid Dynamics:
  *    - Sub-Bass (0-60Hz): Concentric gravitational tidal shockwaves radiating from singularity.
  *    - Mid-Harmonic (250-2000Hz): Spiral arm density wave compression and transverse disk undulation.
  *    - High-Shimmer (2-16kHz): Starlight ionization scintillation and diamond sparkle.
- *    - Energy: Dynamic orbital velocity acceleration during musical drops.
  * 4. Strict Proximity Anti-Glare: Background galaxy fades completely when inspecting stars (vCamDist < 16).
  */
 export const GalacticDustDisc: React.FC = () => {
   const pointsRef = useRef<THREE.Points>(null);
   const coreGroupRef = useRef<THREE.Group>(null);
-  const accretionRingRef = useRef<THREE.Mesh>(null);
+  const accretionMeshRef = useRef<THREE.Mesh>(null);
+  const lensingMeshRef = useRef<THREE.Mesh>(null);
 
   // Audio smoothing accumulators (zero React re-renders)
   const smoothSubBassRef = useRef<number>(0);
@@ -55,6 +167,48 @@ export const GalacticDustDisc: React.FC = () => {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
+  // 1. Procedural Accretion Disk & Lensing Arch Materials
+  const { accretionMat, lensingMat, singularityGeom, discPlaneGeom } = useMemo(() => {
+    const accMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      uniforms: {
+        uTime: { value: 0 },
+        uSubBass: { value: 0 },
+        uEnergy: { value: 0 },
+      },
+      vertexShader: ACCRETION_DISK_VERTEX_SHADER,
+      fragmentShader: ACCRETION_DISK_FRAGMENT_SHADER,
+    });
+
+    const lensMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      uniforms: {
+        uTime: { value: 0 },
+        uSubBass: { value: 0 },
+        uEnergy: { value: 0 },
+      },
+      vertexShader: ACCRETION_DISK_VERTEX_SHADER,
+      fragmentShader: LENSING_ARCH_FRAGMENT_SHADER,
+    });
+
+    const singGeom = new THREE.SphereGeometry(0.92, 32, 32);
+    const planeGeom = new THREE.PlaneGeometry(6.4, 6.4, 1, 1);
+
+    return {
+      accretionMat: accMat,
+      lensingMat: lensMat,
+      singularityGeom: singGeom,
+      discPlaneGeom: planeGeom,
+    };
+  }, []);
+
+  // 2. 4-Arm Logarithmic Spiral Galaxy Particle Mesh
   const { geometry, material } = useMemo(() => {
     const prng = createPRNG(987654);
     const count = 5600;
@@ -169,7 +323,7 @@ export const GalacticDustDisc: React.FC = () => {
       sizeAttenuation: true,
     });
 
-    mat.customProgramCacheKey = () => 'central-cosmic-galaxy-spiral-v5';
+    mat.customProgramCacheKey = () => 'central-cosmic-galaxy-spiral-v6';
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 };
       shader.uniforms.uBrightness = { value: 0.12 };
@@ -278,23 +432,42 @@ export const GalacticDustDisc: React.FC = () => {
     return () => {
       geometry.dispose();
       material.dispose();
+      singularityGeom.dispose();
+      discPlaneGeom.dispose();
+      accretionMat.dispose();
+      lensingMat.dispose();
     };
-  }, [geometry, material]);
+  }, [geometry, material, singularityGeom, discPlaneGeom, accretionMat, lensingMat]);
 
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
     const fft = webAudioEngine.sampleFFT();
 
-    // 1. Animate Central Supermassive Singularity & Accretion Vortex
+    // 1. Animate Central Supermassive Singularity & Procedural Accretion Vortex
     const coreGroup = coreGroupRef.current;
     if (coreGroup) {
       if (!prefersReducedMotion) {
         coreGroup.rotation.y += delta * (0.16 + (fft.isPlaying ? fft.energy * 0.22 : 0));
       }
 
-      if (accretionRingRef.current) {
-        const pulse = 1.0 + (fft.isPlaying ? fft.subBass * 0.25 : Math.sin(t * 1.5) * 0.03);
-        accretionRingRef.current.scale.setScalar(pulse);
+      // Procedural shader uniform progression via mesh refs (React 19 pure)
+      const accMat = accretionMeshRef.current?.material as THREE.ShaderMaterial | undefined;
+      if (accMat) {
+        accMat.uniforms.uTime.value = !prefersReducedMotion ? t : 0;
+        accMat.uniforms.uSubBass.value = smoothSubBassRef.current;
+        accMat.uniforms.uEnergy.value = smoothEnergyRef.current;
+      }
+
+      const lensMat = lensingMeshRef.current?.material as THREE.ShaderMaterial | undefined;
+      if (lensMat) {
+        lensMat.uniforms.uTime.value = !prefersReducedMotion ? t : 0;
+        lensMat.uniforms.uSubBass.value = smoothSubBassRef.current;
+        lensMat.uniforms.uEnergy.value = smoothEnergyRef.current;
+      }
+
+      if (accretionMeshRef.current) {
+        const pulse = 1.0 + (fft.isPlaying ? fft.subBass * 0.18 : Math.sin(t * 1.5) * 0.02);
+        accretionMeshRef.current.scale.setScalar(pulse);
       }
 
       // Fade central black hole features when zoomed in close to an inspected star
@@ -358,60 +531,25 @@ export const GalacticDustDisc: React.FC = () => {
       {/* Central Supermassive Singularity: Black Hole Event Horizon & Accretion Vortex */}
       <group ref={coreGroupRef} position={[0, 0, 0]}>
         {/* 1. Black Hole Event Horizon Sphere (Pure Dark Gravitational Singularity) */}
-        <mesh geometry={SINGULARITY_GEOMETRY}>
-          <meshBasicMaterial color="#020205" />
+        <mesh geometry={singularityGeom}>
+          <meshBasicMaterial color="#010103" />
         </mesh>
 
-        {/* 2. Relativistic Photon Accretion Ring (Tilted Kerr Orbit) */}
+        {/* 2. Procedural Relativistic Accretion Disk (Tilted Kerr Horizon Plasma Flow) */}
         <mesh
-          ref={accretionRingRef}
-          geometry={ACCRETION_RING_GEOMETRY}
-          rotation={[Math.PI / 3.8, 0.35, 0]}
-        >
-          <meshBasicMaterial
-            color="#F59E0B"
-            side={THREE.DoubleSide}
-            transparent
-            opacity={0.65}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
+          ref={accretionMeshRef}
+          geometry={discPlaneGeom}
+          material={accretionMat}
+          rotation={[Math.PI / 2.3, 0.28, 0]}
+        />
 
-        {/* 3. Gravitational Lensing Arch (Gargantua Vertical Silhouette) */}
+        {/* 3. Gravitational Lensing Arch (Gargantua Curved Light Deflection) */}
         <mesh
-          geometry={LENSING_RING_GEOMETRY}
-          rotation={[0, 0, Math.PI / 2.2]}
-        >
-          <meshBasicMaterial
-            color="#FF2A85"
-            side={THREE.DoubleSide}
-            transparent
-            opacity={0.35}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-
-        {/* 4. Relativistic Polar Plasma Jets */}
-        <mesh geometry={POLAR_JET_GEOMETRY} position={[0, 2.2, 0]}>
-          <meshBasicMaterial
-            color="#00F5D4"
-            transparent
-            opacity={0.25}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-        <mesh geometry={POLAR_JET_GEOMETRY} position={[0, -2.2, 0]} rotation={[Math.PI, 0, 0]}>
-          <meshBasicMaterial
-            color="#00F5D4"
-            transparent
-            opacity={0.25}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
+          ref={lensingMeshRef}
+          geometry={discPlaneGeom}
+          material={lensingMat}
+          rotation={[-0.15, 0, 0]}
+        />
       </group>
     </group>
   );

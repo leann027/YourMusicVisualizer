@@ -41,9 +41,9 @@ export const PostProcessingPipeline: React.FC = () => {
       const renderPass = new RenderPass(scene, camera);
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(size.width, size.height),
-        0.13, // calibrated base strength (crisp stars, zero screen wash-out)
-        0.22, // tight bloom radius
-        0.89  // high threshold so only bright star cores bloom, prevents blinding glare
+        0.08, // Calibrated base strength: crisp stars, zero screen blowout
+        0.16, // Tight, focused bloom radius
+        0.92  // High threshold so only bright stellar highlights bloom
       );
       const outputPass = new OutputPass();
 
@@ -113,12 +113,12 @@ export const PostProcessingPipeline: React.FC = () => {
     );
 
     const baseStrength = fft.isPlaying
-      ? 0.14 + fft.subBass * 0.03
-      : 0.12;
+      ? 0.08 + fft.subBass * 0.02
+      : 0.07;
 
     const targetStrength = baseStrength * proximityBloomFactor;
-    const targetRadius = 0.20;
-    const targetThreshold = THREE.MathUtils.lerp(0.96, 0.88, proximityBloomFactor);
+    const targetRadius = 0.16;
+    const targetThreshold = THREE.MathUtils.lerp(0.97, 0.92, proximityBloomFactor);
 
     bloomPass.strength = THREE.MathUtils.lerp(
       bloomPass.strength,

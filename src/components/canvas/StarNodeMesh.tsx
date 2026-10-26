@@ -23,8 +23,8 @@ const UNIT_SATELLITE_GEOMETRY = new THREE.SphereGeometry(0.05, 8, 8);
 const UNIT_DIFFRACTION_GEOMETRY = new THREE.PlaneGeometry(3.6, 0.05);
 
 /**
- * Injects a smooth sinusoidal radial falloff into RingGeometry materials
- * so planetary dust rings fade out seamlessly with zero sharp cutoffs.
+ * Injects silky radial falloff & Cassini divisions into planetary ring materials
+ * so dust rings look like authentic celestial disks rather than solid plastic washers.
  */
 function softRingOnBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms) {
   shader.vertexShader = `
@@ -44,8 +44,48 @@ function softRingOnBeforeCompile(shader: THREE.WebGLProgramParametersWithUniform
     '#include <color_fragment>',
     `
     #include <color_fragment>
-    float ringAlpha = sin(vRingUv.y * 3.14159265);
-    diffuseColor.a *= (ringAlpha * ringAlpha);
+    // Exact radial distance in planar UV space (center at 0.5, 0.5)
+    float rDist = length(vRingUv - vec2(0.5));
+    float rNorm = clamp((rDist - 0.35) / (0.495 - 0.35), 0.0, 1.0);
+    // Smooth bell curve: mathematically 0 at inner AND outer edges (zero sharp plastic cliffs)
+    float radialFade = sin(rNorm * 3.14159265);
+    // Translucent Cassini division micro-grooves
+    float divisions = 0.72 + 0.28 * sin(rNorm * 37.7);
+    diffuseColor.a *= (radialFade * radialFade * divisions);
+    `
+  );
+}
+
+/**
+ * Injects atmospheric limb darkening (Fresnel thermal gradient) into star cores
+ * giving them genuine astronomical depth instead of flat plastic discs.
+ */
+function starCoreOnBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms) {
+  shader.vertexShader = `
+    varying vec3 vLocalNormal;
+    varying vec3 vViewDir;
+    ${shader.vertexShader}
+  `.replace(
+    '#include <defaultnormal_vertex>',
+    `
+    #include <defaultnormal_vertex>
+    vLocalNormal = normalize(transformedNormal);
+    vViewDir = -mvPosition.xyz;
+    `
+  );
+  shader.fragmentShader = `
+    varying vec3 vLocalNormal;
+    varying vec3 vViewDir;
+    ${shader.fragmentShader}
+  `.replace(
+    '#include <color_fragment>',
+    `
+    #include <color_fragment>
+    vec3 vDir = normalize(vViewDir);
+    float NdotV = clamp(dot(vLocalNormal, vDir), 0.0, 1.0);
+    // Stellar limb darkening: incandescent hot core, soft atmospheric edge falloff
+    float limb = pow(NdotV, 0.45);
+    diffuseColor.rgb = mix(diffuseColor.rgb * 0.70, diffuseColor.rgb * 1.25, limb);
     `
   );
 }
@@ -481,7 +521,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
         </mesh>
       )}
 
-      {/* Core Star Sphere */}
+      {/* Core Star Sphere: Atmospheric limb darkening prevents flat plastic bead appearance */}
       <mesh
         ref={meshRef}
         geometry={UNIT_SPHERE_GEOMETRY}
@@ -497,7 +537,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
           document.body.style.cursor = 'auto';
         }}
       >
-        <meshBasicMaterial color={coreColor} />
+        <meshBasicMaterial color={coreColor} onBeforeCompile={starCoreOnBeforeCompile} />
       </mesh>
 
       {/* Native WebGL SDF Text & Billboard: zero DOM nodes, 60 FPS GPU-rendered, completely eliminates React 19 removeChild collision */}
@@ -518,8 +558,9 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             color={isSelected || isPlayingNode ? '#CCFF00' : isHovered ? '#00F5D4' : '#F2F4F8'}
             anchorX="center"
             anchorY="bottom"
-            outlineWidth={node.type === 'song' ? 0.03 : 0.04}
-            outlineColor="#050508"
+            outlineWidth={node.type === 'genre' ? 0.08 : node.type === 'artist' ? 0.052 : 0.036}
+            outlineColor="#020205"
+            outlineOpacity={1.0}
             renderOrder={99}
             depthOffset={-1}
             letterSpacing={0.02}
@@ -534,8 +575,9 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             color={isSelected || isPlayingNode ? '#CCFF00' : '#00F5D4'}
             anchorX="center"
             anchorY="top"
-            outlineWidth={0.025}
-            outlineColor="#050508"
+            outlineWidth={0.035}
+            outlineColor="#020205"
+            outlineOpacity={1.0}
             renderOrder={99}
             depthOffset={-1}
           >
