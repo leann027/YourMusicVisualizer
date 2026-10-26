@@ -101,21 +101,21 @@ export const PostProcessingPipeline: React.FC = () => {
     }
 
     const fft = webAudioEngine.sampleFFT();
-    // Modulate bloom intensity smoothly with sub-bass and total spectral energy
+    // Photosensitive-safe, gentle ambient bloom with heavy dampening (zero strobing or sudden flashes)
     const targetStrength = fft.isPlaying
-      ? 0.24 + fft.subBass * 0.32 + fft.energy * 0.18
-      : 0.22;
-    const targetRadius = fft.isPlaying ? 0.34 + fft.highShimmer * 0.18 : 0.32;
+      ? 0.22 + fft.subBass * 0.06
+      : 0.20;
+    const targetRadius = 0.32;
 
     bloomPass.strength = THREE.MathUtils.lerp(
       bloomPass.strength,
       targetStrength,
-      Math.min(1, delta * 14)
+      Math.min(1, delta * 3.0)
     );
     bloomPass.radius = THREE.MathUtils.lerp(
       bloomPass.radius,
       targetRadius,
-      Math.min(1, delta * 14)
+      Math.min(1, delta * 3.0)
     );
 
     composer.render(delta);

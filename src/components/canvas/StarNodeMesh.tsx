@@ -16,14 +16,12 @@ interface StarNodeMeshProps {
 // Shared unit geometries across all stars to minimize WebGL memory & state switches
 const UNIT_SPHERE_GEOMETRY = new THREE.SphereGeometry(1, 16, 16);
 const UNIT_RING_GEOMETRY = new THREE.RingGeometry(1.42, 1.82, 28);
-const UNIT_RIPPLE_GEOMETRY = new THREE.RingGeometry(1.85, 2.15, 36);
-const UNIT_CROSS_RAY_GEOMETRY = new THREE.PlaneGeometry(0.12, 4.4);
+const UNIT_RIPPLE_GEOMETRY = new THREE.RingGeometry(1.4, 1.6, 36);
 
 export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) => {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const coronaRef = useRef<THREE.Mesh>(null);
-  const diffractionRef = useRef<THREE.Group>(null);
   const rippleRef = useRef<THREE.Mesh>(null);
 
   // Performance-critical: Selective subscriptions prevent mass re-renders across 100+ stars
@@ -101,50 +99,38 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     if (!shouldAnimate) return;
 
     const fft = webAudioEngine.sampleFFT();
+    // Gentle, photosensitive-safe audio respiration (zero sudden flashes or strobes)
     const audioKick =
       fft.isPlaying && (isPlayingNode || isSelected)
-        ? fft.subBass * 0.42 + fft.energy * 0.25
+        ? fft.subBass * 0.08
         : 0;
 
     if (meshRef.current) {
-      const amp = isSelected ? 0.12 : 0.08;
+      const amp = isSelected ? 0.06 : 0.04;
       const s =
         metrics.coreRadius *
         (1 +
-          Math.sin(t * metrics.pulseFrequency + node.position[0]) * amp +
+          Math.sin(t * 0.8 + node.position[0]) * amp +
           audioKick);
       meshRef.current.scale.setScalar(s);
     }
 
     if (coronaRef.current) {
-      const coronaAudioBoost =
-        fft.isPlaying && (isPlayingNode || isSelected)
-          ? fft.midHarmonic * 0.65 + fft.highShimmer * 0.45
-          : 0;
       const coronaScale =
         metrics.coronaRadius *
-        ((isSelected ? 1.25 : 1.12) +
-          Math.cos(t * (metrics.pulseFrequency * 0.7) + node.position[1]) * 0.05 +
-          coronaAudioBoost);
+        ((isSelected ? 1.18 : 1.08) +
+          Math.cos(t * 0.6 + node.position[1]) * 0.03);
       coronaRef.current.scale.setScalar(coronaScale);
     }
 
-    // Audio-reactive Diffraction Flare Rotation & Twinkle for Supergiants / High Affinity
-    if (diffractionRef.current && (node.type === 'genre' || node.affinity >= 0.88 || isSelected)) {
-      diffractionRef.current.rotation.z = t * 0.12;
-      const flarePulse = 1.0 + 0.12 * Math.sin(t * 2.2 + node.position[0]);
-      const audioFlare = fft.isPlaying && (isPlayingNode || isSelected) ? fft.energy * 0.35 : 0;
-      diffractionRef.current.scale.setScalar(metrics.coreRadius * (flarePulse + audioFlare));
-    }
-
-    // Audio Pulsar Shockwave Ripple when track is actively playing
+    // Serene, calm orbital ring for currently playing star (slow 4s smooth breathing)
     if (rippleRef.current && isPlayingNode) {
-      const ripplePhase = (t * 1.6) % 1.0;
-      const rippleScale = metrics.coreRadius * (1.2 + ripplePhase * 3.4);
+      const slowPhase = (t * 0.25) % 1.0;
+      const rippleScale = metrics.coreRadius * (1.1 + slowPhase * 0.8);
       rippleRef.current.scale.setScalar(rippleScale);
       const rippleMat = rippleRef.current.material as THREE.MeshBasicMaterial;
       if (rippleMat) {
-        const fade = (1.0 - ripplePhase) * (0.65 + (fft.isPlaying ? fft.subBass * 0.35 : 0));
+        const fade = (1.0 - slowPhase) * 0.45;
         rippleMat.opacity = Math.max(0, fade * stellarBrightness);
       }
     }
@@ -317,32 +303,6 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
             depthWrite={false}
           />
         </mesh>
-      )}
-
-      {/* Hubble/JWST 4-Point Optical Diffraction Spikes for O-Supergiants, Selected & Alpha stars */}
-      {(node.type === 'genre' || node.affinity >= 0.88 || isSelected) && (
-        <group ref={diffractionRef} scale={metrics.coreRadius}>
-          <mesh geometry={UNIT_CROSS_RAY_GEOMETRY}>
-            <meshBasicMaterial
-              color={isSelected ? '#F2F4F8' : starColor}
-              transparent
-              opacity={(isSelected ? 0.65 : 0.28 * node.affinity) * stellarBrightness}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-          <mesh geometry={UNIT_CROSS_RAY_GEOMETRY} rotation={[0, 0, Math.PI / 2]}>
-            <meshBasicMaterial
-              color={isSelected ? '#F2F4F8' : starColor}
-              transparent
-              opacity={(isSelected ? 0.65 : 0.28 * node.affinity) * stellarBrightness}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        </group>
       )}
 
       {/* Core Star Sphere */}

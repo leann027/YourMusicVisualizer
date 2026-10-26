@@ -122,26 +122,14 @@ export const GalacticDustDisc: React.FC = () => {
 
       shader.vertexShader = `
         attribute float size;
-        attribute float phase;
-        uniform float uTime;
         ${shader.vertexShader}
       `;
 
       shader.vertexShader = shader.vertexShader.replace(
-        '#include <begin_vertex>',
-        `
-        #include <begin_vertex>
-        // Subtle vertical undulating wave along spiral arms
-        transformed.y += sin(uTime * 0.4 + phase) * 0.18;
-        `
-      );
-
-      shader.vertexShader = shader.vertexShader.replace(
         'gl_PointSize = size;',
         `
-        // Dynamic scintillation
-        float pulse = 0.85 + 0.15 * sin(uTime * 1.5 + phase);
-        gl_PointSize = size * pulse * (300.0 / -mvPosition.z);
+        // Steady, non-flickering star dust size (photosensitive safe)
+        gl_PointSize = size * (260.0 / -mvPosition.z);
         `
       );
 
@@ -196,10 +184,9 @@ export const GalacticDustDisc: React.FC = () => {
 
     if (material.userData.shader) {
       material.userData.shader.uniforms.uTime.value = t;
-      // Modulate with user's stellarBrightness setting
-      const baseAlpha = THREE.MathUtils.clamp(stellarBrightness * 1.4, 0.1, 0.65);
-      const audioBoost = fft.isPlaying ? fft.energy * 0.15 : 0;
-      material.userData.shader.uniforms.uBrightness.value = baseAlpha + audioBoost;
+      // Modulate with user's stellarBrightness setting (steady, calm alpha with zero strobe)
+      const baseAlpha = THREE.MathUtils.clamp(stellarBrightness * 1.1, 0.08, 0.45);
+      material.userData.shader.uniforms.uBrightness.value = baseAlpha;
     }
   });
 

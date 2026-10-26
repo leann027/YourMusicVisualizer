@@ -224,48 +224,43 @@ const SectorNebulaCluster: React.FC<SectorNebulaClusterProps> = ({ genre }) => {
       }
     }
 
-    // Pulse with sub-bass (20-140Hz) and overall spectral energy
-    const audioKick = fft.isPlaying
-      ? fft.subBass * 0.065 + fft.energy * 0.035
-      : 0;
+    const selectionBoost = isSelected ? 1.2 : 1.0;
 
-    const selectionBoost = isSelected ? 1.3 : 1.0;
-
-    // Calibrated soft opacity ranges modulated by stellarBrightness
+    // Photosensitive-safe, serene opacity with smooth ambient lerping (zero strobing or sudden jumps)
     const targetInnerOpacity = THREE.MathUtils.clamp(
-      (0.085 * stellarBrightness * selectionBoost) + (audioKick * stellarBrightness * 0.8),
+      0.085 * stellarBrightness * selectionBoost,
       0.01,
-      0.24
-    );
-
-    const targetOuterOpacity = THREE.MathUtils.clamp(
-      (0.052 * stellarBrightness * selectionBoost) + (audioKick * stellarBrightness * 0.55),
-      0.005,
       0.16
     );
 
+    const targetOuterOpacity = THREE.MathUtils.clamp(
+      0.052 * stellarBrightness * selectionBoost,
+      0.005,
+      0.12
+    );
+
     const targetHazeOpacity = THREE.MathUtils.clamp(
-      (0.032 * stellarBrightness * selectionBoost) + (audioKick * stellarBrightness * 0.35),
+      0.032 * stellarBrightness * selectionBoost,
       0.002,
-      0.10
+      0.08
     );
 
     innerMaterial.opacity = THREE.MathUtils.lerp(
       innerMaterial.opacity,
       targetInnerOpacity,
-      Math.min(1, delta * 9)
+      Math.min(1, delta * 2.5)
     );
 
     outerMaterial.opacity = THREE.MathUtils.lerp(
       outerMaterial.opacity,
       targetOuterOpacity,
-      Math.min(1, delta * 9)
+      Math.min(1, delta * 2.5)
     );
 
     hazeMaterial.opacity = THREE.MathUtils.lerp(
       hazeMaterial.opacity,
       targetHazeOpacity,
-      Math.min(1, delta * 9)
+      Math.min(1, delta * 2.5)
     );
 
     // Subtle cluster expansion breathing with sub-bass
