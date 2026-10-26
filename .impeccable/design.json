@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-25T20:34:30Z",
+  "generatedAt": "2026-10-26T04:32:00Z",
   "title": "Design System: YourMusicVisualizer",
   "extensions": {
     "colorMeta": {
@@ -14,7 +14,7 @@
         "role": "primary",
         "displayName": "Bioluminescent Cyan",
         "canonical": "#00F5D4",
-        "tonalRamp": ["#002B25", "#004D42", "#007565", "#00A38D", "#00CCAFF", "#00F5D4", "#66FFE9", "#CCFFF7"]
+        "tonalRamp": ["#002B25", "#004D42", "#007565", "#00A38D", "#00CCAF", "#00F5D4", "#66FFE9", "#CCFFF7"]
       },
       "infrared-magenta": {
         "role": "secondary",
@@ -39,6 +39,12 @@
         "displayName": "Nebula Mist",
         "canonical": "#B8DCE8",
         "tonalRamp": ["#0D1C22", "#193540", "#285363", "#3B778C", "#569EB8", "#82BFD4", "#B8DCE8", "#E3F3F8"]
+      },
+      "deep-twilight-indigo": {
+        "role": "neutral",
+        "displayName": "Deep Twilight Indigo",
+        "canonical": "#312E81",
+        "tonalRamp": ["#0F0D2E", "#1E1B4B", "#312E81", "#4338CA", "#4F46E5", "#6366F1", "#A5B4FC", "#EEF2FF"]
       }
     },
     "typographyMeta": {
@@ -80,6 +86,11 @@
         "name": "ease-out-expo",
         "value": "cubic-bezier(0.16, 1, 0.3, 1)",
         "purpose": "GSAP camera flight deceleration and HUD panel transitions."
+      },
+      {
+        "name": "fluid-cosmic-wave",
+        "value": "cubic-bezier(0.42, 0, 0.58, 1)",
+        "purpose": "Continuous GPU fluid stardust wave motion and differential galactic rotation."
       }
     ],
     "breakpoints": [
@@ -95,14 +106,22 @@
       "kind": "button",
       "refersTo": "button-primary",
       "description": "High-contrast cyan action trigger used for flying to neighbor constellations and submitting data presets.",
-      "html": "<button class=\"ds-btn-primary\"><span>Volar a Constelación Vecina</span><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m9 18 6-6-6-6\"/></svg></button>",
+      "html": "<button class=\"ds-btn-primary\"><span>Próxima Constelación</span><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m9 18 6-6-6-6\"/></svg></button>",
       "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; background: #00F5D4; color: #050508; padding: 6px 14px; border-radius: 4px; border: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; cursor: pointer; transition: background-color 150ms ease-out; } .ds-btn-primary:hover { background: #CCFF00; } .ds-btn-primary:focus-visible { outline: 2px solid #00F5D4; outline-offset: 2px; }"
+    },
+    {
+      "name": "Galaxy Scale Selector Segmented Control",
+      "kind": "button",
+      "refersTo": "button-scale-selector",
+      "description": "Segmented preset selector in the bottom HUD allowing instant zero-reload switching between 50p, 150p, and 300p scales.",
+      "html": "<div class=\"ds-scale-group\"><span class=\"ds-scale-label\">ESCALA:</span><button class=\"ds-scale-pill active\">50p</button><button class=\"ds-scale-pill\">150p</button><button class=\"ds-scale-pill\">300p</button></div>",
+      "css": ".ds-scale-group { display: flex; align-items: center; gap: 4px; border: 1px solid rgba(0, 245, 212, 0.25); border-radius: 6px; padding: 2px 6px; background: rgba(5, 5, 8, 0.85); font-family: 'JetBrains Mono', monospace; font-size: 11px; } .ds-scale-label { color: #B8DCE8; font-weight: 600; padding: 0 4px; } .ds-scale-pill { padding: 3px 8px; border-radius: 4px; border: none; background: transparent; color: #B8DCE8; font-weight: 600; cursor: pointer; transition: all 120ms ease; } .ds-scale-pill.active { background: #00F5D4; color: #050508; font-weight: 700; } .ds-scale-pill:hover:not(.active) { color: #F2F4F8; background: rgba(0, 245, 212, 0.12); }"
     },
     {
       "name": "Constellation Sector Pill",
       "kind": "nav",
       "refersTo": "button-sector",
-      "description": "Left-dock sector navigation button displaying genre color dot, song volume, and user affinity percentage.",
+      "description": "Sector navigation button displaying genre color dot, song volume, and user affinity percentage.",
       "html": "<button class=\"ds-btn-sector\"><span class=\"ds-sector-left\"><span class=\"ds-dot\"></span><span>SYNTHWAVE</span></span><span class=\"ds-sector-meta\">168p · 97%</span></button>",
       "css": ".ds-btn-sector { display: flex; width: 260px; min-height: 36px; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(5, 5, 8, 0.85); color: #B8DCE8; border: 1px solid rgba(0, 245, 212, 0.25); border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer; transition: transform 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out; } .ds-btn-sector:hover { border-color: #00F5D4; color: #F2F4F8; transform: translateX(4px); } .ds-sector-left { display: flex; align-items: center; gap: 8px; font-weight: 600; } .ds-dot { width: 10px; height: 10px; border-radius: 9999px; background: #00F5D4; } .ds-sector-meta { font-size: 11px; color: #CCFF00; }"
     },
@@ -125,12 +144,14 @@
   ],
   "narrative": {
     "northStar": "Pulso Estelar Generativo (Audiovisual Stage Rig)",
-    "overview": "YourMusicVisualizer rejects flat streaming tables and generic dark-mode SaaS sidebars in favor of a live TouchDesigner audiovisual stage rig and volumetric 3D starfield. Every musical entity—genre constellation, artist star, and satellite track—is rendered as a luminous celestial body whose core radius scales logarithmically with song volume and whose bioluminescent corona scales non-linearly with listener affinity.",
+    "overview": "YourMusicVisualizer rejects flat streaming tables and generic dark-mode SaaS sidebars in favor of a live TouchDesigner audiovisual stage rig and volumetric 3D starfield. Every musical entity—genre constellation, artist star, and satellite track—is rendered as a luminous celestial body whose core radius scales logarithmically with song volume and whose bioluminescent corona scales non-linearly with listener affinity. The surrounding cosmos features continuous GPU fluid stardust flow, volume-scalable ionized nebulae, and calm, glare-free stellar inspection.",
     "keyCharacteristics": [
       "Full-bleed 100vw × 100dvh 3D WebGL starfield over deep void carbon (#050508).",
       "Perimeter-docked technical HUD with pointer-events-none passthrough over the central 3D canvas.",
       "Archival Yé-Yé Pop / record-sleeve artist inspection placards with square catalog portraits, spectral metrics, and Side-A tracklists.",
-      "Real-time 64-bin Web Audio FFT spectrum analysis driving 3D star respiration, cross-genre filament waves, and UnrealBloomPass intensity."
+      "Real-time 64-bin Web Audio FFT spectrum analysis driving 3D star respiration, cross-genre filament waves, and UnrealBloomPass intensity.",
+      "Continuous GPU fluid stardust flow with differential galactic rotation and volumetric 3D waves.",
+      "Song-count-scaled nebular nursery clouds with zero-disc Hermite-Gaussian falloffs."
     ],
     "rules": [
       {
@@ -147,18 +168,25 @@
         "name": "The 1px Hairline Frame Rule",
         "body": "HUD panels are delineated by crisp 1px translucent cyan or magenta borders—never thick colored border-left stripes or heavy multi-layered drop shadows.",
         "section": "elevation"
+      },
+      {
+        "name": "The Steady-Luminosity Rule",
+        "body": "Approaching or selecting a celestial body must never cause blinding glare, white overexposure, or sudden bloom spikes. Luminosity remains calm and constant to ensure pristine legibility.",
+        "section": "elevation"
       }
     ],
     "dos": [
       "Do scale every 3D star's radius logarithmically from song count (ln(1 + songCount)) and non-linearly from user affinity (affinity^1.5).",
       "Do keep HUD panels docked to the viewport perimeter with pointer-events-none on wrapper containers so the central 3D cosmos remains directly draggable and clickable.",
       "Do provide full keyboard navigation ('/' or Cmd+K search focus, ArrowUp/ArrowDown combobox traversal, Enter camera flight, Escape dismissal) and prefers-reduced-motion support.",
-      "Do dispose Web Audio nodes (stop(), disconnect()) and UnrealBloomPass render targets on track changes and component teardown."
+      "Do dispose Web Audio nodes (stop(), disconnect()) and UnrealBloomPass render targets on track changes and component teardown.",
+      "Do scale sector nebulae volume and reach dynamically according to genre song count."
     ],
     "donts": [
       "Don't place kickers or eyebrows above h1, h2, or h3 headings; place metadata badges below the heading.",
       "Don't use decorative section numbers (01 //, 02 //), thick colored border-left bars (> 1px), or unicode characters as substitutes for proper Lucide SVG icons.",
-      "Don't use Three.js <Html distanceFactor={...}> on 3D star labels, which causes giant perspective text scaling that collides with the 2D HUD."
+      "Don't use Three.js <Html distanceFactor={...}> on 3D star labels, which causes giant perspective text scaling that collides with the 2D HUD.",
+      "Don't render rigid circular meshes or geometric discs around sector centers."
     ]
   }
 }
