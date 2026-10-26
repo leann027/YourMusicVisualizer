@@ -219,6 +219,224 @@ interface SpotifyApiArtistDetail {
   external_urls?: { spotify?: string };
 }
 
+// ============================================================================
+// Robust API Resilience Layer: Anti-429 Wrapper, Request Queue & Persistent Cache
+// ============================================================================
+
+export interface FetchWithRetryOptions extends RequestInit {
+  maxRetries?: number;
+}
+
+/**
+ * 1. Robust fetch wrapper that gracefully handles HTTP 429 (Too Many Requests).
+ * - Reads `Retry-After` header (seconds or HTTP-date) and pauses exactly (Retry-After + 1) seconds.
+ * - Falls back to Exponential Backoff with Jitter: 2^attempt * 1000ms + random(0, 500ms).
+ * - Caps at 4 retries and logs clear console warnings only when 429 rate limits occur.
+ */
+export async function fetchWithRetry(
+  input: RequestInfo | URL,
+  init?: FetchWithRetryOptions
+): Promise<Response> {
+  const maxRetries = init?.maxRetries ?? 4;
+  let attempt = 0;
+
+  while (true) {
+    const res = await fetch(input, init);
+
+    if (res.status !== 429) {
+      return res;
+    }
+
+    attempt++;
+    if (attempt > maxRetries) {
+      console.warn(
+        `[API Rate-Limit 429] Agotados los reintentos (${maxRetries}) para: ${input.toString()}`
+      );
+      return res;
+    }
+
+    const retryAfterHeader = res.headers.get('Retry-After');
+    let waitMs: number;
+
+    if (retryAfterHeader) {
+      const parsedSeconds = Number(retryAfterHeader);
+      if (!isNaN(parsedSeconds) && parsedSeconds >= 0) {
+        // Pausa exactamente (Retry-After + 1) segundos
+        waitMs = (parsedSeconds + 1) * 1000;
+      } else {
+        const parsedDate = new Date(retryAfterHeader).getTime();
+        waitMs = isNaN(parsedDate)
+          ? 2000
+          : Math.max(1000, parsedDate - Date.now() + 1000);
+      }
+      console.warn(
+        `[API Rate-Limit 429] Retry-After detectado. Pausando ${(waitMs / 1000).toFixed(1)}s antes de reintentar intento ${attempt}/${maxRetries}... (${input.toString()})`
+      );
+    } else {
+      // Backoff Exponencial con Jitter: 2^intento * 1000ms + random(0, 500ms)
+      const exponential = Math.pow(2, attempt) * 1000;
+      const jitter = Math.floor(Math.random() * 500);
+      waitMs = exponential + jitter;
+      console.warn(
+        `[API Rate-Limit 429] Reintentando intento ${attempt}/${maxRetries} con backoff exponencial (${waitMs}ms)... (${input.toString()})`
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+}
+
+/**
+ * 2. Concurrency and Rate Limiting Queue (`RequestQueue`).
+ * Enforces a maximum of 2 to 3 concurrent requests and a pacing delay of 250ms to 350ms between dispatches.
+ */
+export class RequestQueue {
+  private concurrency: number;
+  private delayBetweenMs: number;
+  private running = 0;
+  private queue: (() => Promise<void>)[] = [];
+  private lastDispatchTime = 0;
+
+  constructor(concurrency = 2, delayBetweenMs = 300) {
+    this.concurrency = concurrency;
+    this.delayBetweenMs = delayBetweenMs;
+  }
+
+  async add<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      this.processNext();
+    });
+  }
+
+  private processNext(): void {
+    if (this.running >= this.concurrency || this.queue.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+    const timeSinceLast = now - this.lastDispatchTime;
+    if (timeSinceLast < this.delayBetweenMs) {
+      const wait = this.delayBetweenMs - timeSinceLast;
+      setTimeout(() => this.processNext(), wait);
+      return;
+    }
+
+    const nextTask = this.queue.shift();
+    if (!nextTask) return;
+
+    this.running++;
+    this.lastDispatchTime = Date.now();
+
+    (async () => {
+      try {
+        await nextTask();
+      } finally {
+        this.running--;
+        this.processNext();
+      }
+    })();
+
+    if (this.running < this.concurrency && this.queue.length > 0) {
+      setTimeout(() => this.processNext(), this.delayBetweenMs);
+    }
+  }
+}
+
+export const spotifyRequestQueue = new RequestQueue(2, 300);
+
+/**
+ * 4. Persistent Cache Storage for Artists and Songs metadata (`localStorage`).
+ * Persists artist details across browser sessions with TTL and quota management.
+ */
+interface CacheWrapper<T> {
+  value: T;
+  timestamp: number;
+  ttlMs: number;
+}
+
+const DEFAULT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+export const persistentArtistCache = {
+  prefix: 'ymv_cache_artist_',
+
+  isAvailable(): boolean {
+    return typeof window !== 'undefined' || typeof localStorage !== 'undefined';
+  },
+
+  get<T>(id: string): T | null {
+    if (!this.isAvailable()) return null;
+    try {
+      const raw = localStorage.getItem(`${this.prefix}${id}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as CacheWrapper<T>;
+      if (Date.now() - parsed.timestamp > parsed.ttlMs) {
+        localStorage.removeItem(`${this.prefix}${id}`);
+        return null;
+      }
+      console.warn(`[Cache Hit] Recuperado artista ${id} desde caché persistente.`);
+      return parsed.value;
+    } catch {
+      return null;
+    }
+  },
+
+  set<T>(id: string, value: T, ttlMs = DEFAULT_CACHE_TTL_MS): void {
+    if (!this.isAvailable()) return;
+    try {
+      const entry: CacheWrapper<T> = {
+        value,
+        timestamp: Date.now(),
+        ttlMs,
+      };
+      localStorage.setItem(`${this.prefix}${id}`, JSON.stringify(entry));
+    } catch {
+      this.pruneOldEntries();
+    }
+  },
+
+  getMany<T>(ids: string[]): { hits: Map<string, T>; missing: string[] } {
+    const hits = new Map<string, T>();
+    const missing: string[] = [];
+
+    for (const id of ids) {
+      const cached = this.get<T>(id);
+      if (cached) {
+        hits.set(id, cached);
+      } else {
+        missing.push(id);
+      }
+    }
+
+    return { hits, missing };
+  },
+
+  pruneOldEntries(): void {
+    if (!this.isAvailable()) return;
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(this.prefix)) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.slice(0, Math.ceil(keysToRemove.length * 0.25)).forEach((k) => {
+        localStorage.removeItem(k);
+      });
+    } catch {
+      // Non-blocking
+    }
+  },
+};
+
 /**
  * Fetches the authenticated listener's profile and their latest N Liked Songs
  * (`GET /v1/me/tracks?limit=50&offset=...` across multiple pages up to `maxTracks`),
@@ -238,8 +456,10 @@ export async function fetchSpotifyLikedSongsGalaxy(
     Authorization: `Bearer ${accessToken}`,
   };
 
-  // 1. Fetch user profile
-  const meRes = await fetch('https://api.spotify.com/v1/me', { headers });
+  // 1. Fetch user profile with retry
+  const meRes = await spotifyRequestQueue.add(() =>
+    fetchWithRetry('https://api.spotify.com/v1/me', { headers })
+  );
   if (!meRes.ok) {
     if (meRes.status === 401) clearSpotifySession();
     throw new Error(
@@ -261,9 +481,8 @@ export async function fetchSpotifyLikedSongsGalaxy(
   };
 
   // 2. Fetch the first page (offset=0, limit=50) of Liked Songs (Saved Tracks)
-  const firstPageRes = await fetch(
-    'https://api.spotify.com/v1/me/tracks?limit=50&offset=0',
-    { headers }
+  const firstPageRes = await spotifyRequestQueue.add(() =>
+    fetchWithRetry('https://api.spotify.com/v1/me/tracks?limit=50&offset=0', { headers })
   );
   if (!firstPageRes.ok) {
     throw new Error(
@@ -279,7 +498,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
   const totalAvailable = firstPageJson.total ?? (firstPageJson.items?.length || 0);
   const allItems: SpotifyApiSavedTrackItem[] = [...(firstPageJson.items || [])];
 
-  // Fetch additional pages of 50 tracks in rate-limit safe concurrent chunks (6 pages at a time)
+  // Fetch additional pages of 50 tracks via the concurrency-limited & throttled queue
   const targetTotal = Math.min(maxTracks, totalAvailable);
   if (targetTotal > 50) {
     const offsets: number[] = [];
@@ -287,27 +506,24 @@ export async function fetchSpotifyLikedSongsGalaxy(
       offsets.push(offset);
     }
 
-    const chunkSize = 6;
-    for (let i = 0; i < offsets.length; i += chunkSize) {
-      const chunk = offsets.slice(i, i + chunkSize);
-      const chunkResponses = await Promise.allSettled(
-        chunk.map(async (offset) => {
-          const res = await fetch(
-            `https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`,
-            { headers }
-          );
-          if (!res.ok) return [];
-          const data = (await res.json()) as { items?: SpotifyApiSavedTrackItem[] };
-          return data.items || [];
-        })
-      );
+    const pagePromises = offsets.map((offset) =>
+      spotifyRequestQueue.add(async () => {
+        const res = await fetchWithRetry(
+          `https://api.spotify.com/v1/me/tracks?limit=50&offset=${offset}`,
+          { headers }
+        );
+        if (!res.ok) return [];
+        const data = (await res.json()) as { items?: SpotifyApiSavedTrackItem[] };
+        return data.items || [];
+      })
+    );
 
-      chunkResponses.forEach((result) => {
-        if (result.status === 'fulfilled' && result.value.length > 0) {
-          allItems.push(...result.value);
-        }
-      });
-    }
+    const pageResults = await Promise.allSettled(pagePromises);
+    pageResults.forEach((result) => {
+      if (result.status === 'fulfilled' && result.value.length > 0) {
+        allItems.push(...result.value);
+      }
+    });
   }
 
   const validItems = allItems
@@ -324,8 +540,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
     );
   }
 
-  // 3. Collect unique primary artist IDs for batch /v1/artists?ids=... portrait/genre lookup
-  // In batches of 50 artists, 500 artists take only 10 requests, avoiding rate limits.
+  // 3. Deduplication (Set), Persistent Cache Check & Batching (chunks of up to 50 IDs)
   const uniqueArtistIds = Array.from(
     new Set(
       validItems
@@ -335,55 +550,47 @@ export async function fetchSpotifyLikedSongsGalaxy(
   );
 
   const artistDetailsMap = new Map<string, SpotifyApiArtistDetail>();
-  if (uniqueArtistIds.length > 0) {
+
+  // Check persistent cache first: only query missing IDs from the network
+  const { hits: cachedArtists, missing: missingArtistIds } =
+    persistentArtistCache.getMany<SpotifyApiArtistDetail>(uniqueArtistIds);
+
+  cachedArtists.forEach((detail, id) => {
+    artistDetailsMap.set(id, detail);
+  });
+
+  if (missingArtistIds.length > 0) {
     const artistBatchSize = 50;
     const artistChunks: string[][] = [];
-    for (let i = 0; i < uniqueArtistIds.length; i += artistBatchSize) {
-      artistChunks.push(uniqueArtistIds.slice(i, i + artistBatchSize));
+    for (let i = 0; i < missingArtistIds.length; i += artistBatchSize) {
+      artistChunks.push(missingArtistIds.slice(i, i + artistBatchSize));
     }
 
-    const concurrentLimit = 4;
-    for (let i = 0; i < artistChunks.length; i += concurrentLimit) {
-      const slice = artistChunks.slice(i, i + concurrentLimit);
-      await Promise.allSettled(
-        slice.map(async (chunk) => {
-          try {
-            const batchRes = await fetch(
-              `https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`,
-              { headers }
-            );
-            if (batchRes.ok) {
-              const batchJson = (await batchRes.json()) as {
-                artists?: (SpotifyApiArtistDetail | null)[];
-              };
-              batchJson.artists?.forEach((detail) => {
-                if (detail && detail.id) {
-                  artistDetailsMap.set(detail.id, detail);
-                }
-              });
-            } else {
-              // Fallback to individual requests for this chunk if batch fails
-              await Promise.allSettled(
-                chunk.map(async (artistId) => {
-                  const res = await fetch(
-                    `https://api.spotify.com/v1/artists/${artistId}`,
-                    { headers }
-                  );
-                  if (res.ok) {
-                    const detail = (await res.json()) as SpotifyApiArtistDetail;
-                    if (detail && detail.id) {
-                      artistDetailsMap.set(detail.id, detail);
-                    }
-                  }
-                })
-              );
-            }
-          } catch {
-            // Non-fatal
+    const batchPromises = artistChunks.map((chunk) =>
+      spotifyRequestQueue.add(async () => {
+        try {
+          const batchRes = await fetchWithRetry(
+            `https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`,
+            { headers }
+          );
+          if (batchRes.ok) {
+            const batchJson = (await batchRes.json()) as {
+              artists?: (SpotifyApiArtistDetail | null)[];
+            };
+            batchJson.artists?.forEach((detail) => {
+              if (detail && detail.id) {
+                artistDetailsMap.set(detail.id, detail);
+                persistentArtistCache.set(detail.id, detail);
+              }
+            });
           }
-        })
-      );
-    }
+        } catch {
+          // Non-fatal
+        }
+      })
+    );
+
+    await Promise.allSettled(batchPromises);
   }
 
   // 4. Enrich all tracks with canonical musical genres, secondary genres & on-demand 30s audio previews
@@ -415,7 +622,7 @@ export async function fetchSpotifyLikedSongsGalaxy(
       };
     });
 
-    const enrichRes = await fetch('/api/enrich-tracks', {
+    const enrichRes = await fetchWithRetry('/api/enrich-tracks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tracks: enrichPayload }),
