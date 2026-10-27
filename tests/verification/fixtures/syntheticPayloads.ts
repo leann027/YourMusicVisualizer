@@ -14,3 +14,15 @@ export const SPLIT_ARTIST_PAYLOAD: RawLibraryPayload = {
     { title: 'Teardrop', artist: 'Massive Attack', genre: 'trip hop', affinity: 0.93 },
   ],
 };
+
+// Secondary genre resolution (M5.2): valid cross-genre, same-as-primary and unknown genre.
+export const SECONDARY_GENRE_PAYLOAD: RawLibraryPayload = {
+  profileName: 'Secondary Genre Fixture',
+  source: 'spotify',
+  tracks: [
+    { title: 'Bridge Song', artist: 'Crosser', genre: 'techno minimal', secondaryGenre: 'jazz fusion' },
+    { title: 'Home Song', artist: 'Crosser', genre: 'techno minimal', secondaryGenre: 'techno minimal' },
+    { title: 'Lost Song', artist: 'Crosser', genre: 'techno minimal', secondaryGenre: 'polka espacial' },
+    { title: 'Plain Song', artist: 'Quartet Nine', genre: 'jazz fusion' },
+  ],
+};

@@ -51,6 +51,7 @@ export interface SongNode {
   spotifyUrl?: string;
   subgenre?: string;
   tags?: string[];
+  secondaryGenreId?: string; // genre this song also belongs to (from the classifier), if it exists in the galaxy
 }
 
 export interface SpotifyUserProfile {
