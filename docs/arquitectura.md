@@ -3,7 +3,7 @@
 **Versión del Proyecto:** 1.1.0  
 **Fecha de Publicación:** 27 de Octubre de 2026  
 **Audiencia:** Desarrolladores de software, ingenieros de gráficos WebGL, arquitectos web y nuevos colaboradores.  
-**Estado del Repositorio:** Producción / Estable. Migración a Nebulosas v3 en curso en `feat/nebulosas-v3` (M4 y M5 cerrados; ver `docs/MIGRATION_NEBULOSAS.md`).
+**Estado del Repositorio:** Producción / Estable. Migración a Nebulosas v3 en curso en `feat/nebulosas-v3` (M4, M5 y M6 cerrados; ver `docs/MIGRATION_NEBULOSAS.md`).
 
 ---
 
@@ -137,7 +137,8 @@ YourMusicVisualizer/
 │   │   ├── canvas/               # Escena WebGL Three.js, shaders y controladores 3D
 │   │   │   ├── galaxy/           # Núcleo galáctico, agujero negro y disco de polvo
 │   │   │   ├── hooks/            # Controladores cinemáticos y telemetría de cámara
-│   │   │   ├── nebula/           # Cúmulos volumétricos de gas interestelar
+│   │   │   ├── nebula/           # Cúmulos volumétricos de gas interestelar (renderer clásico)
+│   │   │   ├── nebulaV3/         # Campo de gas Nebulosas v3: 1 draw call, solo con rendererMode 'nebula'
 │   │   │   └── star/             # Nodos celestes, anillos, pulsars acústicos y shaders
 │   │   └── hud/                  # Interfaz perimetral 2D estilo cristal (Glassmorphism Dock)
 │   ├── data/                     # Presets cósmicos precalculados estáticos
@@ -189,13 +190,14 @@ YourMusicVisualizer/
 - `DistantSongsCloud.tsx`: Sistema de partículas masivo en GPU que renderiza miles de pistas lejanas en 1 solo draw call.
 - `GalacticDustDisc.tsx`, `NebulaClusters.tsx`, `StarNodeMesh.tsx`: Módulos barril (reexportadores) hacia sus submódulos especializados.
 - `WarpTunnelMesh.tsx`: Cilindro procedural de estelas de luz estelar utilizado durante el salto hiperespacial inicial.
-- `PostProcessingPipeline.tsx`: Canal de efectos de post-procesado con `UnrealBloomPass`, calibrando dinámicamente la intensidad del resplandor con los sub-graves de audio y atenuándolo por proximidad a estrellas grandes (anti-glare).
+- `PostProcessingPipeline.tsx`: Canal de efectos de post-procesado con `UnrealBloomPass`, calibrando dinámicamente la intensidad del resplandor con los sub-graves de audio y atenuándolo por proximidad a estrellas grandes (anti-glare). Desde M6.4 los objetivos salen de `bloomTargets.ts` (`computeBloomTargets`, pura): en `classic` son exactamente los valores previos (strength 0.07/0.08, threshold 0.92) y en `nebula` strength 0.06 y threshold 0.95.
 
 ##### Subdirectorios de `src/components/canvas/`:
 - `galaxy/`: Módulo del núcleo cósmico (`SupermassiveBlackHole.tsx` con horizonte de sucesos y lente gravitacional Gargantua, `SpiralStardustPoints.tsx` con 5,600 partículas espirales keplerianas, generador determinista `spiralStardustGeometry.ts` y shaders GLSL `blackHoleShaders.ts` y `spiralDustShaders.ts`).
 - `nebula/`: Módulo de gas interestelar volumétrico (`SectorNebulaCluster.tsx` con cavidad interior de Stromgren de 3.2 unidades, `nebulaGeometry.ts` y shaders de turbulencia fractal `nebulaShaders.ts`).
+- `nebulaV3/`: Gas de Nebulosas v3, montado por `GalaxyScene` en lugar de `NebulaClusters` cuando `rendererMode === 'nebula'`. `nebulaFieldGeometry.ts` genera en un solo `BufferGeometry` el polvo de Plummer alrededor de cada artista (42%), el gas filamentoso por fBm *ridged* (52%) y el frente de ionización (6%), con el 92% del presupuesto (el 8% queda para los choques de M7). `shaders/nebulaFieldShaders.ts` es un `ShaderMaterial` aditivo con cache key fija `nebula-field-v3` y todo el estado en uniforms (brillo, afinidad, foco de género/artista, género que suena, FFT, `uGasSize`/`uGasAlpha`); el aspecto calibrado es `NEBULA_GAS_LOOK = { size: 1.8, alpha: 1 }`. `NebulaField.tsx` actualiza los uniforms por `ref` en cada frame con `computeNebulaFieldTargets` (pura) y reconstruye la geometría a 20k si el store pasa `nebulaFieldDensity` a `reduced`. En desarrollo, `?nebulaTune=<size>,<alpha>` sobrescribe el aspecto del gas.
 - `star/`: Módulo de cuerpos celestes individuales (`StarCoreMesh.tsx` con oscurecimiento de limbo, `StarAccretionRings.tsx` con anillos de acreción Cassini, `StarFeatures.tsx` con chorros polares relativistas y picos de difracción óptica, `StarPlaybackPulsar.tsx` con ondas de choque acústicas montadas únicamente sobre la pista en reproducción, `StarLabel.tsx` con tipografía GPU SDF en `<Billboard>`, geometrías estáticas compartidas `starGeometries.ts` y shaders `starShaders.ts`).
-- `hooks/`: Lógica matemática cinemática desacoplada (`useWarpSequence.ts` para el salto hiperespacial, `useArcFlight.ts` para vuelos parabólicos en arco, `useOrbitalTracking.ts` para seguimiento orbital de estrellas mediante `matrixWorld`, y `usePerformanceMonitor.ts` para muestreo de telemetría a 500ms).
+- `hooks/`: Lógica matemática cinemática desacoplada (`useWarpSequence.ts` para el salto hiperespacial, `useArcFlight.ts` para vuelos parabólicos en arco, `useOrbitalTracking.ts` para seguimiento orbital de estrellas mediante `matrixWorld`, y `usePerformanceMonitor.ts` para muestreo de telemetría a 500ms; en modo nebula, si 6 muestras seguidas quedan bajo 40 FPS, baja una sola vez el gas a 20k partículas).
 
 #### `src/components/hud/` — Interfaz de Usuario 2D (Glassmorphism Dock)
 - `TelemetryHUD.tsx`: Interfaz perimetral flotante: telemetría en vivo (FPS, draw calls, estrellas activas), selectores de sector, controles de bloom y reseteo de cámara.
@@ -451,10 +453,12 @@ Los comandos declarados en `package.json` son:
 | `npm run build` | `next build` | Compila la aplicación para producción utilizando Turbopack y valida tipado estricto con TypeScript. |
 | `npm run start` | `next start` | Inicia el servidor Node.js en modo producción utilizando los artefactos generados en `.next`. |
 | `npm run lint` | `eslint` | Ejecuta ESLint 9 con Flat Config (`eslint.config.mjs`) validando reglas de Next.js y TypeScript. |
-| `npm test` | `tsx tests/verification/...` | Ejecuta las 426 aserciones de pruebas automatizadas (matemáticas, geometrías, shaders, flag `rendererMode`, layouts clásico y nebula, relaciones y store) con `tsx`. |
+| `npm test` | `tsx tests/verification/...` | Ejecuta las 548 aserciones de pruebas automatizadas (matemáticas, geometrías, shaders, flag `rendererMode`, layouts clásico y nebula, relaciones, store, campo de gas v3, bloom y densidad adaptativa) con `tsx`. |
 | `npm run test:visual:baseline` | `node tests/visual/captureScenes.mjs ...` | Captura el baseline visual del renderer clásico (presets 50 y 300) en `test-results/visual/baseline-classic/`. Requiere `npm run dev` corriendo. |
 | `npm run test:visual` | `captureScenes.mjs` + `compareScenes.mjs` | Recaptura las 6 escenas y las compara con el baseline (≈4 min con WebGL por software). No corre en CI. |
 | `npm run test:visual:flows` | `checklistFlows.mjs` | Recorre la parte automatizable de la checklist de no-regresión (drawer, Próxima, buscador, ficha, filtros, bloom, pulso FFT, presets) en `classic` y `nebula`. Requiere `npm run dev`. |
+| `npm run test:visual:shaders` | `tsx tests/visual/compileShaders.ts` | Compila el material del gas v3 en Chromium (WebGL2/SwiftShader) y renderiza un cuadro del preset 50. Detecta errores de GLSL que Node no puede ver. |
+| `node tests/visual/calibrateGas.mjs` | Playwright + `?nebulaTune` | Genera una lámina 3×3 de tamaño × alpha del gas en el preset 300 para recalibrar `NEBULA_GAS_LOOK`. Requiere `npm run dev`. |
 
 #### Secuencia de Comandos para Nuevos Desarrolladores:
 
@@ -486,7 +490,7 @@ npm run dev
 
 ### 7.1 Inventario de Código Sin Pruebas Automatizadas
 
-El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `milestone2_challenger.test.ts`) ejecutaba 205 aserciones al inicio de la migración (222 tras M4 y 426 tras M5, con las suites `m4_*` y `m5_*`) centradas en validaciones matemáticas de geometrías, determinismo de shaders y fórmulas de cinemática de cámara.
+El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `milestone2_challenger.test.ts`) ejecutaba 205 aserciones al inicio de la migración (222 tras M4, 426 tras M5 y 548 tras M6, con las suites `m4_*`, `m5_*` y `m6_*`) centradas en validaciones matemáticas de geometrías, determinismo de shaders y fórmulas de cinemática de cámara.
 
 **Sin embargo, la totalidad de los módulos de integración, audio, red, estado global y componentes de interfaz carece de pruebas automatizadas:**
 
@@ -590,9 +594,10 @@ Se detectaron 5 casos claros de código duplicado que deberían refactorizarse e
    - `buildMusicGalaxyFromPayload` escribe `rawTrack.secondaryGenre` con el valor del clasificador en cada tema que no lo trae. Quien reutilice el payload (presets, tests) ve datos que no puso. Los tests de M5 leen los valores curados desde `ARTIST_DATABASE` por este motivo.
 7. **Vocabularios distintos en el clasificador (detectado en M5.2):**
    - Los géneros principales usan nombres específicos (p. ej. `TRIP-HOP & BRISTOL DUB`) y los secundarios un vocabulario amplio (`ELECTRÓNICA, HOUSE & TECHNO`, `POP INTERNACIONAL & SYNTH-POP`…) que casi nunca existe como nebulosa; varios parecen valores por defecto. Con datos reales, `secondaryGenreId` aporta poca señal y las relaciones dependen sobre todo de colaboraciones y TF-IDF. Queda pendiente derivar las relaciones de forma más dinámica a partir de las canciones del usuario.
-8. **Modo nebula híbrido hasta M6/M8 (detectado en M5.5):**
-   - Con `?renderer=nebula` el gas sigue siendo el clásico (`NebulaClusters`): en el preset 300 las nebulosas solapadas suman color aditivo y el bloom satura. El cosmos queda centrado en el origen y una nebulosa tapa el agujero negro central, y la cámara de vista general (`[0, 18, 52]`) encuadra la esfera de lado. El gas v3 llega en M6; cámara, warp-in y agujero negro se revisan en M8.
-
+8. **Modo nebula: pendientes tras M6 (detectado en M5.5, actualizado en M6.4):**
+   - Resuelto en M6: el gas v3 reemplaza a `NebulaClusters` en modo nebula, ya no satura el bloom y vuelven a verse el agujero negro y el disco espiral.
+   - Pendiente para M8: la cámara de vista general (`[0, 18, 52]`) y el warp-in siguen pensados para el disco clásico y encuadran la esfera nebula de lado; el agujero negro queda dentro del cúmulo de nebulosas.
+   - Calibración: `NEBULA_GAS_LOOK` se eligió sobre capturas de 800×450 con densidad reducida (WebGL por software). En monitores grandes y con 35k partículas en GPU real el gas puede verse distinto; falta validarlo en hardware real, junto con los FPS del preset 300 en celular (criterio ≥ 50 FPS).
 ---
 
 ## 8. Gestión de Dudas y Aspectos No Deducibles (`PREGUNTA:`)
