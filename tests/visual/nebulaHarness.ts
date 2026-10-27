@@ -14,6 +14,7 @@ export interface ProgramSpec {
   attributes: Record<string, number[]>;
   itemSizes: Record<string, number>;
   uniforms: Record<string, number>;
+  primitive?: 'points' | 'lines'; // default points; lines = LineSegments
 }
 
 export interface CameraSpec {
@@ -95,9 +96,9 @@ export async function renderPrograms(
         for (const [name, values] of Object.entries(spec.attributes)) {
           geometry.setAttribute(name, new THREE.BufferAttribute(new Float32Array(values), spec.itemSizes[name]));
         }
-        const points = new THREE.Points(geometry, material);
-        points.frustumCulled = false;
-        scene.add(points);
+        const object = spec.primitive === 'lines' ? new THREE.LineSegments(geometry, material) : new THREE.Points(geometry, material);
+        object.frustumCulled = false;
+        scene.add(object);
       }
       const cam = new THREE.PerspectiveCamera(camera.fov ?? 52, canvas.width / canvas.height, 0.1, 400);
       cam.position.set(...camera.position);

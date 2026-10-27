@@ -7,6 +7,7 @@ import { NodeType, StarVisualMetrics } from '../../../types/music';
 import {
   UNIT_DIFFRACTION_GEOMETRY,
   UNIT_POLAR_JET_GEOMETRY,
+  UNIT_RING_GEOMETRY,
   UNIT_SATELLITE_GEOMETRY,
 } from './starGeometries';
 
@@ -17,6 +18,7 @@ export interface StarFeaturesProps {
   stellarBrightness: number;
   diffractionRef?: React.RefObject<THREE.Group | null>;
   satelliteRef?: React.RefObject<THREE.Group | null>;
+  bridgeColor?: string | null; // Nebulosas v3: mixed colour ring for songs living in a collision
 }
 
 /**
@@ -24,6 +26,7 @@ export interface StarFeaturesProps {
  * 1. 4-point optical diffraction spikes for supergiant artists.
  * 2. Relativistic polar energy jets for sector core nodes.
  * 3. Orbiting micro-satellites for prominent artists.
+ * 4. Bridge ring (nebula mode) for songs placed in a collision between two genres.
  */
 export const StarFeatures: React.FC<StarFeaturesProps> = ({
   nodeType,
@@ -32,6 +35,7 @@ export const StarFeatures: React.FC<StarFeaturesProps> = ({
   stellarBrightness,
   diffractionRef,
   satelliteRef,
+  bridgeColor,
 }) => {
   return (
     <>
@@ -120,6 +124,21 @@ export const StarFeatures: React.FC<StarFeaturesProps> = ({
             <meshBasicMaterial color="#FF2A85" />
           </mesh>
         </group>
+      )}
+
+      {/* Bridge Ring: song shared by two colliding genres, in their mixed colour (shared ring geometry) */}
+      {nodeType === 'song' && bridgeColor && (
+        <Billboard follow lockX={false} lockY={false} lockZ={false}>
+          <mesh geometry={UNIT_RING_GEOMETRY} scale={metrics.coreRadius * 1.35}>
+            <meshBasicMaterial
+              color={bridgeColor}
+              transparent
+              opacity={Math.min(1, 0.85 * (stellarBrightness / 0.25))}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </Billboard>
       )}
     </>
   );
