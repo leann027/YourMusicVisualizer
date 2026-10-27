@@ -1,6 +1,6 @@
-import { MusicGalaxyData } from '../../types/music';
-import { goldenFibonacci } from '../math/prng';
-import { GenreRelation } from './genreRelations';
+import { ArtistNode, GenreNode, MusicGalaxyData, SongNode } from '../../types/music';
+import { createRng, gauss, goldenFibonacci, randDir, Rng } from '../math/prng';
+import { computeGenreRelations, GenreRelation } from './genreRelations';
 
 /**
  * Nebulosas v3 Spatial Layout (`nebulaLayout.ts`).
@@ -8,7 +8,9 @@ import { GenreRelation } from './genreRelations';
  * Port of `layout()` from docs/reference/nebulosas-v3.html (scale ~200 u) to Novafy's
  * ~30 u world: genre nebulae start on a two-layer Fibonacci sphere and relax with springs
  * (related genres overlap in proportion to their relation strength) and repulsion
- * (unrelated genres keep apart).
+ * (unrelated genres keep apart). Artists spread by golden angle in each nebula's own
+ * tilted plane, songs orbit them on compact rings, and bridge songs move to the contact
+ * disc between the two nebulae they belong to.
  */
 
 /** Reference units → Novafy world units. */
@@ -115,4 +117,177 @@ export function computeNebulaCores(data: MusicGalaxyData, relations: GenreRelati
   }
 
   return cores;
+}
+
+// ---------- nodes: artists, songs and bridge songs (M5.4b) ----------
+
+const ARTIST_MIN_RADIUS = 2.4; // genre corona (~1.4) + artist corona (~0.6) + margin
+const ARTIST_MAX_RADIUS_FACTOR = 0.75; // artists stay inside 0.75·S
+const ARTIST_VERTICAL_SPREAD = 0.08; // ·S
+const SONG_ORBIT_MIN = 0.9; // outside the artist corona (~0.6)
+const SONG_ORBIT_STEP = 0.35; // radius = 0.9 + √(i+1)·0.35 → 0.9–2.0 u for up to 10 songs
+const SONG_VERTICAL_SPREAD = 0.15;
+const CONTACT_RADIUS_FACTOR = 0.75; // contact disc radius = min(Sa,Sb)·0.75
+const BRIDGE_DEPTH_SPREAD = 0.4;
+
+export interface NebulaFrame extends NebulaCore {
+  normal: Vec3; // nebula plane normal (artists and songs live in the u/v plane)
+  u: Vec3;
+  v: Vec3;
+  axes: Vec3; // ellipsoid scale for the gas field (M6); nodes are not squashed
+}
+
+export interface NebulaRelation extends GenreRelation {
+  contact: Vec3; // m = cA + dir·d·Sa/(Sa+Sb)
+  dir: Vec3; // unit vector from nebula a towards nebula b
+  radius: number; // contact disc radius
+}
+
+export interface NebulaLayoutResult {
+  data: MusicGalaxyData;
+  cores: NebulaFrame[];
+  relations: NebulaRelation[];
+}
+
+const round2 = (value: number) => Number(value.toFixed(2));
+const roundVec = (p: Vec3): Vec3 => [round2(p[0]), round2(p[1]), round2(p[2])];
+
+function cross(a: Vec3, b: Vec3): Vec3 {
+  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+}
+
+function normalize(a: Vec3): Vec3 {
+  const len = Math.hypot(a[0], a[1], a[2]) || 1;
+  return [a[0] / len, a[1] / len, a[2] / len];
+}
+
+/** Orthonormal basis (u, v) perpendicular to n. */
+function basis(n: Vec3): [Vec3, Vec3] {
+  const t: Vec3 = Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  const u = normalize(cross(n, t));
+  return [u, cross(n, u)];
+}
+
+/** Point at local (x along u, y along normal, z along v) in a nebula frame. */
+function inFrame(origin: Vec3, frame: NebulaFrame, x: number, y: number, z: number): Vec3 {
+  return [
+    origin[0] + frame.u[0] * x + frame.normal[0] * y + frame.v[0] * z,
+    origin[1] + frame.u[1] * x + frame.normal[1] * y + frame.v[1] * z,
+    origin[2] + frame.u[2] * x + frame.normal[2] * y + frame.v[2] * z,
+  ];
+}
+
+/** FNV-1a: stable seed per id, so a nebula keeps its orientation when other genres change. */
+function seedFromId(id: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+function frameFor(core: NebulaCore, rng: Rng): NebulaFrame {
+  const normal = randDir(rng);
+  const [u, v] = basis(normal);
+  const axes: Vec3 = [1, 0.6 + 0.35 * rng(), 0.55 + 0.3 * rng()];
+  return { ...core, normal, u, v, axes };
+}
+
+const artistKey = (genreId: string, artistId: string) => `${genreId}::${artistId}`;
+
+/**
+ * Full Nebulosas v3 layout: cores, every node position and the contact geometry of each
+ * relation. Returns a copy of `data`; ids, links and array order are preserved.
+ */
+export function computeNebulaLayout(data: MusicGalaxyData): NebulaLayoutResult {
+  const genreRelations = computeGenreRelations(data);
+  const frames = computeNebulaCores(data, genreRelations).map((core) =>
+    frameFor(core, createRng(seedFromId(core.genreId)))
+  );
+  const frameOf = new Map(frames.map((f) => [f.genreId, f]));
+
+  const genres: GenreNode[] = data.genres.map((genre) => ({
+    ...genre,
+    position: roundVec(frameOf.get(genre.id)!.center),
+  }));
+
+  // Artists: golden angle in the nebula plane, between the genre corona and 0.75·S
+  const artistCount = new Map<string, number>();
+  for (const a of data.artists) artistCount.set(a.genreId, (artistCount.get(a.genreId) ?? 0) + 1);
+  const nextArtistIdx = new Map<string, number>();
+  const artistPlacement = new Map<string, { position: Vec3; artistIdx: number }>();
+  const artists: ArtistNode[] = data.artists.map((artist) => {
+    const frame = frameOf.get(artist.genreId);
+    if (!frame) return { ...artist };
+    const t = nextArtistIdx.get(artist.genreId) ?? 0;
+    nextArtistIdx.set(artist.genreId, t + 1);
+    const n = artistCount.get(artist.genreId) ?? 1;
+    const rng = createRng(seedFromId(artistKey(artist.genreId, artist.id)));
+    const maxRadius = Math.max(ARTIST_MIN_RADIUS, frame.radius * ARTIST_MAX_RADIUS_FACTOR);
+    const rr = ARTIST_MIN_RADIUS + (maxRadius - ARTIST_MIN_RADIUS) * Math.sqrt((t + 0.5) / n);
+    const angle = t * 2.39996 + rng() * 0.5;
+    const position = roundVec(
+      inFrame(frame.center, frame, Math.cos(angle) * rr, gauss(rng) * frame.radius * ARTIST_VERTICAL_SPREAD, Math.sin(angle) * rr)
+    );
+    artistPlacement.set(artistKey(artist.genreId, artist.id), { position, artistIdx: t });
+    return { ...artist, position };
+  });
+
+  // Songs: compact golden-angle orbits around their artist, in the same plane
+  const nextSongIdx = new Map<string, number>();
+  const songs: SongNode[] = data.songs.map((song) => {
+    const key = artistKey(song.genreId, song.artistId);
+    const placement = artistPlacement.get(key);
+    const frame = frameOf.get(song.genreId);
+    if (!placement || !frame) return { ...song };
+    const i = nextSongIdx.get(key) ?? 0;
+    nextSongIdx.set(key, i + 1);
+    const radius = SONG_ORBIT_MIN + Math.sqrt(i + 1) * SONG_ORBIT_STEP;
+    const angle = i * 2.3999632 + placement.artistIdx * 0.6;
+    const lift = Math.sin(i * 1.8 + placement.artistIdx) * SONG_VERTICAL_SPREAD;
+    return {
+      ...song,
+      position: roundVec(inFrame(placement.position, frame, Math.cos(angle) * radius, lift, Math.sin(angle) * radius)),
+    };
+  });
+
+  // Contact geometry per relation, and bridge songs moved into the contact disc
+  const songIndex = new Map(songs.map((s, idx) => [s.id, idx]));
+  const relations: NebulaRelation[] = [];
+  for (const relation of genreRelations) {
+    const A = frameOf.get(relation.a);
+    const B = frameOf.get(relation.b);
+    if (!A || !B) continue;
+    const delta: Vec3 = [B.center[0] - A.center[0], B.center[1] - A.center[1], B.center[2] - A.center[2]];
+    const d = Math.hypot(delta[0], delta[1], delta[2]) || 1;
+    const dir = normalize(delta);
+    const share = (d * A.radius) / (A.radius + B.radius);
+    const contact: Vec3 = [A.center[0] + dir[0] * share, A.center[1] + dir[1] * share, A.center[2] + dir[2] * share];
+    const radius = Math.min(A.radius, B.radius) * CONTACT_RADIUS_FACTOR;
+    relations.push({ ...relation, contact, dir, radius });
+
+    const [u, v] = basis(dir);
+    const rng = createRng(seedFromId(`${relation.a}|${relation.b}`));
+    relation.bridgeSongIds.forEach((songId, q) => {
+      const idx = songIndex.get(songId);
+      if (idx === undefined) return;
+      const angle = q * 2.4 + rng();
+      const rho = radius * (0.15 + 0.3 * rng());
+      const depth = gauss(rng) * BRIDGE_DEPTH_SPREAD;
+      const p: Vec3 = [
+        contact[0] + u[0] * Math.cos(angle) * rho + v[0] * Math.sin(angle) * rho + dir[0] * depth,
+        contact[1] + u[1] * Math.cos(angle) * rho + v[1] * Math.sin(angle) * rho + dir[1] * depth,
+        contact[2] + u[2] * Math.cos(angle) * rho + v[2] * Math.sin(angle) * rho + dir[2] * depth,
+      ];
+      songs[idx] = { ...songs[idx], position: roundVec(p) };
+    });
+  }
+
+  return { data: { ...data, genres, artists, songs }, cores: frames, relations };
+}
+
+/** Store shortcut: the Nebulosas v3 positions for `data`. */
+export function applyNebulaLayout(data: MusicGalaxyData): MusicGalaxyData {
+  return computeNebulaLayout(data).data;
 }
