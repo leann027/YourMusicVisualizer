@@ -123,6 +123,17 @@ await page.waitForTimeout(300);
 check(await page.getByRole('button', { name: 'Activar efecto Bloom' }).isVisible(), 'Bloom OFF');
 await page.getByRole('button', { name: 'Activar efecto Bloom' }).click();
 
+// Constellation links toggle (M7.4: the store action had no control), in the Filtros & Brillo panel
+await page.getByRole('button', { name: /Filtros & Brillo/i }).click();
+await page.waitForTimeout(400);
+await page.getByRole('button', { name: 'Mostrar hilos de constelación' }).click();
+await page.waitForTimeout(300);
+check(await page.getByRole('button', { name: 'Ocultar hilos de constelación' }).isVisible(), 'Hilos ON');
+await page.getByRole('button', { name: 'Ocultar hilos de constelación' }).click();
+await page.waitForTimeout(300);
+check(await page.getByRole('button', { name: 'Mostrar hilos de constelación' }).isVisible(), 'Hilos OFF');
+await page.getByRole('button', { name: /Filtros & Brillo/i }).click();
+
 // FFT pulse
 await page.getByRole('button', { name: /Pulso FFT/i }).click();
 await page.waitForTimeout(1200);
@@ -133,6 +144,38 @@ await page.getByRole('button', { name: '150p', exact: true }).click();
 await page.waitForTimeout(SETTLE_MS);
 check(Number(await starsText()) > starsBefore, 'Preset 150p loads more stars', await starsText());
 check((await mode()) === renderer, 'Preset change keeps renderer');
+
+// Nebulosas v3 journey (M7.4): universe → genre → collision → bridge song → play
+if (renderer === 'nebula') {
+  const store = (fn) => page.evaluate(fn);
+  await page.getByRole('button', { name: 'Galaxia' }).click();
+  await page.waitForTimeout(SETTLE_MS);
+  await page.getByRole('button', { name: /Constelaciones/i }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: /ART ROCK/i }).first().click();
+  await page.waitForTimeout(SETTLE_MS);
+  const clashChip = page.getByRole('button', { name: /Ver choque con POST-ROCK/i });
+  check(await clashChip.isVisible().catch(() => false), 'Genre card lists "Choca con" collisions');
+  await clashChip.click();
+  await page.waitForTimeout(SETTLE_MS);
+  const collisionCard = page.locator('aside[aria-label^="Ficha del choque"]');
+  check(await collisionCard.isVisible().catch(() => false), 'Collision chip → collision card', await collisionCard.getAttribute('aria-label').catch(() => ''));
+  check((await store(() => window.__galaxyStore.getState().cameraMode)) === 'collision', 'Collision chip → camera in collision mode');
+  const cardText = await collisionCard.innerText();
+  check(/∩ \d+/.test(cardText) && /Canciones puente/.test(cardText), 'Collision card shows ∩ n and bridge songs');
+  await collisionCard.getByRole('button', { name: /Reckoner/ }).click();
+  await page.waitForTimeout(SETTLE_MS);
+  const selected = await store(() => window.__galaxyStore.getState().selectedNode);
+  check(selected?.title === 'Reckoner' && (await card.isVisible()), 'Bridge song chip → song selected with its card', selected?.title);
+  await page.locator('ol[aria-label^="Lista de canciones"] button[aria-current="true"]').click();
+  await page.waitForTimeout(1500);
+  const playing = await store(() => {
+    const s = window.__galaxyStore.getState();
+    return { id: s.playingTrackId, on: s.isAudioPlaying };
+  });
+  check(playing.on && playing.id === selected.id, 'Bridge song plays', JSON.stringify(playing));
+  check(await page.getByRole('button', { name: 'FFT ACTIVO', exact: true }).isVisible(), 'FFT dock shows playback');
+}
 
 check(pageErrors.length === 0, 'No page errors', pageErrors.join(' | '));
 await browser.close();

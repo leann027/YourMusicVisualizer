@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
+import { GenreCollisionsRow } from './GenreCollisionsRow';
 import {
   ArtistNode,
   calculateStarVisualMetrics,
@@ -527,6 +528,9 @@ export const ArtistSleeveCard: React.FC = () => {
               </ul>
             </div>
           )}
+
+          {/* Nebulosas v3: collisions of this genre (nebula mode only) */}
+          {selectedNode.type === 'genre' && <GenreCollisionsRow genreId={selectedNode.id} />}
 
           {/* If Artist or Song is selected: Vinyl Side-A Tracklist in Orbit */}
           {activeArtist && artistSongs.length > 0 && (
