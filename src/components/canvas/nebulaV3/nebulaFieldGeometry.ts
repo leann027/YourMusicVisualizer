@@ -17,8 +17,8 @@ import { ArtistNode } from '../../../types/music';
 
 export const NEBULA_FIELD_DENSITY = { full: 35000, reduced: 20000 } as const;
 
-/** Share of the particle budget for the genre field; the rest is reserved for collisions (M7). */
-export const FIELD_SHARE = 0.92;
+/** Share of the particle budget for the genre field; the rest goes to collisions (M7.1b raised them from 8% to 15%). */
+export const FIELD_SHARE = 0.85;
 
 export const NEBULA_KIND = { dust: 0, gas: 1, front: 2 } as const;
 

@@ -1,5 +1,4 @@
 import { MusicGalaxyData, MusicNode } from '../../../types/music';
-import { FIELD_SHARE, NEBULA_FIELD_DENSITY } from './nebulaFieldGeometry';
 
 /**
  * Store state → NebulaField uniform targets (M6.3). Pure, so it is testable in node;
@@ -9,8 +8,8 @@ import { FIELD_SHARE, NEBULA_FIELD_DENSITY } from './nebulaFieldGeometry';
 /** Brightness slider default: maps to gain 1. */
 export const DEFAULT_STELLAR_BRIGHTNESS = 0.25;
 
-/** Particle count the reference alpha values were tuned for. */
-const REFERENCE_PARTICLES = NEBULA_FIELD_DENSITY.full * FIELD_SHARE;
+/** Field particle count the gas look was calibrated at in M6.4 (35k × 0.92); fewer particles get more gain. */
+const REFERENCE_PARTICLES = 32200;
 
 export interface NebulaFieldTargetInput {
   data: MusicGalaxyData;

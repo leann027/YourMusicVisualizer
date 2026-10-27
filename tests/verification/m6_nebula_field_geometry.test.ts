@@ -56,7 +56,7 @@ assert(Math.abs(vnoise3(2, 3, 4) - vnoise3(2.0001, 3, 4)) < 0.01, 'noise: contin
 
 // ---------- counts ----------
 const counts = nebulaFieldCounts([10, 30, 0], 1000);
-assert(JSON.stringify(counts) === JSON.stringify([230, 690, 5]), 'counts: proportional to songCount with min 5', JSON.stringify(counts));
+assert(JSON.stringify(counts) === JSON.stringify([213, 638, 5]), 'counts: proportional to songCount with min 5', JSON.stringify(counts));
 
 // ---------- presets ----------
 const presets: [string, MusicGalaxyData][] = [

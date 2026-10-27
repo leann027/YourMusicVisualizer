@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { WORLD_SCALE } from '../../../../lib/layout/nebulaLayout';
+import { NEBULA_COMMON_GLSL } from './nebulaCommon.glsl';
 
 /**
  * Nebulosas v3 gas field material (M6.2).
@@ -88,14 +89,7 @@ varying float vAlpha;
 varying float vKind;
 varying float vFlash;
 
-bool sameId(float a, float b) { return abs(a - b) < 0.5; }
-
-// Rodrigues rotation of v around unit axis k
-vec3 rotateAround(vec3 v, vec3 k, float angle) {
-  float c = cos(angle);
-  float s = sin(angle);
-  return v * c + cross(k, v) * s + k * dot(k, v) * (1.0 - c);
-}
+${NEBULA_COMMON_GLSL.trim()}
 
 // Dims everything outside the focused genre / artist (reference focusMul)
 float focusMul() {
