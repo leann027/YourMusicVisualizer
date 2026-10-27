@@ -3,7 +3,7 @@
 **Versión del Proyecto:** 1.1.0  
 **Fecha de Publicación:** 27 de Octubre de 2026  
 **Audiencia:** Desarrolladores de software, ingenieros de gráficos WebGL, arquitectos web y nuevos colaboradores.  
-**Estado del Repositorio:** Producción / Estable.
+**Estado del Repositorio:** Producción / Estable. Migración a Nebulosas v3 en curso en `feat/nebulosas-v3` (M4 cerrado; ver `docs/MIGRATION_NEBULOSAS.md`).
 
 ---
 
@@ -121,7 +121,10 @@ YourMusicVisualizer/
 ├── .impeccable/                  # Artefactos y configuración de diseño UI Impeccable
 ├── .playwright-cli/              # Capturas y logs de auditorías visuales E2E
 ├── docs/                         # Documentación de arquitectura y guías del sistema
-│   └── arquitectura.md
+│   ├── arquitectura.md
+│   ├── MIGRATION_NEBULOSAS.md    # Plan de migración a Nebulosas v3 (milestones M4–M8)
+│   └── reference/
+│       └── nebulosas-v3.html     # Referencia visual (Three r128) que se porta, no se copia
 ├── graphify-out/                 # Análisis visual del grafo de dependencias del código
 ├── public/                       # Recursos estáticos servidos en la raíz HTTP
 ├── src/                          # Código fuente de la aplicación (Next.js 16 + R3F)
@@ -145,9 +148,11 @@ YourMusicVisualizer/
 │   │   └── spotify/              # Cliente de red Spotify PKCE y cola de rate limiting
 │   ├── store/                    # Almacén de estado global reactivo (Zustand)
 │   └── types/                    # Definiciones e interfaces TypeScript de dominio
-├── test-results/                 # Evidencias visuales de pruebas end-to-end
+├── test-results/                 # Evidencias visuales de pruebas end-to-end (ignorado por git)
+│   └── visual/                   # Baseline y corridas del arnés visual (baseline-classic/, latest-classic/)
 └── tests/                        # Suites de verificación y validación matemática
-    └── verification/
+    ├── verification/             # Aserciones tsx ejecutadas por `npm test` y CI
+    └── visual/                   # Arnés Playwright de capturas y comparación (fuera de CI)
 ```
 
 ### 3.2 Detalle y Responsabilidad por Carpeta
@@ -159,10 +164,11 @@ YourMusicVisualizer/
 - `eslint.config.mjs`: Reglas de linting plano para ESLint 9.
 - `.env.example` y `.env.local`: Especificación de variables de entorno públicas requeridas para Spotify OAuth.
 - `README.md`, `PRODUCT.md`, `PROJECT.md`, `DESIGN.md`, `TEST_READY.md`, `AGENTS.md`: Documentos de diseño, visión de producto, reglas de agentes y reportes de validación.
+- `CLAUDE.md`: Reglas de trabajo para la migración a Nebulosas v3 (importa `AGENTS.md` y `PROJECT.md`).
 
 #### `src/app/` — Enrutamiento y Cascarón de Aplicación (Next.js App Router)
 - `layout.tsx`: Server Component raíz (`RootLayout`). Inyecta las tipografías locales optimizadas `Syne` y `JetBrains Mono` vía variables CSS, define metadatos HTML, aplica fondo base `#050508` y monta el componente `<Analytics />` de Vercel.
-- `page.tsx`: Client Component principal (`HomePage`). Desactiva el renderizado del lado del servidor (SSR) del lienzo 3D mediante `dynamic(..., { ssr: false })` para evitar discrepancias de hidratación con WebGL. Verifica en `useEffect` la existencia de una sesión de Spotify en `localStorage` y monta la vista dividida en dos capas: `<MusicVisualizerCanvas />` (fondo 3D) y `<TelemetryHUD />` (interfaz 2D flotante).
+- `page.tsx`: Client Component principal (`HomePage`). Desactiva el renderizado del lado del servidor (SSR) del lienzo 3D mediante `dynamic(..., { ssr: false })` para evitar discrepancias de hidratación con WebGL. Verifica en `useEffect` la existencia de una sesión de Spotify en `localStorage` y monta la vista dividida en dos capas: `<MusicVisualizerCanvas />` (fondo 3D) y `<TelemetryHUD />` (interfaz 2D flotante). Al montar lee `?renderer=classic|nebula` desde `window.location.search` (validado con `parseRendererParam`) y lo aplica con `setRendererMode`; se evita `useSearchParams` para que `/` siga prerenderizada sin un límite `<Suspense>`.
 - `globals.css`: Directivas de Tailwind CSS v4, animaciones de pulso y reseteo de márgenes y barras de desplazamiento.
 
 #### `src/app/callback/` — Endpoint de Retorno OAuth
@@ -206,14 +212,15 @@ YourMusicVisualizer/
 - `spotify/spotifyClient.ts`: Cliente de red para la API de Spotify: autenticación PKCE, cola de peticiones con control de concurrencia (`RequestQueue`), reintentos automáticos ante errores HTTP 429 con retroceso exponencial y jitter (`fetchWithRetry`), y caché persistente de artistas en `localStorage`.
 
 #### `src/store/` — Almacén de Estado Global
-- `useGalaxyStore.ts`: Almacén creado con Zustand. Centraliza datos galácticos, entidad seleccionada, entidad en hover, sector activo, modo de cámara (`galaxy`, `sector`, `artist`, `song`), versión de vuelo cinemático (`flightVersion`), estado de reproducción de audio, brillo estelar y métricas de rendimiento.
+- `useGalaxyStore.ts`: Almacén creado con Zustand. Centraliza datos galácticos, entidad seleccionada, entidad en hover, sector activo, modo de cámara (`galaxy`, `sector`, `artist`, `song`), versión de vuelo cinemático (`flightVersion`), estado de reproducción de audio, brillo estelar y métricas de rendimiento. Desde M4 incluye `rendererMode: 'classic' | 'nebula'` (default `'classic'`) y `setRendererMode`, el flag que separa el renderer clásico del de Nebulosas v3; `GalaxyScene` lo expone en el `userData` del grupo `celestial-galaxy-cosmos`.
 
 #### `src/types/` — Tipos TypeScript del Dominio
 - `music.ts`: Interfaces y contratos TypeScript: `GenreNode`, `ArtistNode`, `SongNode`, `MusicGalaxyData`, clases espectrales estelares y funciones puras para el cálculo de radios y métricas visuales.
 
 #### Directorios Complementarios
 - `public/`: Recursos gráficos estáticos (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`).
-- `tests/` y `tests/verification/`: Suites de validación matemática y de shaders ejecutadas con `tsx` (`milestone2.test.ts` y `milestone2_challenger.test.ts`).
+- `tests/` y `tests/verification/`: Suites de validación matemática y de shaders ejecutadas con `tsx` (`milestone2.test.ts`, `milestone2_challenger.test.ts` y `m4_renderer_mode.test.ts`).
+- `tests/visual/`: Arnés de regresión visual con Playwright. `captureScenes.mjs` captura Galaxy Overview, Sector Focus y Active Playback por renderer y preset (con `prefers-reduced-motion` para saltar el warp y frenar la rotación, y verificando `rendererMode` en la escena vía `__THREE_DEVTOOLS__`); `compareScenes.mjs` compara contra el baseline con umbrales por escena.
 - `.github/workflows/`: Pipelines de integración continua (`ci.yml`), releases automáticos (`release.yml`) y auditoría de seguridad (`security.yml`).
 - `.playwright-cli/` y `test-results/`: Capturas y logs generados durante verificaciones visuales automatizadas.
 - `graphify-out/`: Diagramas de dependencias y reportes generados por la herramienta Graphify.
@@ -437,7 +444,9 @@ Los comandos declarados en `package.json` son:
 | `npm run build` | `next build` | Compila la aplicación para producción utilizando Turbopack y valida tipado estricto con TypeScript. |
 | `npm run start` | `next start` | Inicia el servidor Node.js en modo producción utilizando los artefactos generados en `.next`. |
 | `npm run lint` | `eslint` | Ejecuta ESLint 9 con Flat Config (`eslint.config.mjs`) validando reglas de Next.js y TypeScript. |
-| `npm test` | `tsx tests/verification/...` | Ejecuta las 205 aserciones de pruebas automatizadas de matemáticas, geometrías y shaders con `tsx`. |
+| `npm test` | `tsx tests/verification/...` | Ejecuta las 222 aserciones de pruebas automatizadas (matemáticas, geometrías, shaders y flag `rendererMode`) con `tsx`. |
+| `npm run test:visual:baseline` | `node tests/visual/captureScenes.mjs ...` | Captura el baseline visual del renderer clásico (presets 50 y 300) en `test-results/visual/baseline-classic/`. Requiere `npm run dev` corriendo. |
+| `npm run test:visual` | `captureScenes.mjs` + `compareScenes.mjs` | Recaptura las 6 escenas y las compara con el baseline (≈4 min con WebGL por software). No corre en CI. |
 
 #### Secuencia de Comandos para Nuevos Desarrolladores:
 
@@ -469,7 +478,7 @@ npm run dev
 
 ### 7.1 Inventario de Código Sin Pruebas Automatizadas
 
-El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `milestone2_challenger.test.ts`) ejecuta 205 aserciones exitosas centradas exclusivamente en validaciones matemáticas de geometrías, determinismo de shaders y fórmulas de cinemática de cámara.
+El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `milestone2_challenger.test.ts`) ejecutaba 205 aserciones al inicio de la migración (222 tras M4, por `m4_renderer_mode.test.ts`) centradas en validaciones matemáticas de geometrías, determinismo de shaders y fórmulas de cinemática de cámara.
 
 **Sin embargo, la totalidad de los módulos de integración, audio, red, estado global y componentes de interfaz carece de pruebas automatizadas:**
 
@@ -483,7 +492,7 @@ El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `mi
 | **Route Handlers API** | `src/app/api/track-preview/route.ts`<br>`src/app/api/enrich-tracks/route.ts` | 523 | **ALTO.** Sin pruebas de integración para el proxy de audio (timeouts de Deezer/iTunes, cabeceras CORS) ni para el enriquecimiento mediante Last.fm. |
 | **Componentes HUD 2D** | `src/components/hud/*` (5 componentes) | 2,391 | **ALTO.** Cero pruebas de renderizado con React Testing Library; búsqueda estelar, navegación por teclado y controles de audio no están testeados. |
 | **Componentes Canvas 3D** | `src/components/canvas/*` (GalaxyScene, StarNodeMesh, etc.) | 2,800+ | **MEDIO-ALTO.** Eventos de puntero (clic vs arrastre de cámara, hover de estrellas) no disponen de tests automatizados en CI. |
-| **Pruebas E2E en CI** | `verify_playwright.mjs` en agentes | N/A | **MEDIO.** No existe un script formal `npm run test:e2e` ni integración de Playwright en los flujos de GitHub Actions (`ci.yml`). |
+| **Pruebas E2E en CI** | `tests/visual/*.mjs` | N/A | **MEDIO (mitigado en M4).** Existe `npm run test:visual` con baseline y umbrales calibrados, pero corre a mano: no está en `ci.yml` y el baseline vive en `test-results/` (ignorado por git), por lo que es local a cada máquina. La escena Active Playback es solo un chequeo de humo porque depende del audio en vivo. |
 
 ---
 
@@ -596,4 +605,5 @@ Durante la auditoría técnica exhaustiva del código fuente y los archivos de c
    El comando `npm test` en `package.json` invoca dos scripts de aserciones personalizadas ejecutadas con `tsx` (`tests/verification/milestone2.test.ts` y `tests/verification/milestone2_challenger.test.ts`). ¿Existe la intención a mediano plazo de migrar hacia un test runner formal estandarizado (como **Vitest** o **Jest** con mocks para WebGL y Web Audio API) para incorporar pruebas unitarias de componentes React y hooks cinemáticos?
 
 7. `PREGUNTA:` **Incorporación Formal de la Suite de Pruebas Visuales E2E con Playwright:**  
-   En el repositorio existen artefactos y capturas generadas por scripts de Playwright (`test-results/` y `.playwright-cli/`). ¿Se planea incorporar un comando oficial `npm run test:e2e` en `package.json` y agregar la ejecución de pruebas visuales end-to-end dentro del pipeline de integración continua de GitHub Actions (`.github/workflows/ci.yml`)?
+   En el repositorio existen artefactos y capturas generadas por scripts de Playwright (`test-results/` y `.playwright-cli/`). ¿Se planea incorporar un comando oficial `npm run test:e2e` en `package.json` y agregar la ejecución de pruebas visuales end-to-end dentro del pipeline de integración continua de GitHub Actions (`.github/workflows/ci.yml`)?  
+   **Respuesta parcial (M4.3):** se incorporó `npm run test:visual` (más `test:visual:baseline`) con `playwright` y `pngjs` como devDependencies exactas. Por decisión del plan de migración queda **fuera de CI** y se corre a mano en cada sub-paso. Sigue abierto si se sube a CI y dónde versionar el baseline.
