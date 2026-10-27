@@ -1,0 +1,613 @@
+<title>Novafy Nebulosas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: consola de una columna; escenario 3D protagonista con ficha flotante por nivel (universo → género → artista → canción, o choque). Tema único oscuro. */
+:root{
+  --void:#04050a; --panel:#0b0e17; --line:#1b2132; --ink:#e6eaf4; --mute:#8b93a7; --accent:#7cf2d4; --accent-ink:#04140f; --clash:#ffb86b;
+  --f-display:"Unbounded","Segoe UI",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--void);color:var(--ink)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.55;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:18px 40px}
+.wrap{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-direction:column;gap:4px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(24px,7vw,38px);letter-spacing:.02em;margin:0;text-wrap:balance}
+h1 small{font:600 12px var(--f-mono);letter-spacing:.1em;color:var(--accent);vertical-align:middle;border:1px solid var(--accent);border-radius:6px;padding:2px 6px;margin-left:6px}
+.sub{color:var(--mute);margin:0;max-width:62ch}
+.stage{position:relative;height:min(74vh,640px);min-height:440px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--void);touch-action:none}
+.stage canvas{display:block;width:100%;height:100%}
+#labels{position:absolute;inset:0;pointer-events:none}
+.lab{position:absolute;left:0;top:0;font:600 9.5px/1.25 var(--f-mono);letter-spacing:.09em;text-transform:uppercase;color:var(--ink);white-space:nowrap;display:flex;align-items:center;gap:5px;transition:opacity .35s;text-shadow:0 0 6px var(--void),0 0 2px var(--void);will-change:transform}
+.lab i{width:6px;height:6px;border-radius:50%;flex:none}
+.lab.art{font:500 11px var(--f-body);text-transform:none;letter-spacing:.01em}
+.lab.song{font:400 11px var(--f-body);text-transform:none;letter-spacing:.01em;color:#cdd4e4}
+.lab.song i{background:none;border:1.5px solid currentColor;width:7px;height:7px}
+.lab.on{color:var(--accent);font-weight:600}
+.lab.clash{color:var(--clash);font-size:10px;gap:3px}
+.lab.clash i{width:5px;height:5px}
+.crumb{position:absolute;left:12px;top:10px;right:12px;font:400 10.5px var(--f-mono);color:var(--mute);letter-spacing:.04em;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumb b{color:var(--ink);font-weight:600}
+.hint{position:absolute;left:12px;bottom:10px;right:12px;font:400 10.5px var(--f-mono);color:var(--mute);letter-spacing:.04em;pointer-events:none}
+.ficha{position:absolute;left:10px;right:10px;bottom:10px;background:color-mix(in srgb,var(--panel) 87%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:9px;max-height:58%;overflow-y:auto}
+.fhead{display:flex;gap:10px;align-items:flex-start}
+.dots{display:flex;gap:3px;margin-top:5px;flex:none}
+.dots i{width:10px;height:10px;border-radius:50%}
+.fhead .txt{flex:1;min-width:0}
+.fhead b{display:block;font:600 13px var(--f-mono);letter-spacing:.03em}
+.fhead span{display:block;font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+.back{background:none;border:1px solid var(--line);color:var(--ink);border-radius:8px;font:600 11px var(--f-mono);padding:6px 9px;cursor:pointer;flex:none}
+.detail{font-size:13px;border-left:2px solid var(--accent);padding-left:9px;color:var(--ink)}
+.detail em{font-style:normal;color:var(--mute)}
+.detail .x{color:var(--clash)}
+.row{display:flex;flex-direction:column;gap:5px;min-width:0}
+.rl{font:400 10px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;background:var(--void);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 10px;font:500 12px var(--f-body);cursor:pointer;display:flex;gap:6px;align-items:center}
+.chip i{width:7px;height:7px;border-radius:50%;flex:none}
+.chip em{font:400 11px var(--f-mono);font-style:normal;color:var(--mute);font-variant-numeric:tabular-nums}
+.chip.br{border-color:color-mix(in srgb,var(--clash) 45%,var(--line))}
+.chip.br em{color:var(--clash)}
+.chip[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.controls{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center}
+.ctl{display:flex;align-items:center;gap:8px;font:400 11px var(--f-mono);color:var(--mute);letter-spacing:.08em;text-transform:uppercase}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{background:var(--panel);color:var(--ink);border:0;font:600 12px var(--f-mono);padding:8px 11px;cursor:pointer;font-variant-numeric:tabular-nums}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.tog{background:var(--panel);color:var(--mute);border:1px solid var(--line);border-radius:10px;font:600 12px var(--f-mono);padding:8px 11px;cursor:pointer}
+.tog[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.changes,.code{border-top:1px solid var(--line);padding-top:16px;display:flex;flex-direction:column;gap:12px}
+.changes h2,.code h2{font-family:var(--f-display);font-weight:500;font-size:18px;margin:0;letter-spacing:.02em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+.item{border:1px solid var(--line);border-radius:12px;padding:12px 13px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.item b{font-weight:600;font-size:14px}
+.item p{margin:0;color:var(--mute);font-size:13.5px}
+.item code{font:400 11.5px var(--f-mono);color:var(--accent);overflow-wrap:anywhere}
+details{border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+summary{cursor:pointer;padding:11px 14px;font:600 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;gap:10px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--accent);font-size:16px}
+details[open] summary::after{content:"–"}
+.codebar{display:flex;justify-content:flex-end;padding:0 10px}
+.copy{background:none;border:1px solid var(--line);color:var(--accent);border-radius:8px;font:600 11px var(--f-mono);padding:5px 9px;cursor:pointer}
+pre{margin:8px 0 0;padding:12px 14px 14px;overflow-x:auto;font:400 11.5px/1.6 var(--f-mono);color:#c9d2e6;border-top:1px solid var(--line)}
+.foot{font:400 11px var(--f-mono);color:var(--mute);letter-spacing:.04em}
+@media (prefers-reduced-motion:reduce){.lab{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Novafy · cosmos musical 3D</div>
+    <h1>Nebulosas <small>v3</small></h1>
+    <p class="sub">Los géneros que comparten canciones chocan entre sí. En la zona de choque viven las canciones puente. Entrá a un artista para ver sus canciones como nodos.</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="c"></canvas>
+    <div id="labels"></div>
+    <div class="crumb" id="crumb"></div>
+    <div class="hint" id="hint">tocá una nebulosa o un choque <span style="color:var(--clash)">∩</span> · arrastrá para orbitar</div>
+    <div class="ficha" id="ficha" hidden></div>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">Partículas
+      <div class="seg" id="dens">
+        <button type="button" id="d1" data-n="20000">20k</button>
+        <button type="button" id="d2" data-n="35000" aria-pressed="true">35k</button>
+        <button type="button" id="d3" data-n="55000">55k</button>
+      </div>
+    </div>
+    <button class="tog" id="tGas" type="button" aria-pressed="true">Gas</button>
+    <button class="tog" id="tLinks" type="button" aria-pressed="true">Hilos</button>
+    <button class="tog" id="tMove" type="button" aria-pressed="true">Órbitas</button>
+    <button class="tog" id="tSpin" type="button" aria-pressed="true">Giro</button>
+    <button class="tog" id="tLabels" type="button" aria-pressed="true">Etiquetas</button>
+  </div>
+
+  <section class="changes">
+    <h2>Qué mejoró en la v3</h2>
+    <div class="grid">
+      <div class="item"><b>Nodos de canción</b><p>Cada artista tiene sus temas como nodos con anillo, unidos por hilos que orbitan con él. El resto de su catálogo sigue siendo polvo.</p><code>3 nodos por artista · órbita r = rad·(2.4 + i·1.1)</code></div>
+      <div class="item"><b>Choques por relación</b><p>Los géneros con canciones en común se atraen con un resorte. Cuantas más comparten, más se pisan las nebulosas.</p><code>dist = (Sa+Sb)·(0.95 − 0.35·n/nMax)</code></div>
+      <div class="item"><b>Frente de choque</b><p>Un disco curvo en el punto de contacto, con el color mezclado de los dos géneros y cortado por ruido.</p><code>m = cA + dir·d·Sa/(Sa+Sb)</code></div>
+      <div class="item"><b>Corrientes de marea</b><p>Partículas que viajan de un núcleo al otro por una curva Bézier. Se animan en el shader, sin costo de CPU.</p><code>t = fract(seed + tiempo·vel)</code></div>
+      <div class="item"><b>Canciones puente</b><p>Los temas que pertenecen a dos géneros salen de su artista y viven en la zona de choque, con un hilo al otro núcleo.</p><code>hilo: artista → canción → núcleo B</code></div>
+      <div class="item"><b>Navegación por niveles</b><p>Universo → género → artista → canción, o universo → choque. El botón de la ficha sube un nivel.</p><code>∩ 34 = canciones en común</code></div>
+    </div>
+  </section>
+
+  <section class="code">
+    <h2>Código para tu app</h2>
+    <details><summary>Calcular relaciones con tus datos (Python)</summary><div class="codebar"><button class="copy" type="button" data-src="cPy">Copiar</button></div><pre id="cPy"></pre></details>
+    <details><summary>layout() · resortes, choques y nodos</summary><div class="codebar"><button class="copy" type="button" data-src="cLayout">Copiar</button></div><pre id="cLayout"></pre></details>
+    <details><summary>gen() y genClash() · partículas</summary><div class="codebar"><button class="copy" type="button" data-src="cGen">Copiar</button></div><pre id="cGen"></pre></details>
+    <details><summary>Shaders · órbitas, mareas y anillos</summary><div class="codebar"><button class="copy" type="button" data-src="cShader">Copiar</button></div><pre id="cShader"></pre></details>
+  </section>
+
+  <div class="foot">Datos de ejemplo: 12 géneros, 60 artistas, 180 canciones con nombre, 12 choques. Three.js r128, sin postproceso.</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+// ---------- datos de ejemplo ----------
+const GENRES=[
+ {n:'Ambient & Experimental',a:[['Brian Eno',34,['An Ending (Ascent)','1/1','Here Come the Warm Jets']],['Grouper',28,['Heavy Water/I\'d Rather Be Sleeping','Living Room','Holding']],['Tim Hecker',22,['Virginal II','Hatred of Music I','In the Fog II']],['Stars of the Lid',20,['Requiem for Dying Mothers, Pt. 1','Don\'t Bother They\'re Here','Dungtitled (In A Major)']],['Hiroshi Yoshimura',16,['Water Copy','Blink','Clouds']]]},
+ {n:'Post Rock & Cinematic',a:[['Explosions in the Sky',48,['Your Hand in Mine','The Only Moment We Were Alone','First Breath After Coma']],['Mogwai',42,['Mogwai Fear Satan','Auto Rock','Take Me Somewhere Nice']],['Sigur Rós',38,['Hoppípolla','Svefn-g-englar','Glósóli']],['God Is an Astronaut',30,['All Is Violent, All Is Bright','Fragile','Suicide by Star']],['This Will Destroy You',22,['The Mighty Rio Grande','Quiet','Threads']]]},
+ {n:'Art Rock & Shoegaze',a:[['Radiohead',64,['Weird Fishes/Arpeggi','Reckoner','Paranoid Android']],['Slowdive',52,['When the Sun Hits','Alison','Sugar for the Pill']],['My Bloody Valentine',40,['Only Shallow','Sometimes','To Here Knows When']],['Beach House',36,['Space Song','Myth','Silver Soul']],['Cocteau Twins',28,['Heaven or Las Vegas','Cherry-coloured Funk','Lorelei']]]},
+ {n:'Indie Folk & Psicodelia',a:[['Tame Impala',70,['Let It Happen','The Less I Know the Better','Feels Like We Only Go Backwards']],['Fleet Foxes',52,['White Winter Hymnal','Mykonos','Helplessness Blues']],['Bon Iver',46,['Holocene','Skinny Love','Re: Stacks']],['Big Thief',40,['Not','Simulation Swarm','Paul']],['Angel Olsen',32,['Shut Up Kiss Me','All Mirrors','Sister']]]},
+ {n:'Latin Alternative & Tropical Psych',a:[['Bomba Estéreo',62,['To My Love','Soy Yo','Fuego']],['Khruangbin',58,['Maria También','Time (You and I)','White Gloves']],['El Mató a un Policía Motorizado',54,['Mujeres bellas y fuertes','Chica de oro','Ahora imagino cosas']],['Babasónicos',48,['Irresponsables','El Colmo','Risa']],['Nathy Peluso',38,['Buenos Aires','Delito','Sana Sana']]]},
+ {n:'Neo-Soul & Jazz Rap',a:[['Kendrick Lamar',58,['Alright','DNA.','Money Trees']],['Erykah Badu',46,['On & On','Tyrone','Window Seat']],['Hiatus Kaiyote',40,['Nakamarra','Breathing Underwater','Red Room']],['Anderson .Paak',38,['Come Down','Am I Wrong','The Bird']],["D'Angelo",28,['Untitled (How Does It Feel)','Brown Sugar','Really Love']]]},
+ {n:'Trip-Hop & Bristol Dub',a:[['Massive Attack',44,['Teardrop','Angel','Unfinished Sympathy']],['Portishead',40,['Glory Box','Roads','Sour Times']],['Tricky',26,['Aftermath','Overcome','Hell Is Round the Corner']],['Thievery Corporation',22,['Lebanese Blonde','The Richest Man in Babylon','Shadows of Ourselves']],['Morcheeba',18,['The Sea','Rome Wasn\'t Built in a Day','Trigger Hippie']]]},
+ {n:'Techno & Minimal',a:[['Plastikman',40,['Spastik','Krakpot','Plasticine']],['Nina Kraviz',36,['Ghetto Kraviz','Pain in the Ass','Taxi Ride']],['Stephan Bodzin',32,['Singularity','Powers of Ten','Strand']],['Boris Brejcha',30,['Gravity','Purple Noise','Space Diver']],['Charlotte de Witte',22,['Selected','Doppler','Sgadi Li Mi']]]},
+ {n:'Synthwave & French Touch',a:[['Daft Punk',88,['One More Time','Digital Love','Around the World']],['Justice',62,['D.A.N.C.E.','Genesis','Stress']],['Kavinsky',54,['Nightcall','Odd Look','Roadgame']],['The Midnight',52,['Sunset','Jason','Los Angeles']],['Air',44,['La Femme d\'Argent','Sexy Boy','All I Need']]]},
+ {n:'Cyberpunk & Electro-Pop',a:[['Grimes',48,['Oblivion','Genesis','Kill V. Maim']],['Crystal Castles',44,['Crimewave','Not in Love','Baptism']],['Perturbator',40,['Future Club','Humans Are Such Easy Prey','Venger']],['M83',34,['Midnight City','Wait','Outro']],['CHVRCHES',24,['The Mother We Share','Clearest Blue','Recover']]]},
+ {n:'Future Bass & Melodic Glitch',a:[['Porter Robinson',42,['Shelter','Sad Machine','Language']],['Flume',38,['Never Be Like You','Say It','Holdin On']],['Seven Lions',24,['Days to Come','Strangers','Polarize']],['ODESZA',22,['Say My Name','A Moment Apart','Sun Models']],['Madeon',14,['Pop Culture','All My Friends','The Prince']]]},
+ {n:'J-Pop, J-Rock & Anime',a:[['YOASOBI',46,['Idol','Yoru ni Kakeru','Gunjou']],['Kenshi Yonezu',40,['Lemon','KICK BACK','Peace Sign']],['Ado',34,['Usseewa','New Genesis','Odo']],['RADWIMPS',30,['Sparkle','Zenzenzense','Nandemonaiya']],['LiSA',20,['Gurenge','Homura','Crossing Field']]]}
+];
+// relaciones: [géneroA, géneroB, canciones en común, por qué, canciones puente [género, artista, canción]]
+const RELS=[
+ [8,9,34,'M83 y Kavinsky suenan en los dos',[[9,3,0],[8,2,0]]],
+ [0,1,22,'Drones y crescendos largos',[[1,2,0],[0,3,0]]],
+ [3,4,20,'Psicodelia con groove',[[4,1,0],[4,1,1]]],
+ [1,2,18,'Muros de guitarra',[[2,0,0],[1,1,0]]],
+ [10,11,18,'Productores con estética anime',[[10,0,0],[11,0,1]]],
+ [2,3,16,'Dream pop',[[2,3,0],[3,0,2]]],
+ [9,10,15,'Synths brillantes y voces procesadas',[[10,0,1],[9,4,0]]],
+ [5,6,14,'Bajos lentos y voces soul',[[6,1,0]]],
+ [4,5,12,'Rap y soul en español',[[4,4,0]]],
+ [0,6,12,'Atmósferas densas',[[6,0,0]]],
+ [7,8,10,'Pulso electrónico',[[7,3,0],[8,1,1]]],
+ [6,7,8,'Downtempo hacia techno',[[7,1,0]]]
+].map(r=>({a:r[0],b:r[1],n:r[2],why:r[3],br:r[4]}));
+GENRES.forEach(g=>g.s=g.a.reduce((t,a)=>t+a[1],0));
+const NG=GENRES.length,SMAX=Math.max(...GENRES.map(g=>g.s)),TOT=GENRES.reduce((t,g)=>t+g.s,0),NMAX=Math.max(...RELS.map(r=>r.n));
+const HUE=i=>((200+i*30)%360)/360;
+function hueMix(a,b,t){let d=b-a;if(d>.5)d-=1;if(d<-.5)d+=1;let h=a+d*t;return h-Math.floor(h)}
+
+// ---------- utilidades ----------
+let R=Math.random;
+function seed(s){return function(){s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rnd=()=>R();
+function gauss(){let u=0;while(!u)u=R();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*R())}
+function fib(i,n){const y=1-(i+.5)/n*2,r=Math.sqrt(1-y*y),t=i*2.39996;return[Math.cos(t)*r,y,Math.sin(t)*r]}
+function norm(v){const l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l]}
+function cross(a,b){return[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]}
+const add=(a,b,s=1)=>[a[0]+b[0]*s,a[1]+b[1]*s,a[2]+b[2]*s];
+function randDir(){return norm([gauss(),gauss(),gauss()])}
+function basis(n){const t=Math.abs(n[1])<.9?[0,1,0]:[1,0,0];const u=norm(cross(n,t));return[u,cross(n,u)]}
+const sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
+function hash3(x,y,z){const h=Math.sin(x*127.1+y*311.7+z*74.7)*43758.5453;return h-Math.floor(h)}
+function vnoise(x,y,z){
+  const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),xf=x-xi,yf=y-yi,zf=z-zi;
+  const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf),w=zf*zf*(3-2*zf),L=(a,b,t)=>a+(b-a)*t;
+  return L(L(L(hash3(xi,yi,zi),hash3(xi+1,yi,zi),u),L(hash3(xi,yi+1,zi),hash3(xi+1,yi+1,zi),u),v),
+           L(L(hash3(xi,yi,zi+1),hash3(xi+1,yi,zi+1),u),L(hash3(xi,yi+1,zi+1),hash3(xi+1,yi+1,zi+1),u),v),w);
+}
+function fbm(x,y,z){let s=0,a=.5,f=1;for(let o=0;o<4;o++){s+=a*vnoise(x*f,y*f,z*f);f*=2.03;a*=.5}return s/.9375}
+function toWorld(k,l){const x=l[0]*k.ax[0],y=l[1]*k.ax[1],z=l[2]*k.ax[2];
+  return[k.c[0]+k.u[0]*x+k.n[0]*y+k.v[0]*z,k.c[1]+k.u[1]*x+k.n[1]*y+k.v[1]*z,k.c[2]+k.u[2]*x+k.n[2]*y+k.v[2]*z]}
+function rotJS(v,k,a){const c=Math.cos(a),s=Math.sin(a),d=k[0]*v[0]+k[1]*v[1]+k[2]*v[2],x=cross(k,v);
+  return[v[0]*c+x[0]*s+k[0]*d*(1-c),v[1]*c+x[1]*s+k[1]*d*(1-c),v[2]*c+x[2]*s+k[2]*d*(1-c)]}
+
+// ---------- 1. layout: resortes por relación, choques y nodos de canción ----------
+function layout(){
+  R=seed(11);
+  const L=GENRES.map((g,i)=>{const d=fib(i,NG),rad=i%2?210:120;return{c:[d[0]*rad,d[1]*rad*.75,d[2]*rad],S:34+30*Math.sqrt(g.s/SMAX)}});
+  const rel={};RELS.forEach(r=>{rel[r.a+'-'+r.b]=r;rel[r.b+'-'+r.a]=r});
+  for(let it=0;it<320;it++){
+    for(let i=0;i<NG;i++)for(let j=i+1;j<NG;j++){
+      const A=L[i].c,B=L[j].c,dx=B[0]-A[0],dy=B[1]-A[1],dz=B[2]-A[2],d=Math.hypot(dx,dy,dz)||1,sum=L[i].S+L[j].S,r=rel[i+'-'+j];
+      let f=0;
+      if(r)f=(sum*(.95-.35*r.n/NMAX)-d)*.08;          // resorte: se tocan y se pisan según n
+      else{const want=sum*1.3;if(d<want)f=(want-d)*.5}  // sin relación: se apartan
+      const ux=dx/d*f*.5,uy=dy/d*f*.5,uz=dz/d*f*.5;
+      A[0]-=ux;A[1]-=uy;A[2]-=uz;B[0]+=ux;B[1]+=uy;B[2]+=uz;
+    }
+    const m=[0,0,0];L.forEach(k=>{m[0]+=k.c[0]/NG;m[1]+=k.c[1]/NG;m[2]+=k.c[2]/NG});
+    L.forEach(k=>{k.c[0]-=m[0];k.c[1]-=m[1];k.c[2]-=m[2]});
+  }
+  L.forEach((k,i)=>{
+    const g=GENRES[i];k.n=randDir();[k.u,k.v]=basis(k.n);
+    k.ax=[1,.6+.35*rnd(),.55+.3*rnd()];k.off=[rnd()*50,rnd()*50,rnd()*50];k.spin=i%2?1:-1;
+    const amax=Math.max(...g.a.map(a=>a[1]));
+    k.artists=g.a.map((a,t)=>{
+      const ang=t*2.39996+rnd(),rr=k.S*(.12+.38*Math.sqrt((t+.5)/5));
+      const loc=[Math.cos(ang)*rr,gauss()*k.S*.12,Math.sin(ang)*rr],rad=k.S*.09*(.55+Math.sqrt(a[1]/amax));
+      const songs=a[2].map((title,s)=>{const sa=s*2.1+rnd()*.6,rs=rad*(2.4+s*1.1);
+        return{title,base:toWorld(k,[loc[0]+Math.cos(sa)*rs,loc[1]+gauss()*rs*.15,loc[2]+Math.sin(sa)*rs]),spin:.12*k.spin,bridge:null}});
+      return{loc,w:toWorld(k,loc),rad,wt:a[1],songs};
+    });
+    k.label=[k.c[0],k.c[1]+k.S*.95,k.c[2]];
+  });
+  // zonas de choque y canciones puente
+  RELS.forEach(r=>{
+    const A=L[r.a],B=L[r.b],dv=[B.c[0]-A.c[0],B.c[1]-A.c[1],B.c[2]-A.c[2]],d=Math.hypot(...dv);
+    r.dir=norm(dv);r.d=d;r.m=add(A.c,r.dir,d*A.S/(A.S+B.S));[r.u,r.v]=basis(r.dir);
+    r.rr=Math.min(A.S,B.S)*.75;r.over=Math.max(0,A.S+B.S-d);r.label=add(r.m,[0,1,0],r.rr*.55);
+    r.br.forEach(([g,a,s],q)=>{const song=L[g].artists[a].songs[s],ang=q*2.4+rnd(),rad=r.rr*(.15+.3*rnd());
+      song.base=add(add(add(r.m,r.u,Math.cos(ang)*rad),r.v,Math.sin(ang)*rad),r.dir,gauss()*3);
+      song.spin=0;song.bridge={other:g===r.a?r.b:r.a,rel:r};});
+  });
+  return L;
+}
+
+// ---------- 2. partículas de una nebulosa ----------
+// o = {p, size, alpha, kind (0 polvo, 1 gas, 2 artista, 3 marea, 4 nodo), aid, anchor, axis, spin}
+function gen(g,j,L,o,col){
+  const k=L[g],h=HUE(g);o.axis=k.n;
+  if(j<5){const A=k.artists[j];o.p=A.w;o.anchor=A.w;o.kind=2;o.aid=j;o.spin=0;
+    o.size=16+14*(A.rad/(k.S*.09)-.55);o.alpha=1;col.setHSL(h,.35,.86);return}
+  const q=rnd();
+  if(q<.42){ // canción del catálogo: polvo de Plummer alrededor del artista, en órbita
+    let t=0,pick=rnd()*GENRES[g].s;while(pick>k.artists[t].wt&&t<4){pick-=k.artists[t].wt;t++}
+    const A=k.artists[t],u=Math.max(rnd(),1e-3),r=Math.min(A.rad/Math.sqrt(Math.pow(u,-2/3)-1),A.rad*6),ang=rnd()*Math.PI*2;
+    o.p=toWorld(k,[A.loc[0]+Math.cos(ang)*r,A.loc[1]+gauss()*r*.25,A.loc[2]+Math.sin(ang)*r]);
+    o.anchor=A.w;o.kind=0;o.aid=t;o.spin=(.15+.6/(1+r/A.rad))*k.spin;
+    const bright=rnd()<.04;o.size=bright?5:1.6+rnd()*2;o.alpha=bright?.9:.5;
+    col.setHSL(h+(rnd()-.5)*.04,.5,.6+.2*Math.exp(-r/A.rad));return;
+  }
+  if(q<.94){ // gas: solo donde el ruido "ridged" forma filamentos
+    let x,y,z,dist,nz=0,ok=false;
+    for(let tries=0;tries<14&&!ok;tries++){
+      x=gauss()*k.S*.55;y=gauss()*k.S*.55;z=gauss()*k.S*.55;dist=Math.hypot(x,y,z)/k.S;
+      const f=fbm(x/k.S*2.2+k.off[0],y/k.S*2.2+k.off[1],z/k.S*2.2+k.off[2]),ridge=1-Math.abs(2*f-1);nz=f;
+      ok=rnd()<Math.max(sstep(.62,.92,ridge),sstep(.62,.8,f)*.6)*(1-sstep(.7,1.4,dist));
+    }
+    o.p=toWorld(k,[x,y,z]);o.anchor=k.c;o.kind=1;o.aid=-1;o.spin=.03*k.spin;
+    o.size=5+rnd()*7;o.alpha=(.055+.04*nz)*(ok?1:.3);
+    col.setHSL(h+(nz-.5)*.14+dist*.05,.66,Math.max(.32,.7-dist*.22));return;
+  }
+  const d=randDir(),rr=k.S*(.85+.3*fbm(d[0]*2+k.off[0],d[1]*2,d[2]*2)); // borde de ionización
+  o.p=toWorld(k,[d[0]*rr,d[1]*rr,d[2]*rr]);o.anchor=k.c;o.kind=0;o.aid=-1;o.spin=.03*k.spin;
+  o.size=1.4+rnd();o.alpha=.22;col.setHSL(h+.04,.55,.72);
+}
+
+// ---------- 3. partículas de una zona de choque ----------
+function genClash(r,L,o,col,colB){
+  const A=L[r.a],B=L[r.b],hA=HUE(r.a),hB=HUE(r.b),q=rnd();
+  o.aid=-1;o.axis=[0,1,0];o.spin=0;
+  if(q<.55){ // frente de choque: disco curvo perpendicular a la línea entre núcleos
+    const ang=rnd()*Math.PI*2;let rad=r.rr*Math.sqrt(rnd());
+    const nz=fbm(Math.cos(ang)*1.6+r.a,Math.sin(ang)*1.6+r.b,rad/r.rr*2);if(rnd()>.3+nz*.7)rad*=.55;
+    const t=gauss()*(2+r.over*.1),bow=(rad*rad/r.rr)*.3*(A.S>B.S?1:-1);
+    o.p=add(add(add(r.m,r.u,Math.cos(ang)*rad),r.v,Math.sin(ang)*rad),r.dir,t+bow);o.anchor=o.p;o.kind=0;
+    o.size=1.5+rnd()*2.2;o.alpha=.5;col.setHSL(hueMix(hA,hB,sstep(-8,8,t)),.55,.74-rad/r.rr*.2);colB.copy(col);return;
+  }
+  if(q<.8){ // corriente de marea: viaja de un núcleo al otro
+    const fwd=rnd()<.5;o.anchor=fwd?A.c:B.c;o.axis=fwd?B.c:A.c;
+    o.p=add(add(r.m,r.u,gauss()*r.rr*.35),r.v,gauss()*r.rr*.35);o.kind=3;o.spin=.025+.03*rnd();
+    o.size=2+rnd()*1.5;o.alpha=.42;col.setHSL(fwd?hA:hB,.6,.68);colB.setHSL(fwd?hB:hA,.6,.68);return;
+  }
+  const t=gauss(); // gas mezclado
+  o.p=add(add(add(r.m,r.u,gauss()*r.rr*.5),r.v,gauss()*r.rr*.5),r.dir,t*(4+r.over*.25));o.anchor=o.p;o.kind=1;
+  o.size=6+rnd()*7;o.alpha=.06;col.setHSL(hueMix(hA,hB,sstep(-1.5,1.5,t)),.62,.6);colB.copy(col);
+}
+
+// ---------- 4. shaders ----------
+const COMMON=`
+uniform float uTime, uIntro, uFA, uFB, uFAmt, uArt, uArtAmt, uColAmt;
+bool eq(float a, float b){ return abs(a-b) < .5; }
+vec3 rot(vec3 v, vec3 k, float a){ float c=cos(a), s=sin(a); return v*c + cross(k,v)*s + k*dot(k,v)*(1.-c); }
+// atenúa lo que no está en foco (género, choque o artista)
+float focusMul(float g, float g2, float aid, float kind){
+  if(g < 0.) return 1.;
+  bool lit = eq(g,uFA) || eq(g,uFB) || (g2 >= 0. && (eq(g2,uFA) || eq(g2,uFB)));
+  float f = lit ? 1. : mix(1., .07, uFAmt);
+  if(lit && eq(g,uFA)){
+    if(aid >= 0. && !eq(aid,uArt)) f *= mix(1., .18, uArtAmt);
+    else if(aid < 0. && kind > .5 && kind < 1.5) f *= mix(1., .45, uArtAmt);
+  }
+  return f;
+}`;
+const VS=COMMON+`
+attribute vec3 color; attribute vec3 colorB; attribute vec3 anchor; attribute vec3 axis;
+attribute float size; attribute float alpha; attribute float kind; attribute float gid; attribute float gid2;
+attribute float aid; attribute float spin; attribute float seed; attribute float sid;
+uniform float uPix, uGain, uGas, uSong;
+varying vec3 vC; varying float vA; varying float vK;
+void main(){
+  vec3 p; vec3 c = color; float a = alpha*uGain;
+  if(kind > 2.5 && kind < 3.5){            // marea: Bézier núcleo A → control → núcleo B
+    float t = fract(seed + uTime*spin), w = 1.-t;
+    p = w*w*anchor + 2.*w*t*position + t*t*axis;
+    c = mix(color, colorB, t); a *= pow(sin(3.14159*t), .8)*uIntro;
+  } else {                                  // órbita alrededor del ancla + intro
+    p = anchor + rot(position-anchor, axis, uTime*spin)*uIntro;
+  }
+  float s = size;
+  if(sid >= 0. && eq(sid,uSong)){ s *= 1.9; a = 1.; }
+  vec4 mv = modelViewMatrix*vec4(p,1.); float d = -mv.z;
+  float cap = kind > 1.5 && kind < 2.5 ? 64. : (kind > 3.5 ? 40. : 34.);
+  gl_PointSize = clamp(s*uPix*(260./d), 1., cap*uPix);
+  gl_Position = projectionMatrix*mv;
+  if(kind > .5 && kind < 1.5) a *= uGas;
+  a *= .85 + .15*sin(uTime*1.4 + seed*40.);
+  a *= smoothstep(1500., 300., d)*smoothstep(8., 40., d);
+  vC = c; vK = kind;
+  vA = a*focusMul(gid, gid2, aid, kind)*smoothstep(0., .35, uIntro);
+}`;
+const FS=`
+varying vec3 vC; varying float vA; varying float vK;
+void main(){
+  vec2 q = gl_PointCoord - .5; float r2 = dot(q,q)*4.;
+  if(r2 > 1.) discard;
+  float a;
+  if(vK > 3.5){                 // nodo de canción: punto + anillo
+    float r = sqrt(r2);
+    a = exp(-r2*30.)*.95 + smoothstep(.5,.62,r)*(1.-smoothstep(.72,.86,r))*.75;
+  } else if(vK > 1.5 && vK < 2.5){ // artista: núcleo + destellos en cruz
+    vec2 aq = abs(q)*2.;
+    a = exp(-r2*9.) + exp(-r2*60.)*.8 + (exp(-aq.x*30.)*exp(-aq.y*3.5) + exp(-aq.y*30.)*exp(-aq.x*3.5))*.55*(1.-r2);
+  } else if(vK > .5 && vK < 1.5){  // gas
+    a = exp(-r2*2.8)*(1.-r2);
+  } else {                         // polvo, canciones del catálogo, mareas
+    a = exp(-r2*5.)*.8 + exp(-r2*28.)*.6;
+  }
+  gl_FragColor = vec4(vC, a*vA);
+}`;
+const LVS=COMMON+`
+attribute vec3 color; attribute vec3 anchor; attribute vec3 axis;
+attribute float alpha; attribute float gid; attribute float gid2; attribute float aid; attribute float spin; attribute float lk;
+uniform float uLinks;
+varying vec3 vC; varying float vA;
+void main(){
+  vec3 p = anchor + rot(position-anchor, axis, uTime*spin)*uIntro;
+  gl_Position = projectionMatrix*modelViewMatrix*vec4(p,1.);
+  float a = alpha;
+  if(eq(gid,uFA) && eq(aid,uArt)) a += uArtAmt*.55;                                   // hilos del artista elegido
+  if(lk > .5 && ((eq(gid,uFA) && eq(gid2,uFB)) || (eq(gid,uFB) && eq(gid2,uFA)))) a += uColAmt*.5; // hilos del choque
+  vC = color; vA = a*uLinks*focusMul(gid, gid2, -1., 0.)*uIntro;
+}`;
+const LFS=`varying vec3 vC; varying float vA; void main(){ gl_FragColor = vec4(vC, vA); }`;
+
+// ---------- escena ----------
+const stage=document.getElementById('stage'),canvas=document.getElementById('c');
+const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'});
+const PR=Math.min(window.devicePixelRatio||1,2);renderer.setPixelRatio(PR);renderer.setClearColor(0x04050a,1);
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(55,1,1,4000);
+const controls=new THREE.OrbitControls(camera,canvas);
+controls.enableDamping=true;controls.dampingFactor=.07;controls.enablePan=false;
+controls.minDistance=22;controls.maxDistance=1100;controls.autoRotate=!reduce;controls.autoRotateSpeed=.35;
+
+const U={uPix:{value:PR},uTime:{value:0},uGain:{value:1},uGas:{value:1},uIntro:{value:reduce?1:0},uSong:{value:-1},uLinks:{value:1},
+  uFA:{value:-1},uFB:{value:-1},uFAmt:{value:0},uArt:{value:-1},uArtAmt:{value:0},uColAmt:{value:0}};
+const blend={transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,uniforms:U};
+const mat=new THREE.ShaderMaterial(Object.assign({vertexShader:VS,fragmentShader:FS},blend));
+const lmat=new THREE.ShaderMaterial(Object.assign({vertexShader:LVS,fragmentShader:LFS},blend));
+
+const PA={position:3,color:3,colorB:3,anchor:3,axis:3,size:1,alpha:1,kind:1,gid:1,gid2:1,aid:1,spin:1,seed:1,sid:1};
+function geoFrom(spec,n,fill){const arr={};for(const k in spec)arr[k]=new Float32Array(n*spec[k]);fill(arr);
+  const g=new THREE.BufferGeometry();for(const k in spec)g.setAttribute(k,new THREE.BufferAttribute(arr[k],spec[k]));return g}
+function put(a,i,o,col,colB,gid,gid2,sid){
+  a.position.set(o.p,i*3);a.anchor.set(o.anchor,i*3);a.axis.set(o.axis,i*3);
+  a.color.set([col.r,col.g,col.b],i*3);a.colorB.set([colB.r,colB.g,colB.b],i*3);
+  a.size[i]=o.size;a.alpha[i]=o.alpha;a.kind[i]=o.kind;a.gid[i]=gid;a.gid2[i]=gid2;a.aid[i]=o.aid;a.spin[i]=o.spin;a.seed[i]=rnd();a.sid[i]=sid;
+}
+// fondo de estrellas
+(function(){R=seed(99);const n=2600,col=new THREE.Color(),o={axis:[0,1,0],kind:0,aid:-1,spin:0};
+  const g=geoFrom(PA,n,a=>{for(let i=0;i<n;i++){const d=randDir(),r=750+rnd()*700,t=rnd();o.p=[d[0]*r,d[1]*r,d[2]*r];o.anchor=o.p;
+    o.size=2+rnd()*3.5;o.alpha=.25+rnd()*.4;col.setRGB(.75+.25*t,.8+.15*t,1);put(a,i,o,col,col,-1,-1,-1)}});
+  const p=new THREE.Points(g,mat);p.frustumCulled=false;scene.add(p);})();
+
+let L=null,points=null,lines=null,N=35000,NODES=[];
+function build(){
+  L=layout();
+  NODES=[];L.forEach((k,g)=>k.artists.forEach((A,a)=>A.songs.forEach((s,i)=>{s.g=g;s.a=a;s.i=i;s.anchor=s.spin?A.w:s.base;s.axis=k.n;s.idx=NODES.length;NODES.push(s)})));
+  const clashN=Math.round(N*.08),sumN=RELS.reduce((t,r)=>t+r.n,0);
+  const relCount=RELS.map(r=>Math.round(clashN*r.n/sumN)),gCount=GENRES.map(g=>Math.max(5,Math.round(N*.92*g.s/TOT)));
+  const total=gCount.reduce((a,b)=>a+b,0)+relCount.reduce((a,b)=>a+b,0)+NODES.length;
+  R=seed(2024);const col=new THREE.Color(),colB=new THREE.Color(),o={};
+  const geo=geoFrom(PA,total,a=>{let i=0;
+    gCount.forEach((c,g)=>{for(let j=0;j<c;j++,i++){gen(g,j,L,o,col);colB.copy(col);put(a,i,o,col,colB,g,-1,-1)}});
+    RELS.forEach((r,ri)=>{for(let j=0;j<relCount[ri];j++,i++){genClash(r,L,o,col,colB);put(a,i,o,col,colB,r.a,r.b,-1)}});
+    NODES.forEach(s=>{const h=HUE(s.g);o.p=s.base;o.anchor=s.anchor;o.axis=s.axis;o.spin=s.spin;o.kind=4;o.aid=s.a;
+      o.size=s.bridge?11:8;o.alpha=.95;
+      col.setHSL(s.bridge?hueMix(h,HUE(s.bridge.other),.5):h,s.bridge?.55:.4,.8);colB.copy(col);
+      put(a,i,o,col,colB,s.g,s.bridge?s.bridge.other:-1,s.idx);i++;});
+  });
+  // hilos: artista → canción, y canción puente → núcleo del otro género
+  const segs=[];
+  NODES.forEach(s=>{const A=L[s.g].artists[s.a];
+    segs.push({p:A.w,s,lk:s.bridge?1:0});segs.push({p:s.base,s,lk:s.bridge?1:0});
+    if(s.bridge){segs.push({p:s.base,s,lk:1,far:1});segs.push({p:L[s.bridge.other].c,s,lk:1,far:1})}});
+  const LA={position:3,color:3,anchor:3,axis:3,alpha:1,gid:1,gid2:1,aid:1,spin:1,lk:1};
+  const lg=geoFrom(LA,segs.length,a=>segs.forEach((e,i)=>{const s=e.s,h=HUE(e.far?s.bridge.other:s.g);col.setHSL(s.bridge?hueMix(HUE(s.g),HUE(s.bridge.other),.5):h,.5,.7);
+    a.position.set(e.p,i*3);a.anchor.set(s.spin?s.anchor:e.p,i*3);a.axis.set(s.axis,i*3);a.color.set([col.r,col.g,col.b],i*3);
+    a.alpha[i]=e.lk?.14:.06;a.gid[i]=s.g;a.gid2[i]=s.bridge?s.bridge.other:-1;a.aid[i]=s.a;a.spin[i]=s.spin;a.lk[i]=e.lk}));
+  if(points){scene.remove(points);points.geometry.dispose();scene.remove(lines);lines.geometry.dispose()}
+  points=new THREE.Points(geo,mat);points.frustumCulled=false;scene.add(points);
+  lines=new THREE.LineSegments(lg,lmat);lines.frustumCulled=false;scene.add(lines);
+  U.uGain.value=Math.sqrt(35000/total);
+}
+function nodePos(s){if(!s.spin)return s.base;const off=rotJS([s.base[0]-s.anchor[0],s.base[1]-s.anchor[1],s.base[2]-s.anchor[2]],s.axis,time*s.spin);
+  return add(s.anchor,off,U.uIntro.value)}
+
+// ---------- etiquetas ----------
+const labelsEl=document.getElementById('labels');
+const hex=(i,l)=>{const c=new THREE.Color();c.setHSL(HUE(i),.62,l||.62);return'#'+c.getHexString()};
+function mk(cls,html){const d=document.createElement('div');d.className='lab '+cls;d.innerHTML=html;d.style.opacity=0;labelsEl.appendChild(d);return d}
+const gLab=GENRES.map((g,i)=>mk('','<i style="background:'+hex(i)+'"></i>'+g.n));
+const cLab=RELS.map(r=>mk('clash','<i style="background:'+hex(r.a)+'"></i><i style="background:'+hex(r.b)+'"></i>∩ '+r.n));
+const aLab=[0,1,2,3,4].map(()=>mk('art',''));
+const sLab=Array.from({length:8},()=>mk('song',''));
+let showLabels=true,W=1,H=1,time=0,moveOn=!reduce;
+const tmp=new THREE.Vector3();
+function proj(p){tmp.set(p[0],p[1],p[2]);const dist=tmp.distanceTo(camera.position);tmp.project(camera);return{x:(tmp.x*.5+.5)*W,y:(-tmp.y*.5+.5)*H,ok:tmp.z<1&&tmp.z>-1,dist}}
+function place(el,p,op){el.style.opacity=p.ok?op:0;el.style.transform='translate('+Math.round(p.x)+'px,'+Math.round(p.y)+'px) translate(-50%,-100%)'}
+function visibleSongs(){
+  if(nav.mode==='artist')return L[nav.g].artists[nav.a].songs;
+  if(nav.mode==='collision')return NODES.filter(s=>s.bridge&&s.bridge.rel===nav.r);
+  return[];
+}
+function updateLabels(){
+  const m=nav.mode;
+  const gp=GENRES.map((g,i)=>Object.assign(proj(L[i].label),{i})).sort((a,b)=>a.dist-b.dist);
+  gp.forEach((p,rank)=>{let op=0;
+    if(m==='all'&&showLabels)op=rank<3?1:rank<5?.55:0;
+    if(m==='collision'&&(p.i===nav.r.a||p.i===nav.r.b))op=1;
+    place(gLab[p.i],p,op)});
+  const cp=RELS.map((r,i)=>Object.assign(proj(r.label),{i})).sort((a,b)=>a.dist-b.dist);
+  cp.forEach((p,rank)=>{const r=RELS[p.i];let op=0;
+    if(m==='all'&&showLabels&&rank<4)op=.8;
+    if(m==='genre'&&(r.a===nav.g||r.b===nav.g))op=.9;
+    place(cLab[p.i],p,op)});
+  aLab.forEach((el,t)=>{
+    if(m!=='genre'&&m!=='artist'){el.style.opacity=0;return}
+    const A=L[nav.g].artists[t];el.textContent=GENRES[nav.g].a[t][0];el.classList.toggle('on',m==='artist'&&t===nav.a);
+    let op=m==='genre'?(showLabels?1:0):(t===nav.a?1:0);
+    place(el,proj([A.w[0],A.w[1]+A.rad*1.6,A.w[2]]),op)});
+  const vs=visibleSongs();
+  sLab.forEach((el,t)=>{const s=vs[t];if(!s){el.style.opacity=0;return}
+    el.innerHTML='<i></i>'+s.title+(s.bridge?' <span style="color:var(--clash)">∩</span>':'');el.classList.toggle('on',s.idx===selSong);
+    const p=nodePos(s);place(el,proj([p[0],p[1]+3,p[2]]),showLabels||s.idx===selSong?1:0)});
+}
+
+// ---------- navegación ----------
+const HOME=()=>W<500?640:500;
+let nav={mode:'all'},selSong=-1,target=new THREE.Vector3(),camDest=null,fT=0,artT=0,colT=0;
+controls.addEventListener('start',()=>{camDest=null});
+function flyTo(pos,dist,dirOverride){target.set(pos[0],pos[1],pos[2]);
+  const dir=dirOverride?new THREE.Vector3(...dirOverride):camera.position.clone().sub(target).normalize();
+  camDest=target.clone().add(dir.multiplyScalar(dist))}
+function go(s){
+  nav=s;selSong=-1;U.uSong.value=-1;
+  if(s.mode==='all'){fT=0;artT=0;colT=0;target.set(0,0,0);camDest=camera.position.clone().sub(controls.target).normalize().multiplyScalar(HOME())}
+  if(s.mode==='genre'){U.uFA.value=s.g;U.uFB.value=-1;fT=1;artT=0;colT=0;flyTo(L[s.g].c,Math.max(130,L[s.g].S*3.4))}
+  if(s.mode==='artist'){U.uFA.value=s.g;U.uFB.value=-1;U.uArt.value=s.a;fT=1;artT=1;colT=0;const A=L[s.g].artists[s.a];flyTo(A.w,Math.max(48,A.rad*11))}
+  if(s.mode==='collision'){const r=s.r;U.uFA.value=r.a;U.uFB.value=r.b;fT=1;artT=0;colT=1;
+    const v=camera.position.clone().sub(new THREE.Vector3(...r.m)),dv=new THREE.Vector3(...r.dir);v.sub(dv.multiplyScalar(v.dot(dv))).normalize();
+    flyTo(r.m,(L[r.a].S+L[r.b].S)*1.55,[v.x,v.y,v.z])}
+  renderFicha();
+}
+function back(){
+  if(nav.mode==='artist')go({mode:'genre',g:nav.g});
+  else if(nav.mode==='collision'&&nav.from>=0)go({mode:'genre',g:nav.from});
+  else go({mode:'all'});
+}
+function pickSong(s){selSong=selSong===s.idx?-1:s.idx;U.uSong.value=selSong;
+  if(selSong>=0&&s.bridge&&nav.mode==='artist')flyTo(s.base,70);renderFicha()}
+const ficha=document.getElementById('ficha'),hint=document.getElementById('hint'),crumb=document.getElementById('crumb');
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
+function chip(html,onClick,pressed,cls){const b=el('button','chip'+(cls?' '+cls:''),html);b.type='button';b.setAttribute('aria-pressed',pressed?'true':'false');b.addEventListener('click',onClick);return b}
+function row(label,chips){const r=el('div','row');r.appendChild(el('span','rl',label));const c=el('div','chips');chips.forEach(x=>c.appendChild(x));r.appendChild(c);return r}
+const dot=i=>'<i style="background:'+hex(i)+'"></i>';
+function renderFicha(){
+  const m=nav.mode;ficha.innerHTML='';
+  ficha.hidden=m==='all';hint.hidden=m!=='all';
+  const gName=g=>GENRES[g].n;
+  crumb.innerHTML=m==='all'?'<b>Universo</b> · 12 géneros · 12 choques':m==='genre'?'Universo › <b>'+gName(nav.g)+'</b>':
+    m==='artist'?'Universo › '+gName(nav.g)+' › <b>'+GENRES[nav.g].a[nav.a][0]+'</b>':'Universo › <b>Choque</b>';
+  if(m==='all')return;
+  const head=el('div','fhead'),txt=el('div','txt');let dots='',title='',meta='';
+  if(m==='genre'){const G=GENRES[nav.g];dots=dot(nav.g);title=G.n;meta=G.s+' canciones · '+G.a.length+' artistas · '+RELS.filter(r=>r.a===nav.g||r.b===nav.g).length+' choques'}
+  if(m==='artist'){const a=GENRES[nav.g].a[nav.a];dots=dot(nav.g);title=a[0];meta=GENRES[nav.g].n+' · '+a[1]+' canciones'}
+  if(m==='collision'){const r=nav.r;dots=dot(r.a)+dot(r.b);title=gName(r.a)+' × '+gName(r.b);meta=r.n+' canciones en común · '+r.why}
+  head.appendChild(el('div','dots',dots));txt.appendChild(el('b','',title));txt.appendChild(el('span','',meta));head.appendChild(txt);
+  const bb=el('button','back',m==='genre'?'Universo':'Volver');bb.type='button';bb.addEventListener('click',back);head.appendChild(bb);
+  ficha.appendChild(head);
+  if(selSong>=0){const s=NODES[selSong],ar=GENRES[s.g].a[s.a][0];
+    ficha.appendChild(el('div','detail','♪ '+s.title+' <em>· '+ar+'</em>'+(s.bridge?'<br><span class="x">∩</span> <em>también en</em> '+gName(s.bridge.other):'')))}
+  if(m==='genre'){
+    ficha.appendChild(row('Artistas',GENRES[nav.g].a.map((a,t)=>chip(a[0]+' <em>'+a[1]+'</em>',()=>go({mode:'artist',g:nav.g,a:t})))));
+    const rs=RELS.filter(r=>r.a===nav.g||r.b===nav.g).sort((x,y)=>y.n-x.n);
+    if(rs.length)ficha.appendChild(row('Choca con',rs.map(r=>{const o=r.a===nav.g?r.b:r.a;return chip(dot(o)+gName(o)+' <em>∩ '+r.n+'</em>',()=>go({mode:'collision',r,from:nav.g}),false,'br')})));
+  }
+  if(m==='artist'){
+    ficha.appendChild(row('Canciones',L[nav.g].artists[nav.a].songs.map(s=>chip(s.title+(s.bridge?' <em>∩</em>':''),()=>pickSong(s),s.idx===selSong,s.bridge?'br':''))));
+    ficha.appendChild(row('Otros artistas',GENRES[nav.g].a.map((a,t)=>t===nav.a?null:chip(a[0],()=>go({mode:'artist',g:nav.g,a:t}))).filter(Boolean)));
+  }
+  if(m==='collision'){
+    const bs=NODES.filter(s=>s.bridge&&s.bridge.rel===nav.r);
+    ficha.appendChild(row('Canciones puente',bs.map(s=>chip(s.title+' <em>'+GENRES[s.g].a[s.a][0]+'</em>',()=>pickSong(s),s.idx===selSong,'br'))));
+    ficha.appendChild(row('Ir al género',[nav.r.a,nav.r.b].map(g=>chip(dot(g)+gName(g),()=>go({mode:'genre',g})))));
+  }
+}
+
+// ---------- toques en el escenario ----------
+let down=null;
+canvas.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:performance.now()}});
+canvas.addEventListener('pointerup',e=>{
+  if(!down)return;const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y),dt=performance.now()-down.t;down=null;
+  if(moved>8||dt>500)return;
+  const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  const near=(items,posOf,rad)=>{let best=null,bd=rad;items.forEach(it=>{const p=proj(posOf(it));if(p.ok){const d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=it}}});return best};
+  const m=nav.mode;
+  const s=near(visibleSongs(),nodePos,36);if(s){pickSong(s);return}
+  if(m==='genre'||m==='artist'){const t=near([0,1,2,3,4],t=>L[nav.g].artists[t].w,40);if(t!=null){go({mode:'artist',g:nav.g,a:t});return}}
+  if(m==='all'||m==='genre'){const c=near(RELS.filter(q=>m==='all'||q.a===nav.g||q.b===nav.g),q=>q.m,38);if(c){go({mode:'collision',r:c,from:m==='genre'?nav.g:-1});return}}
+  const g=near([...Array(NG).keys()].filter(i=>m==='all'||i!==nav.g),i=>L[i].c,70);if(g!=null){go({mode:'genre',g});return}
+});
+
+// ---------- controles ----------
+document.querySelectorAll('#dens button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#dens button').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');
+  N=+b.dataset.n;const keep=nav;build();
+  if(keep.mode==='collision')keep.r=RELS[RELS.indexOf(keep.r)];go(keep)}));
+function toggle(id,get,set){const b=document.getElementById(id);b.setAttribute('aria-pressed',get());b.addEventListener('click',()=>{set(!get());b.setAttribute('aria-pressed',get())})}
+let gasOn=true,linksOn=true;
+toggle('tGas',()=>gasOn,v=>gasOn=v);
+toggle('tLinks',()=>linksOn,v=>linksOn=v);
+toggle('tMove',()=>moveOn,v=>moveOn=v);
+toggle('tSpin',()=>controls.autoRotate,v=>controls.autoRotate=v);
+toggle('tLabels',()=>showLabels,v=>showLabels=v);
+
+// ---------- código visible ----------
+document.getElementById('cPy').textContent=
+`# Cuántas canciones comparte cada par de géneros (clusters de tu app).
+# Una canción "pertenece" a varios clusters si sus etiquetas de género
+# (o las de su artista) caen en más de uno.
+from collections import Counter
+from itertools import combinations
+
+pares = Counter()
+puente = {}                      # canciones que conectan cada par
+for c in canciones:              # c = {"id", "titulo", "clusters": [...]}
+    for a, b in combinations(sorted(set(c["clusters"])), 2):
+        pares[(a, b)] += 1
+        puente.setdefault((a, b), []).append(c["id"])
+
+rels = [
+    {"a": a, "b": b, "n": n, "puente": puente[(a, b)][:3]}
+    for (a, b), n in pares.most_common()
+    if n >= 5                    # umbral: menos ruido visual
+]`;
+document.getElementById('cLayout').textContent=layout.toString();
+document.getElementById('cGen').textContent='// helpers: gauss(), fbm() ruido 3D, toWorld(), sstep() = smoothstep, hueMix()\n'+gen.toString()+'\n\n'+genClash.toString();
+document.getElementById('cShader').textContent='// común\n'+COMMON.trim()+'\n\n// vertex (puntos)\n'+VS.replace(COMMON,'').trim()+'\n\n// fragment (puntos)\n'+FS.trim()+'\n\n// vertex (hilos)\n'+LVS.replace(COMMON,'').trim();
+document.querySelectorAll('.copy').forEach(btn=>btn.addEventListener('click',()=>{
+  const e=document.getElementById(btn.dataset.src),done=()=>{btn.textContent='Copiado';setTimeout(()=>btn.textContent='Copiar',1500)};
+  const sel=()=>{const r=document.createRange();r.selectNodeContents(e);const s=getSelection();s.removeAllRanges();s.addRange(r)};
+  try{navigator.clipboard.writeText(e.textContent).then(done,sel)}catch(_){sel()}
+}));
+
+function resize(){W=stage.clientWidth;H=stage.clientHeight;renderer.setSize(W,H,false);camera.aspect=W/H;camera.fov=W<500?62:52;camera.updateProjectionMatrix()}
+new ResizeObserver(resize).observe(stage);resize();
+camera.position.set(0,.4,1).normalize().multiplyScalar(HOME());
+build();renderFicha();
+
+const clock=new THREE.Clock();let last=0;const t0=performance.now();
+const ap=(u,t,k)=>{u.value+=(t-u.value)*k};
+(function loop(){
+  requestAnimationFrame(loop);
+  const now=clock.getElapsedTime(),dt=Math.min(.05,now-last);last=now;
+  if(moveOn)time+=dt;U.uTime.value=time;
+  if(!reduce){const e=Math.min(1,(performance.now()-t0)/2600);U.uIntro.value=1-Math.pow(1-e,3)}
+  ap(U.uGas,gasOn?1:0,.1);ap(U.uLinks,linksOn?1:0,.1);
+  ap(U.uFAmt,fT,.07);ap(U.uArtAmt,artT,.09);ap(U.uColAmt,colT,.09);
+  controls.target.lerp(target,.06);
+  if(camDest){camera.position.lerp(camDest,.05);if(camera.position.distanceTo(camDest)<1)camDest=null}
+  controls.update();renderer.render(scene,camera);updateLabels();
+})();
+})();
+</script>
