@@ -43,7 +43,8 @@ export function nebulaFieldCounts(songCounts: number[], particleCount: number): 
   );
 }
 
-const ATTRIBUTES = {
+/** Attribute name → item size; nebulaFieldShaders.ts declares the same names. */
+export const NEBULA_FIELD_ATTRIBUTES = {
   position: 3,
   color: 3,
   anchor: 3,
@@ -57,7 +58,7 @@ const ATTRIBUTES = {
   seed: 1,
   aAffinity: 1,
 } as const;
-type AttributeName = keyof typeof ATTRIBUTES;
+type AttributeName = keyof typeof NEBULA_FIELD_ATTRIBUTES;
 
 const smoothstep = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -102,7 +103,7 @@ export function buildNebulaFieldGeometry(layout: NebulaLayoutResult, particleCou
   const total = countsByGenre.reduce((a, b) => a + b, 0);
 
   const arrays = Object.fromEntries(
-    (Object.keys(ATTRIBUTES) as AttributeName[]).map((name) => [name, new Float32Array(total * ATTRIBUTES[name])])
+    (Object.keys(NEBULA_FIELD_ATTRIBUTES) as AttributeName[]).map((name) => [name, new Float32Array(total * NEBULA_FIELD_ATTRIBUTES[name])])
   ) as Record<AttributeName, Float32Array>;
 
   const artistsByGenre = new Map<string, ArtistNode[]>();
@@ -218,8 +219,8 @@ export function buildNebulaFieldGeometry(layout: NebulaLayoutResult, particleCou
   });
 
   const geometry = new THREE.BufferGeometry();
-  for (const name of Object.keys(ATTRIBUTES) as AttributeName[]) {
-    geometry.setAttribute(name, new THREE.BufferAttribute(arrays[name], ATTRIBUTES[name]));
+  for (const name of Object.keys(NEBULA_FIELD_ATTRIBUTES) as AttributeName[]) {
+    geometry.setAttribute(name, new THREE.BufferAttribute(arrays[name], NEBULA_FIELD_ATTRIBUTES[name]));
   }
   // anchors orbit inside the rotating cosmos group; a static sphere avoids per-frame bounds work
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 60);
