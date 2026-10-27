@@ -3,7 +3,7 @@
 **Versión del Proyecto:** 1.1.0  
 **Fecha de Publicación:** 27 de Octubre de 2026  
 **Audiencia:** Desarrolladores de software, ingenieros de gráficos WebGL, arquitectos web y nuevos colaboradores.  
-**Estado del Repositorio:** Producción / Estable. Migración a Nebulosas v3 en curso en `feat/nebulosas-v3` (M4 cerrado; ver `docs/MIGRATION_NEBULOSAS.md`).
+**Estado del Repositorio:** Producción / Estable. Migración a Nebulosas v3 en curso en `feat/nebulosas-v3` (M4 y M5 cerrados; ver `docs/MIGRATION_NEBULOSAS.md`).
 
 ---
 
@@ -143,7 +143,9 @@ YourMusicVisualizer/
 │   ├── data/                     # Presets cósmicos precalculados estáticos
 │   ├── lib/                      # Lógica de dominio desacoplada, audio, importadores y red
 │   │   ├── audio/                # Motor singleton de Web Audio API y FFT
-│   │   ├── importers/            # Ingesta y distribución matemática de grafos 3D
+│   │   ├── importers/            # Ingesta de pistas y construcción del grafo (sin posiciones desde M5.1)
+│   │   ├── layout/               # Layouts espaciales puros: clásico, relaciones entre géneros y Nebulosas v3
+│   │   ├── math/                 # PRNG determinista compartido por el código nuevo (mulberry32, gauss, Fibonacci)
 │   │   ├── music/                # Clasificador universal de géneros y taxonomía cósmica
 │   │   └── spotify/              # Cliente de red Spotify PKCE y cola de rate limiting
 │   ├── store/                    # Almacén de estado global reactivo (Zustand)
@@ -152,6 +154,7 @@ YourMusicVisualizer/
 │   └── visual/                   # Baseline y corridas del arnés visual (baseline-classic/, latest-classic/)
 └── tests/                        # Suites de verificación y validación matemática
     ├── verification/             # Aserciones tsx ejecutadas por `npm test` y CI
+    │   └── fixtures/             # Snapshot de posiciones clásicas y payloads sintéticos (M5)
     └── visual/                   # Arnés Playwright de capturas y comparación (fuera de CI)
 ```
 
@@ -202,20 +205,24 @@ YourMusicVisualizer/
 - `StellarSearchBar.tsx`: Buscador estelar flotante (activable con `/`), con navegación por teclado y disparo de vuelos hacia la entidad seleccionada.
 
 #### `src/data/` — Presets Cósmicos
-- `galaxyPresets.ts`: Grafos cósmicos estáticos completos (`GALAXY_PRESET_50`, `GALAXY_PRESET_150`, `GALAXY_PRESET_300`) con coordenadas 3D precalculadas para operar sin credenciales ni conexión a internet en Modo Demo.
+- `galaxyPresets.ts`: Grafos cósmicos estáticos completos (`GALAXY_PRESET_50`, `GALAXY_PRESET_150`, `GALAXY_PRESET_300`) con coordenadas 3D precalculadas para operar sin credenciales ni conexión a internet en Modo Demo. Desde M5.2b exporta `ARTIST_DATABASE` y 27 temas llevan un `secondaryGenre` curado (11 pares de géneros) que alimenta los choques entre nebulosas; las variaciones del preset 300 lo heredan.
 
 #### `src/lib/` — Lógica de Dominio Pura y Servicios
 - `audio/WebAudioEngine.ts`: Motor singleton Web Audio API: gestión de `AudioContext`, analizador FFT de 64 bandas, streaming HTML5 Audio sin bloqueo CORS y sintetizador armónico polifónico procedural.
-- `importers/libraryImporter.ts`: Algoritmos matemáticos de transformación de pistas en grafos celestes: distribución angular de constelaciones, dispersión filotáctica de artistas, órbitas basadas en el ángulo dorado ($\approx 2.3999632\text{ rad}$) y cálculo de afinidad TF-IDF.
+- `importers/libraryImporter.ts`: Transformación de pistas en grafos celestes: clasificación, buckets de género/artista, afinidad, links (`genre-artist`, `artist-song`, `influence` por anillo, colaboraciones, género secundario y TF-IDF) y `SongNode.secondaryGenreId`. Desde M5.1 construye los nodos en `[0,0,0]` y termina con `applyClassicLayout(...)`; `getDynamicSectorPlacement` conserva su firma (color de `SECTOR_PALETTE`, centro de `classicSectorCenter`).
+- `layout/classicLayout.ts`: Layout clásico como pasada pura (`applyClassicLayout`, `classicSectorCenter`): anillo de constelaciones, espiral de artistas y órbitas doradas de canciones, calculadas por orden de arrays y agrupando por `(genreId, artistId)`. Cubierto por un fixture de posiciones previo al refactor.
+- `layout/genreRelations.ts`: `computeGenreRelations(data, minShared = 2)`. Puntúa cada par de géneros con canciones puente (`secondaryGenreId`, peso 1), links `influence` cruzados (peso 0.5; ignora el anillo género↔género) y tags compartidos (0.25, tope 2). Devuelve `sharedSongs`, hasta 3 `bridgeSongIds` y `strength`.
+- `layout/nebulaLayout.ts`: Layout de Nebulosas v3 (port de `layout()` de `docs/reference/nebulosas-v3.html` con `WORLD_SCALE = 0.14`). Núcleos en esfera de Fibonacci de dos capas relajados con resortes y repulsión (S = 4.8–9.0 u), marco inclinado por género con semilla por id, artistas por ángulo dorado entre 2.4 u y 0.75·S, canciones en órbitas compactas (0.9–2.0 u) y canciones puente en el disco de contacto. `computeNebulaLayout` devuelve `{ data, cores, relations }` (con `contact`, `dir`, `radius` para M7); `applyNebulaLayout` es el atajo del store.
+- `math/prng.ts`: `createRng` (mulberry32), `gauss`, `randDir` y `goldenFibonacci`, usados por el código nuevo.
 - `music/genreClassifier.ts`: Clasificador musical universal en memoria (0ms de latencia) que clasifica artistas en 20 constelaciones universales canónicas con reglas fonéticas y palabras clave.
 - `music/taxonomy.ts`: Definición de 12 macro-géneros canónicos, normalización de etiquetas musicales y cálculo de enlaces inter-estelares TF-IDF.
 - `spotify/spotifyClient.ts`: Cliente de red para la API de Spotify: autenticación PKCE, cola de peticiones con control de concurrencia (`RequestQueue`), reintentos automáticos ante errores HTTP 429 con retroceso exponencial y jitter (`fetchWithRetry`), y caché persistente de artistas en `localStorage`.
 
 #### `src/store/` — Almacén de Estado Global
-- `useGalaxyStore.ts`: Almacén creado con Zustand. Centraliza datos galácticos, entidad seleccionada, entidad en hover, sector activo, modo de cámara (`galaxy`, `sector`, `artist`, `song`), versión de vuelo cinemático (`flightVersion`), estado de reproducción de audio, brillo estelar y métricas de rendimiento. Desde M4 incluye `rendererMode: 'classic' | 'nebula'` (default `'classic'`) y `setRendererMode`, el flag que separa el renderer clásico del de Nebulosas v3; `GalaxyScene` lo expone en el `userData` del grupo `celestial-galaxy-cosmos`.
+- `useGalaxyStore.ts`: Almacén creado con Zustand. Centraliza datos galácticos, entidad seleccionada, entidad en hover, sector activo, modo de cámara (`galaxy`, `sector`, `artist`, `song`), versión de vuelo cinemático (`flightVersion`), estado de reproducción de audio, brillo estelar y métricas de rendimiento. Desde M4 incluye `rendererMode: 'classic' | 'nebula'` (default `'classic'`) y `setRendererMode`, el flag que separa el renderer clásico del de Nebulosas v3; `GalaxyScene` lo expone en el `userData` del grupo `celestial-galaxy-cosmos`. Desde M5.5 guarda `baseData` (lo importado, con posiciones clásicas) y deriva `data = layoutForMode(baseData, rendererMode)`; el layout nebula se cachea por dataset en un `WeakMap`. `setPresetScale`, `loadCustomGalaxyData` y `setRendererMode` lo aplican; al cambiar de modo se remapean `selectedNode`/`hoveredNode` por id y se incrementa `flightVersion` para reencuadrar. Ningún componente cambió: todos siguen leyendo `data`.
 
 #### `src/types/` — Tipos TypeScript del Dominio
-- `music.ts`: Interfaces y contratos TypeScript: `GenreNode`, `ArtistNode`, `SongNode`, `MusicGalaxyData`, clases espectrales estelares y funciones puras para el cálculo de radios y métricas visuales.
+- `music.ts`: Interfaces y contratos TypeScript: `GenreNode`, `ArtistNode`, `SongNode` (desde M5.2 con `secondaryGenreId?`), `MusicGalaxyData`, clases espectrales estelares y funciones puras para el cálculo de radios y métricas visuales.
 
 #### Directorios Complementarios
 - `public/`: Recursos gráficos estáticos (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`).
@@ -311,7 +318,7 @@ YourMusicVisualizer/
    - Consulta las canciones guardadas en bloques de 50 pistas mediante `GET /v1/me/tracks`. Para mitigar el límite de peticiones de Spotify, la función utiliza una cola con control de concurrencia (`RequestQueue`, máximo 2 peticiones paralelas y 300ms de retardo) y el wrapper `fetchWithRetry`, el cual intercepta respuestas HTTP 429, respeta la cabecera `Retry-After` e introduce retroceso exponencial con jitter.
    - Deduplica los artistas principales y consulta sus metadatos. Primero revisa la caché de `localStorage` (`ymv_cache_artist_<id>`, TTL 7 días). Para los faltantes, realiza consultas por lote de hasta 50 IDs en `GET /v1/artists?ids=...`.
    - Envía las pistas a `POST /api/enrich-tracks` para mapear géneros mediante Last.fm y heurísticas locales.
-2. **Transformación Matemática en Grafo (`src/lib/importers/libraryImporter.ts`):**
+2. **Transformación Matemática en Grafo (`src/lib/importers/libraryImporter.ts` + `src/lib/layout/classicLayout.ts`):**
    - **Distribución de Constelaciones:** Dispone los macro-géneros armónicamente en un anillo circular de radio adaptativo (18 a 34 unidades) y elevación variable para prevenir colisiones visuales (`getDynamicSectorPlacement`).
    - **Dispersión Espiral de Artistas:** Posiciona las estrellas de artistas en espiral logarítmica alrededor de su sector:
      $$\text{distancia} = 4.8 + \sqrt{\text{índice} + 0.8} \times 2.2$$
@@ -319,7 +326,7 @@ YourMusicVisualizer/
      $$\text{radio} = 2.1 + \sqrt{\text{índice} + 1} \times 0.85$$
    - **Ponderación de Afinidad:** Calcula un índice de afinidad (0.0 a 1.0) combinando la popularidad en Spotify, la frecuencia del artista en la biblioteca y la fecha de agregado del tema.
    - **Generación de Filamentos Inter-estelares:** Genera enlaces estructurales jerárquicos (`genre-artist`, `artist-song`), anillos dorsales galácticos entre sectores vecinos y puentes estéticos basados en similitud TF-IDF de subgéneros.
-3. El objeto resultante `MusicGalaxyData` se carga en el store mediante `loadCustomGalaxyData(...)`.
+3. El objeto resultante `MusicGalaxyData` se carga en el store mediante `loadCustomGalaxyData(...)` como `baseData`. Si `rendererMode` es `nebula` (`?renderer=nebula`), el store deriva `data` con `applyNebulaLayout`: relaciones entre géneros → núcleos relajados → artistas, canciones y canciones puente (ver `src/lib/layout/`).
 
 #### Paso 5: Audio Reactivo y Análisis Espectral FFT (Web Audio API)
 1. **Inicio de Reproducción:**
@@ -444,9 +451,10 @@ Los comandos declarados en `package.json` son:
 | `npm run build` | `next build` | Compila la aplicación para producción utilizando Turbopack y valida tipado estricto con TypeScript. |
 | `npm run start` | `next start` | Inicia el servidor Node.js en modo producción utilizando los artefactos generados en `.next`. |
 | `npm run lint` | `eslint` | Ejecuta ESLint 9 con Flat Config (`eslint.config.mjs`) validando reglas de Next.js y TypeScript. |
-| `npm test` | `tsx tests/verification/...` | Ejecuta las 222 aserciones de pruebas automatizadas (matemáticas, geometrías, shaders y flag `rendererMode`) con `tsx`. |
+| `npm test` | `tsx tests/verification/...` | Ejecuta las 426 aserciones de pruebas automatizadas (matemáticas, geometrías, shaders, flag `rendererMode`, layouts clásico y nebula, relaciones y store) con `tsx`. |
 | `npm run test:visual:baseline` | `node tests/visual/captureScenes.mjs ...` | Captura el baseline visual del renderer clásico (presets 50 y 300) en `test-results/visual/baseline-classic/`. Requiere `npm run dev` corriendo. |
 | `npm run test:visual` | `captureScenes.mjs` + `compareScenes.mjs` | Recaptura las 6 escenas y las compara con el baseline (≈4 min con WebGL por software). No corre en CI. |
+| `npm run test:visual:flows` | `checklistFlows.mjs` | Recorre la parte automatizable de la checklist de no-regresión (drawer, Próxima, buscador, ficha, filtros, bloom, pulso FFT, presets) en `classic` y `nebula`. Requiere `npm run dev`. |
 
 #### Secuencia de Comandos para Nuevos Desarrolladores:
 
@@ -478,7 +486,7 @@ npm run dev
 
 ### 7.1 Inventario de Código Sin Pruebas Automatizadas
 
-El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `milestone2_challenger.test.ts`) ejecutaba 205 aserciones al inicio de la migración (222 tras M4, por `m4_renderer_mode.test.ts`) centradas en validaciones matemáticas de geometrías, determinismo de shaders y fórmulas de cinemática de cámara.
+El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `milestone2_challenger.test.ts`) ejecutaba 205 aserciones al inicio de la migración (222 tras M4 y 426 tras M5, con las suites `m4_*` y `m5_*`) centradas en validaciones matemáticas de geometrías, determinismo de shaders y fórmulas de cinemática de cámara.
 
 **Sin embargo, la totalidad de los módulos de integración, audio, red, estado global y componentes de interfaz carece de pruebas automatizadas:**
 
@@ -486,7 +494,7 @@ El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `mi
 |---|---|---|---|
 | **Motor Web Audio** | `src/lib/audio/WebAudioEngine.ts` | 463 | **CRÍTICO.** Cero pruebas sobre desbloqueo de autoplay por interacción del usuario, ciclo de vida del `AudioContext`, manejo de decodificación errónea de MP3 o desvinculación de nodos en desuso. |
 | **Cliente de Red Spotify** | `src/lib/spotify/spotifyClient.ts` | 822 | **CRÍTICO.** Cero pruebas con mocks de red (`fetch`). Cambios en la respuesta de Spotify o en la cola `RequestQueue` pueden quebrar la sincronización de bibliotecas sin alerta del compilador. |
-| **Importador de Datos 3D** | `src/lib/importers/libraryImporter.ts` | 640 | **ALTO.** Sin pruebas unitarias para validar que cargas atípicas de canciones no produzcan colisiones de coordenadas, valores `NaN` en enlaces o bloqueos en los bucles de colocación. |
+| **Importador de Datos 3D** | `src/lib/importers/libraryImporter.ts` | ~600 | **MEDIO (mitigado en M5).** Las posiciones viven en `classicLayout.ts`, cubierto por fixture (presets, payload de streaming y artista dividido en dos géneros). Siguen sin tests la clasificación, los links y los casos de IDs repetidos (`artistId`/`songId` iguales en dos géneros). |
 | **Clasificador de Géneros** | `src/lib/music/genreClassifier.ts` | 873 | **ALTO.** Diccionario masivo sin tests de regresión; modificar una clave fonética o regex puede alterar la constelación de decenas de artistas sin advertencia. |
 | **Taxonomía Musical** | `src/lib/music/taxonomy.ts` | 701 | **MEDIO-ALTO.** Funciones matemáticas complejas como `computeTfIdfLinks` y `resolveTrackTaxonomy` carecen de suites unitarias automatizadas. |
 | **Route Handlers API** | `src/app/api/track-preview/route.ts`<br>`src/app/api/enrich-tracks/route.ts` | 523 | **ALTO.** Sin pruebas de integración para el proxy de audio (timeouts de Deezer/iTunes, cabeceras CORS) ni para el enriquecimiento mediante Last.fm. |
@@ -541,6 +549,7 @@ Se detectaron 5 casos claros de código duplicado que deberían refactorizarse e
      - `src/components/canvas/nebula/nebulaGeometry.ts` (L11-18)
      - `src/components/canvas/WarpTunnelMesh.tsx` (L8-15)
    - *Recomendación:* Extraer a una función utilitaria compartida en `src/lib/math/prng.ts`.
+   - *Estado (M5.4a):* `src/lib/math/prng.ts` existe y lo usa todo el código nuevo; las tres copias clásicas se quedan hasta M8 por la regla de no tocar el renderer clásico.
 2. **Normalización y Limpieza de Nombres de Canciones (`cleanQueryText` vs `cleanTrackTitle`):**
    - La expresión regular para eliminar sufijos como `(Remastered)`, `[Live Version]`, `(Deluxe Edition)`, comillas y guiones está duplicada casi de forma idéntica en:
      - `src/app/api/track-preview/route.ts` (L24-34)
@@ -577,6 +586,12 @@ Se detectaron 5 casos claros de código duplicado que deberían refactorizarse e
    - El token Bearer de Spotify se guarda directamente en `localStorage.getItem('ymv_spotify_access_token')`. Si ocurriera una inyección de script (XSS), el token podría ser leído. Además, la implementación no procesa el `refresh_token`, provocando que el token expire a los 60 minutos obligando al usuario a iniciar sesión nuevamente.
 5. **Riesgo de Saturación de Cuota de `localStorage` (`persistentArtistCache`):**
    - Los metadatos de los artistas se guardan individualmente bajo claves `ymv_cache_artist_<id>`. Los navegadores imponen un límite rígido de ~5 MB para `localStorage`. Al importar 1,000 o 3,000 canciones con cientos de artistas, la cuota puede desbordarse. La función de poda `pruneOldEntries()` no utiliza una política LRU (*Least Recently Used*), sino que borra de manera aleatoria el primer 25% de claves devueltas por el navegador.
+6. **El importer modifica el payload que recibe (detectado en M5.2b):**
+   - `buildMusicGalaxyFromPayload` escribe `rawTrack.secondaryGenre` con el valor del clasificador en cada tema que no lo trae. Quien reutilice el payload (presets, tests) ve datos que no puso. Los tests de M5 leen los valores curados desde `ARTIST_DATABASE` por este motivo.
+7. **Vocabularios distintos en el clasificador (detectado en M5.2):**
+   - Los géneros principales usan nombres específicos (p. ej. `TRIP-HOP & BRISTOL DUB`) y los secundarios un vocabulario amplio (`ELECTRÓNICA, HOUSE & TECHNO`, `POP INTERNACIONAL & SYNTH-POP`…) que casi nunca existe como nebulosa; varios parecen valores por defecto. Con datos reales, `secondaryGenreId` aporta poca señal y las relaciones dependen sobre todo de colaboraciones y TF-IDF. Queda pendiente derivar las relaciones de forma más dinámica a partir de las canciones del usuario.
+8. **Modo nebula híbrido hasta M6/M8 (detectado en M5.5):**
+   - Con `?renderer=nebula` el gas sigue siendo el clásico (`NebulaClusters`): en el preset 300 las nebulosas solapadas suman color aditivo y el bloom satura. El cosmos queda centrado en el origen y una nebulosa tapa el agujero negro central, y la cámara de vista general (`[0, 18, 52]`) encuadra la esfera de lado. El gas v3 llega en M6; cámara, warp-in y agujero negro se revisan en M8.
 
 ---
 
