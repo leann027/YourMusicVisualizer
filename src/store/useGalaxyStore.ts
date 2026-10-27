@@ -11,6 +11,8 @@ export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song';
 
 export type RendererMode = 'classic' | 'nebula';
 
+export type NebulaFieldDensity = 'full' | 'reduced';
+
 /** The dataset components render for `mode`: classic is the imported data as-is. */
 export function layoutForMode(baseData: MusicGalaxyData, mode: RendererMode): MusicGalaxyData {
   // getNebulaLayout caches per dataset, so mode/preset switches keep stable references
@@ -65,6 +67,7 @@ interface GalaxyState {
   isWarpActive: boolean;
   hasWarpCompleted: boolean;
   rendererMode: RendererMode;
+  nebulaFieldDensity: NebulaFieldDensity; // drops to 'reduced' once if FPS stay low (one-way per session)
 
   // Actions
   finishWarp: () => void;
@@ -92,6 +95,7 @@ interface GalaxyState {
   restoreDefaultGalaxy: () => void;
   updatePerfStats: (stats: RenderPerfStats) => void;
   setRendererMode: (mode: RendererMode) => void;
+  reduceNebulaFieldDensity: () => void;
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
@@ -125,6 +129,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   isWarpActive: true,
   hasWarpCompleted: false,
   rendererMode: 'classic',
+  nebulaFieldDensity: 'full',
 
   finishWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
   skipWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
@@ -283,6 +288,11 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   },
 
   updatePerfStats: (perfStats) => set({ perfStats }),
+
+  reduceNebulaFieldDensity: () => {
+    if (get().nebulaFieldDensity === 'reduced') return;
+    set({ nebulaFieldDensity: 'reduced' });
+  },
 
   setRendererMode: (rendererMode) => {
     if (get().rendererMode === rendererMode) return;

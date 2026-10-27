@@ -4,6 +4,7 @@ import {
   createNebulaFieldUniforms,
   NEBULA_FIELD_CACHE_KEY,
   NEBULA_FIELD_FRAGMENT_SHADER,
+  NEBULA_GAS_LOOK,
   NEBULA_FIELD_SIZE_ATTENUATION,
   NEBULA_FIELD_VERTEX_SHADER,
 } from '../../src/components/canvas/nebulaV3/shaders/nebulaFieldShaders';
@@ -55,6 +56,7 @@ const defaults = createNebulaFieldUniforms();
 const expected: Record<string, number> = {
   uTime: 0, uPixelRatio: 1, uGain: 1, uMinAffinity: 0, uFocusGid: -1, uFocusAmt: 0,
   uArtistAid: -1, uArtistAmt: 0, uPlayingGid: -1, uSubBass: 0, uHighShimmer: 0,
+  uGasSize: NEBULA_GAS_LOOK.size, uGasAlpha: NEBULA_GAS_LOOK.alpha,
 };
 assert(
   Object.entries(expected).every(([k, v]) => defaults[k]?.value === v) && Object.keys(defaults).length === Object.keys(expected).length,
