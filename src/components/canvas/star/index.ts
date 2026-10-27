@@ -6,6 +6,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { MusicNode, calculateStarVisualMetrics } from '../../../types/music';
 import { useGalaxyStore } from '../../../store/useGalaxyStore';
 import { webAudioEngine } from '../../../lib/audio/WebAudioEngine';
+import { getNebulaLayout } from '../../../lib/layout/nebulaLayout';
+import { bridgeRingColor } from '../nebulaV3/bridges';
 
 import { StarCoreMesh } from './StarCoreMesh';
 import { StarAccretionRings } from './StarAccretionRings';
@@ -50,12 +52,19 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     (s) => s.isAudioPlaying && s.playingTrackId === node.id
   );
   const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
+  const rendererMode = useGalaxyStore((s) => s.rendererMode);
+  const baseData = useGalaxyStore((s) => s.baseData);
   const selectNode = useGalaxyStore((s) => s.selectNode);
   const hoverNode = useGalaxyStore((s) => s.hoverNode);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
 
   const isFilteredOut = node.affinity < minAffinityFilter;
   const metrics = useMemo(() => calculateStarVisualMetrics(node), [node]);
+  // Nebulosas v3: songs placed in a collision get a ring in the pair's mixed colour
+  const bridgeColor = useMemo(
+    () => (node.type === 'song' && rendererMode === 'nebula' ? bridgeRingColor(node.id, getNebulaLayout(baseData)) : null),
+    [node, rendererMode, baseData]
+  );
 
   const starColor = useMemo(() => {
     if (node.type === 'genre') return node.color;
@@ -314,6 +323,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       stellarBrightness,
       diffractionRef,
       satelliteRef,
+      bridgeColor,
     }),
     isPlayingNode
       ? React.createElement(StarPlaybackPulsar, {

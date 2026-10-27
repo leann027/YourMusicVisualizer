@@ -1,4 +1,4 @@
-import { ArtistNode, GenreNode, MusicGalaxyData, SongNode } from '../../types/music';
+import { ArtistNode, GenreNode, MusicGalaxyData, MusicLink, SongNode } from '../../types/music';
 // Per-id seeds keep a nebula's orientation stable when other genres change
 import { createRng, gauss, goldenFibonacci, randDir, Rng, seedFromString } from '../math/prng';
 import { computeGenreRelations, GenreRelation } from './genreRelations';
@@ -148,6 +148,7 @@ export interface NebulaLayoutResult {
   data: MusicGalaxyData;
   cores: NebulaFrame[];
   relations: NebulaRelation[];
+  bridgeLinks: MusicLink[]; // 'bridge' threads for placed bridge songs (M7.2); data.links is untouched
 }
 
 const round2 = (value: number) => Number(value.toFixed(2));
@@ -246,6 +247,8 @@ export function computeNebulaLayout(data: MusicGalaxyData): NebulaLayoutResult {
   // Contact geometry per relation, and bridge songs moved into the contact disc
   const songIndex = new Map(songs.map((s, idx) => [s.id, idx]));
   const relations: NebulaRelation[] = [];
+  const bridgeLinks: MusicLink[] = [];
+  const maxStrength = Math.max(1, ...genreRelations.map((r) => r.strength));
   for (const relation of genreRelations) {
     const A = frameOf.get(relation.a);
     const B = frameOf.get(relation.b);
@@ -272,10 +275,16 @@ export function computeNebulaLayout(data: MusicGalaxyData): NebulaLayoutResult {
         contact[2] + u[2] * Math.cos(angle) * rho + v[2] * Math.sin(angle) * rho + dir[2] * depth,
       ];
       songs[idx] = { ...songs[idx], position: roundVec(p) };
+      // threads: artist → bridge song → core of the other genre of the pair
+      const song = songs[idx];
+      const otherGenre = song.genreId === relation.a ? relation.b : relation.a;
+      const strength = Math.min(1, relation.strength / maxStrength);
+      bridgeLinks.push({ source: song.artistId, target: song.id, strength, type: 'bridge' });
+      bridgeLinks.push({ source: song.id, target: otherGenre, strength, type: 'bridge' });
     });
   }
 
-  return { data: { ...data, genres, artists, songs }, cores: frames, relations };
+  return { data: { ...data, genres, artists, songs }, cores: frames, relations, bridgeLinks };
 }
 
 /** Store shortcut: the Nebulosas v3 positions for `data`. */

@@ -7,7 +7,7 @@ import { Stars } from '@react-three/drei';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { NebulaClusters } from './NebulaClusters';
-import { NebulaCollisions, NebulaField } from './nebulaV3';
+import { BridgeThreads, NebulaCollisions, NebulaField } from './nebulaV3';
 import { DistantSongsCloud } from './DistantSongsCloud';
 import { GalacticDustDisc } from './GalacticDustDisc';
 import { ConstellationLinks } from './ConstellationLinks';
@@ -98,6 +98,7 @@ export const GalaxyScene: React.FC = () => {
           <>
             <NebulaField />
             <NebulaCollisions />
+            <BridgeThreads />
           </>
         ) : (
           <NebulaClusters />

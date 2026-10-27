@@ -21,6 +21,13 @@ import {
   buildNebulaCollisionGeometry,
   NEBULA_COLLISION_ATTRIBUTES,
 } from '../../src/components/canvas/nebulaV3/nebulaCollisionGeometry';
+import { buildBridgeThreadGeometry, BRIDGE_THREAD_ATTRIBUTES } from '../../src/components/canvas/nebulaV3/bridges';
+import {
+  BRIDGE_THREAD_CACHE_KEY,
+  BRIDGE_THREAD_FRAGMENT_SHADER,
+  BRIDGE_THREAD_VERTEX_SHADER,
+  createBridgeThreadUniforms,
+} from '../../src/components/canvas/nebulaV3/shaders/bridgeThreadShaders';
 import { computeNebulaLayout } from '../../src/lib/layout/nebulaLayout';
 import { GALAXY_PRESET_50 } from '../../src/data/galaxyPresets';
 import { CameraSpec, geometryArrays, openShaderPage, ProgramSpec, renderPrograms, RenderResult } from './nebulaHarness';
@@ -52,6 +59,24 @@ const programs: ProgramSpec[] = [
     itemSizes: NEBULA_COLLISION_ATTRIBUTES as Record<string, number>,
     uniforms: { ...uniformValues(createNebulaCollisionUniforms()), uTime: 7.3 }, // tides mid-way
   },
+  {
+    label: 'bridge threads',
+    vertexShader: BRIDGE_THREAD_VERTEX_SHADER,
+    fragmentShader: BRIDGE_THREAD_FRAGMENT_SHADER,
+    cacheKey: BRIDGE_THREAD_CACHE_KEY,
+    attributes: geometryArrays(buildBridgeThreadGeometry(layout), Object.keys(BRIDGE_THREAD_ATTRIBUTES)),
+    itemSizes: BRIDGE_THREAD_ATTRIBUTES as Record<string, number>,
+    uniforms: { ...uniformValues(createBridgeThreadUniforms()), uShowAll: 1 },
+    primitive: 'lines',
+  },
+];
+// bridge thread visibility, checked on the real shader: hidden without links or focus
+const threads = programs[2];
+const focusGid = layout.data.genres.findIndex((g) => g.id === layout.relations[0].a);
+const threadCases: { label: string; uniforms: Record<string, number>; expectLit: boolean }[] = [
+  { label: 'no links, no focus', uniforms: { uShowAll: 0, uFocusGid: -1, uFocusAmt: 0 }, expectLit: false },
+  { label: 'focus on a colliding genre', uniforms: { uShowAll: 0, uFocusGid: focusGid, uFocusAmt: 1 }, expectLit: true },
+  { label: 'constellation links on', uniforms: { uShowAll: 1, uFocusGid: -1, uFocusAmt: 0 }, expectLit: true },
 ];
 const camera: CameraSpec = { position: [0, 18, 52], target: [0, 0, 0] };
 
@@ -60,6 +85,11 @@ async function main(): Promise<boolean> {
   const { browser, page, errors } = await openShaderPage(900, 600);
   const perProgram: RenderResult[] = [];
   for (const spec of programs) perProgram.push(await renderPrograms(page, programs, camera, [spec.label]));
+  const threadResults: RenderResult[] = [];
+  for (const c of threadCases) {
+    const spec = { ...threads, uniforms: { ...threads.uniforms, ...c.uniforms } };
+    threadResults.push(await renderPrograms(page, [spec], camera));
+  }
   const together = await renderPrograms(page, programs, camera);
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   await page.locator('#c').screenshot({ path: outFile });
@@ -71,6 +101,15 @@ async function main(): Promise<boolean> {
     ...programs.map((spec, i): [boolean, string] => [
       together.cacheKeys.some((k) => k.includes(spec.cacheKey)) && perProgram[i].litShare > 0.002,
       `${spec.label}: compiled as ${spec.cacheKey} and draws (${(perProgram[i].litShare * 100).toFixed(1)}% lit pixels)`,
+    ]),
+    // focus shows only the threads touching that genre: some, but fewer than with links on
+    ...threadCases.map((c, i): [boolean, string] => [
+      !c.expectLit
+        ? threadResults[i].litShare === 0
+        : i === 1
+          ? threadResults[1].litShare > 0 && threadResults[1].litShare < threadResults[2].litShare
+          : threadResults[i].litShare > 0,
+      `bridge threads, ${c.label}: ${c.expectLit ? 'visible' : 'hidden'} (${(threadResults[i].litShare * 100).toFixed(2)}% lit)`,
     ]),
   ];
   for (const [ok, label] of checks) console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`);

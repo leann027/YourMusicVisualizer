@@ -59,12 +59,13 @@ const datasets: [string, MusicGalaxyData][] = [
 
 for (const [name, input] of datasets) {
   const before = JSON.stringify(input);
-  const { data, cores, relations } = computeNebulaLayout(input);
+  const result = computeNebulaLayout(input);
+  const { data, cores, relations } = result;
   const again = computeNebulaLayout(input);
 
   // 1. Purity, determinism and structure
   assert(JSON.stringify(input) === before, `${name}: input not mutated`);
-  assert(JSON.stringify(again) === JSON.stringify({ data, cores, relations }), `${name}: deterministic`);
+  assert(JSON.stringify(again) === JSON.stringify(result), `${name}: deterministic`);
   assert(ids(data) === ids(input), `${name}: ids and array order preserved`);
   assert(data.links === input.links, `${name}: links passed through`);
   assert(JSON.stringify(applyNebulaLayout(input)) === JSON.stringify(data), `${name}: applyNebulaLayout matches computeNebulaLayout`);
