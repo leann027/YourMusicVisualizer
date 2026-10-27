@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx tests/verification/milestone2.test.ts && tsx tests/verification/milestone2_challenger.test.ts && tsx tests/verification/m4_renderer_mode.test.ts"
+    "test": "tsx tests/verification/milestone2.test.ts && tsx tests/verification/milestone2_challenger.test.ts && tsx tests/verification/m4_renderer_mode.test.ts",
+    "test:visual:baseline": "node tests/visual/captureScenes.mjs --renderer classic --preset 50 --out test-results/visual/baseline-classic && node tests/visual/captureScenes.mjs --renderer classic --preset 300 --out test-results/visual/baseline-classic",
+    "test:visual": "node tests/visual/captureScenes.mjs --renderer classic --preset 50 --out test-results/visual/latest-classic && node tests/visual/captureScenes.mjs --renderer classic --preset 300 --out test-results/visual/latest-classic && node tests/visual/compareScenes.mjs test-results/visual/baseline-classic test-results/visual/latest-classic"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
@@ -26,10 +28,13 @@
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/pngjs": "6.0.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "playwright": "1.64.1",
+    "pngjs": "7.0.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
