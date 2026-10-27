@@ -353,6 +353,8 @@ export function buildMusicGalaxyFromPayload(
   const artistByNameMap = new Map<string, ArtistNode>();
   const artistSecondaryGenreMap = new Map<string, string>();
   const genreByNameMap = new Map<string, GenreNode>();
+  // Secondary genre names per song, resolved to ids once every genre exists
+  const songSecondaryGenres: Array<{ song: SongNode; genreName: string }> = [];
   const collaborationEdges: Array<{
     primaryArtistId: string;
     songId: string;
@@ -472,7 +474,7 @@ export function buildMusicGalaxyFromPayload(
             ? t.tags
             : [songSubgenre, t.genre || 'General'];
 
-        songs.push({
+        const songNode: SongNode = {
           id: songId,
           title: t.title,
           album: t.album || 'Single Digital',
@@ -487,7 +489,11 @@ export function buildMusicGalaxyFromPayload(
           spotifyUrl: t.spotifyUrl,
           subgenre: songSubgenre,
           tags: songTags,
-        });
+        };
+        songs.push(songNode);
+        if (t.secondaryGenre) {
+          songSecondaryGenres.push({ song: songNode, genreName: t.secondaryGenre.toUpperCase() });
+        }
 
         links.push({
           source: artistId,
@@ -530,6 +536,13 @@ export function buildMusicGalaxyFromPayload(
     genreByNameMap.set(gBucket.name.toUpperCase(), genreNode);
 
     genreIdx++;
+  }
+
+  for (const { song, genreName } of songSecondaryGenres) {
+    const secGenreNode = genreByNameMap.get(genreName);
+    if (secGenreNode && secGenreNode.id !== song.genreId) {
+      song.secondaryGenreId = secGenreNode.id;
+    }
   }
 
   const addedEdgeKeys = new Set<string>();
