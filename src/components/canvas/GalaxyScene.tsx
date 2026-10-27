@@ -7,6 +7,7 @@ import { Stars } from '@react-three/drei';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { NebulaClusters } from './NebulaClusters';
+import { NebulaField } from './nebulaV3';
 import { DistantSongsCloud } from './DistantSongsCloud';
 import { GalacticDustDisc } from './GalacticDustDisc';
 import { ConstellationLinks } from './ConstellationLinks';
@@ -92,8 +93,8 @@ export const GalaxyScene: React.FC = () => {
         {/* Deep-Space Spiral Stardust Disc & Relativistic Central Black Hole */}
         <GalacticDustDisc />
 
-        {/* Cosmic Gas & Nebula Clusters around Genre Sectors with Stochastic Micro-Flashes */}
-        <NebulaClusters />
+        {/* Cosmic gas: Nebulosas v3 field (1 draw call) or classic per-sector Nebula Clusters */}
+        {rendererMode === 'nebula' ? <NebulaField /> : <NebulaClusters />}
 
         {/* Constellation Filaments & Audio-Reactive Laser Pulses */}
         {linksVisible && <ConstellationLinks />}
