@@ -9,6 +9,7 @@ import {
 } from '../../types/music';
 import { classifyUniversalMusic } from '../music/genreClassifier';
 import { computeTfIdfLinks, normalizeMusicalTag } from '../music/taxonomy';
+import { applyClassicLayout, classicSectorCenter } from '../layout/classicLayout';
 
 /**
  * Data Ingestion & Spatial Layout Engine (`libraryImporter.ts`).
@@ -79,33 +80,13 @@ export function getDynamicSectorPlacement(
   _genreName: string
 ): { color: string; bg: string; center: [number, number, number] } {
   void _genreName;
-  // Cohesive, dynamic clustering:
-  // Dynamically spaces genres around the galaxy disc so they never collide and don't drift into distant voids
-  const count = Math.max(1, totalCount);
-  const baseRadius =
-    count <= 4
-      ? 18.0
-      : count <= 8
-      ? 22.5
-      : count <= 14
-      ? 27.0
-      : Math.min(34.0, 25.0 + Math.sqrt(count) * 1.8);
-
-  // Harmonious angular distribution around the galactic disk
-  const angle = (index * (Math.PI * 2)) / count + (index % 2 === 0 ? 0.12 : -0.12);
-  // Natural radial variance gives organic wispiness without clumping
-  const r = baseRadius * (0.92 + (index % 3) * 0.08);
-  // Gentle vertical elevation preserves the unified galactic disc
-  const elevation = Math.sin(index * 1.9) * (count <= 8 ? 2.5 : 3.6);
-
-  const cx = Number((Math.cos(angle) * r).toFixed(2));
-  const cy = Number(elevation.toFixed(2));
-  const cz = Number((Math.sin(angle) * r * 0.88).toFixed(2));
+  // Positions come from the classic layout module; colors stay with the importer palette
+  const center = classicSectorCenter(index, totalCount);
 
   const paletteColor = SECTOR_PALETTE[index % SECTOR_PALETTE.length].color;
   const paletteBg = SECTOR_PALETTE[index % SECTOR_PALETTE.length].bg;
 
-  return { color: paletteColor, bg: paletteBg, center: [cx, cy, cz] };
+  return { color: paletteColor, bg: paletteBg, center };
 }
 
 function hashString(str: string): number {
@@ -383,24 +364,13 @@ export function buildMusicGalaxyFromPayload(
   for (const [, gBucket] of genreBuckets) {
     const palette = getDynamicSectorPlacement(genreIdx, totalGenres, gBucket.name);
     const genreId = `genre-${slugify(gBucket.name)}-${genreIdx}`;
-    const [gx, gy, gz] = palette.center;
 
     let genreSongTotal = 0;
     let genreAffinitySum = 0;
-    let artistIdx = 0;
     const artistCount = gBucket.artists.size;
 
     for (const [, aBucket] of gBucket.artists) {
       const artistId = `artist-${slugify(aBucket.name)}`;
-      // Harmonious phyllotactic / spiral dispersion around the genre core star
-      // Distributes artist stars cleanly with generous orbital envelopes for their song planetary systems
-      const artistDist = 4.8 + Math.sqrt(artistIdx + 0.8) * 2.2 + (artistIdx % 2 === 0 ? 0.4 : -0.4);
-      const angle = (artistIdx * (Math.PI * 2)) / Math.max(1, artistCount) + (genreIdx * 0.55);
-      const ax = Number((gx + Math.cos(angle) * artistDist).toFixed(2));
-      const ay = Number(
-        (gy + Math.sin(artistIdx * 2.1) * 1.2 + (artistIdx % 2 === 0 ? 0.4 : -0.4)).toFixed(2)
-      );
-      const az = Number((gz + Math.sin(angle) * artistDist).toFixed(2));
 
       const trackItems = aBucket.tracks;
       const avgAffinity =
@@ -451,7 +421,7 @@ export function buildMusicGalaxyFromPayload(
         bio: aBucket.bio,
         sleeveBg: palette.bg,
         sleeveAccent: palette.color,
-        position: [ax, ay, az],
+        position: [0, 0, 0], // set by applyClassicLayout
         imageUrl: firstTrackWithImg?.artistImageUrl || firstTrackWithImg?.imageUrl,
         spotifyUrl:
           firstTrackWithArtistUrl?.artistSpotifyUrl ||
@@ -481,16 +451,6 @@ export function buildMusicGalaxyFromPayload(
 
       trackItems.forEach((t, tIdx) => {
         const songId = `song-${slugify(aBucket.name)}-${slugify(t.title)}-${tIdx}`;
-        // Planetary orbital disk around parent artist star with clear separation from artist core
-        // Golden angle ensures no two songs align along the same radial ray
-        const goldenSongAngle = tIdx * 2.3999632 + (artistIdx * 0.6);
-        // Minimum orbital radius starts at 2.1 to be well outside the artist star's corona (~1.4)
-        const sRadius = 2.1 + Math.sqrt(tIdx + 1) * 0.85;
-        const sx = Number((ax + Math.cos(goldenSongAngle) * sRadius).toFixed(2));
-        const sy = Number(
-          (ay + Math.sin(tIdx * 1.8 + artistIdx) * 0.45 + (tIdx % 2 === 0 ? 0.25 : -0.25)).toFixed(2)
-        );
-        const sz = Number((az + Math.sin(goldenSongAngle) * sRadius).toFixed(2));
         const songAff = Number(
           Math.min(0.99, Math.max(0.6, t.affinity ?? avgAffinity)).toFixed(2)
         );
@@ -521,7 +481,7 @@ export function buildMusicGalaxyFromPayload(
           genreId,
           affinity: songAff,
           duration: t.durationSec || 240,
-          position: [sx, sy, sz],
+          position: [0, 0, 0], // set by applyClassicLayout
           previewUrl: resolvedPreviewUrl,
           imageUrl: t.imageUrl,
           spotifyUrl: t.spotifyUrl,
@@ -546,8 +506,6 @@ export function buildMusicGalaxyFromPayload(
           });
         }
       });
-
-      artistIdx++;
     }
 
     const genreAffinity = Number(
@@ -562,7 +520,7 @@ export function buildMusicGalaxyFromPayload(
       songCount: genreSongTotal,
       color: palette.color,
       accentColor: palette.bg,
-      position: [gx, gy, gz],
+      position: [0, 0, 0], // set by applyClassicLayout
       description: `Sector constelar importado desde ${
         payload.profileName || 'biblioteca de usuario'
       } con ${artistCount} artistas en órbita.`,
@@ -636,5 +594,5 @@ export function buildMusicGalaxyFromPayload(
     );
   }
 
-  return { genres, artists, songs, links };
+  return applyClassicLayout({ genres, artists, songs, links });
 }

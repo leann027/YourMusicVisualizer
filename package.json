@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx tests/verification/milestone2.test.ts && tsx tests/verification/milestone2_challenger.test.ts && tsx tests/verification/m4_renderer_mode.test.ts",
+    "test": "tsx tests/verification/milestone2.test.ts && tsx tests/verification/milestone2_challenger.test.ts && tsx tests/verification/m4_renderer_mode.test.ts && tsx tests/verification/m5_classic_layout.test.ts",
     "test:visual:baseline": "node tests/visual/captureScenes.mjs --renderer classic --preset 50 --out test-results/visual/baseline-classic && node tests/visual/captureScenes.mjs --renderer classic --preset 300 --out test-results/visual/baseline-classic",
     "test:visual": "node tests/visual/captureScenes.mjs --renderer classic --preset 50 --out test-results/visual/latest-classic && node tests/visual/captureScenes.mjs --renderer classic --preset 300 --out test-results/visual/latest-classic && node tests/visual/compareScenes.mjs test-results/visual/baseline-classic test-results/visual/latest-classic"
   },
