@@ -5,10 +5,36 @@ import {
   GALAXY_PRESET_150,
   GALAXY_PRESET_300,
 } from '../data/galaxyPresets';
+import { applyNebulaLayout } from '../lib/layout/nebulaLayout';
 
 export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song';
 
 export type RendererMode = 'classic' | 'nebula';
+
+// Nebula positions per source dataset: switching modes or presets reuses the same object,
+// so components memoised on `data` don't rebuild geometry.
+const nebulaLayoutCache = new WeakMap<MusicGalaxyData, MusicGalaxyData>();
+
+/** The dataset components render for `mode`: classic is the imported data as-is. */
+export function layoutForMode(baseData: MusicGalaxyData, mode: RendererMode): MusicGalaxyData {
+  if (mode === 'classic') return baseData;
+  let laidOut = nebulaLayoutCache.get(baseData);
+  if (!laidOut) {
+    laidOut = applyNebulaLayout(baseData);
+    nebulaLayoutCache.set(baseData, laidOut);
+  }
+  return laidOut;
+}
+
+/** Same node (by id, and genre for artists split across genres) inside another dataset. */
+function remapNode(node: MusicNode | null, data: MusicGalaxyData): MusicNode | null {
+  if (!node) return null;
+  if (node.type === 'genre') return data.genres.find((g) => g.id === node.id) ?? null;
+  if (node.type === 'artist') {
+    return data.artists.find((a) => a.id === node.id && a.genreId === node.genreId) ?? null;
+  }
+  return data.songs.find((s) => s.id === node.id) ?? null;
+}
 
 // Parses the ?renderer= query param; anything unknown is ignored.
 export function parseRendererParam(value: string | null): RendererMode | null {
@@ -23,7 +49,8 @@ export interface RenderPerfStats {
 }
 
 interface GalaxyState {
-  data: MusicGalaxyData;
+  baseData: MusicGalaxyData; // as imported (classic layout positions)
+  data: MusicGalaxyData; // what components render: baseData laid out for rendererMode
   dataSourceLabel: string;
   activePresetScale: 50 | 150 | 300 | 'custom';
   spotifyUser: SpotifyUserProfile | null;
@@ -77,6 +104,7 @@ interface GalaxyState {
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
+  baseData: GALAXY_PRESET_50,
   data: GALAXY_PRESET_50,
   dataSourceLabel: 'Cosmos Íntimo (50 Pistas)',
   activePresetScale: 50,
@@ -219,37 +247,45 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
         ? 'Galaxia Expandida (150 Pistas)'
         : 'Supercúmulo Estelar (300 Pistas)';
 
-    set((state) => ({
-      data: presetData,
-      dataSourceLabel: label,
-      activePresetScale: scale,
-      spotifyUser: null,
-      selectedNode: presetData.artists[0] || presetData.genres[0] || null,
-      selectedSectorId: presetData.genres[0]?.id || null,
-      cameraMode: 'galaxy',
-      minAffinityFilter: 0,
-      searchQuery: '',
-      playingTrackId: null,
-      isAudioPlaying: false,
-      flightVersion: state.flightVersion + 1,
-    }));
+    set((state) => {
+      const data = layoutForMode(presetData, state.rendererMode);
+      return {
+        baseData: presetData,
+        data,
+        dataSourceLabel: label,
+        activePresetScale: scale,
+        spotifyUser: null,
+        selectedNode: data.artists[0] || data.genres[0] || null,
+        selectedSectorId: presetData.genres[0]?.id || null,
+        cameraMode: 'galaxy',
+        minAffinityFilter: 0,
+        searchQuery: '',
+        playingTrackId: null,
+        isAudioPlaying: false,
+        flightVersion: state.flightVersion + 1,
+      };
+    });
   },
 
-  loadCustomGalaxyData: (data, dataSourceLabel, spotifyUser = null) =>
-    set((state) => ({
-      data,
-      dataSourceLabel,
-      activePresetScale: 'custom',
-      spotifyUser,
-      selectedNode: data.artists[0] || data.genres[0] || null,
-      selectedSectorId: data.genres[0]?.id || null,
-      cameraMode: 'galaxy',
-      minAffinityFilter: 0,
-      searchQuery: '',
-      playingTrackId: null,
-      isAudioPlaying: false,
-      flightVersion: state.flightVersion + 1,
-    })),
+  loadCustomGalaxyData: (baseData, dataSourceLabel, spotifyUser = null) =>
+    set((state) => {
+      const data = layoutForMode(baseData, state.rendererMode);
+      return {
+        baseData,
+        data,
+        dataSourceLabel,
+        activePresetScale: 'custom',
+        spotifyUser,
+        selectedNode: data.artists[0] || data.genres[0] || null,
+        selectedSectorId: data.genres[0]?.id || null,
+        cameraMode: 'galaxy',
+        minAffinityFilter: 0,
+        searchQuery: '',
+        playingTrackId: null,
+        isAudioPlaying: false,
+        flightVersion: state.flightVersion + 1,
+      };
+    }),
 
   restoreDefaultGalaxy: () => {
     get().setPresetScale(50);
@@ -259,6 +295,16 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
 
   setRendererMode: (rendererMode) => {
     if (get().rendererMode === rendererMode) return;
-    set({ rendererMode });
+    set((state) => {
+      const data = layoutForMode(state.baseData, rendererMode);
+      return {
+        rendererMode,
+        data,
+        selectedNode: remapNode(state.selectedNode, data),
+        hoveredNode: remapNode(state.hoveredNode, data),
+        // reframe the selection at its new position
+        flightVersion: state.flightVersion + 1,
+      };
+    });
   },
 }));
