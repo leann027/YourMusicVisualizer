@@ -17,6 +17,9 @@ export const NEBULA_COLLISION_CACHE_KEY = 'nebula-collisions-v3';
  */
 export const NEBULA_CLASH_LOOK = { size: 2.6, alpha: 1.8 };
 
+/** Tide phase offsets per collision (rid); collisions beyond this keep the reference speed. */
+export const MAX_TIDE_COLLISIONS = 64;
+
 export interface NebulaCollisionUniforms {
   [uniform: string]: THREE.IUniform;
   uTime: { value: number };
@@ -26,7 +29,9 @@ export interface NebulaCollisionUniforms {
   uFocusGid: { value: number }; // -1 = none; a collision is lit when either of its genres is focused
   uFocusGid2: { value: number }; // with a focused collision (M7.3) only that pair stays lit
   uFocusAmt: { value: number };
-  uTideSpeed: { value: number }; // 1 = reference speed; M7.5 accelerates it for a playing bridge song
+  uTideOffset: { value: Float32Array }; // extra tide time per collision, accumulated while its bridge song plays (M7.5)
+  uBoostRid: { value: number }; // collision whose bridge song is playing, -1 = none
+  uBoostGlow: { value: number }; // extra brightness for that collision (from audio energy)
   uSubBass: { value: number };
   uClashSize: { value: number }; // calibration multipliers for shock fronts and tides
   uClashAlpha: { value: number };
@@ -41,7 +46,9 @@ export function createNebulaCollisionUniforms(): NebulaCollisionUniforms {
     uFocusGid: { value: -1 },
     uFocusGid2: { value: -1 },
     uFocusAmt: { value: 0 },
-    uTideSpeed: { value: 1 },
+    uTideOffset: { value: new Float32Array(MAX_TIDE_COLLISIONS) },
+    uBoostRid: { value: -1 },
+    uBoostGlow: { value: 0 },
     uSubBass: { value: 0 },
     uClashSize: { value: NEBULA_CLASH_LOOK.size },
     uClashAlpha: { value: NEBULA_CLASH_LOOK.alpha },
@@ -61,6 +68,7 @@ attribute float gid2;
 attribute float spin;
 attribute float seed;
 attribute float aAffinity;
+attribute float rid;
 
 uniform float uTime;
 uniform float uPixelRatio;
@@ -69,7 +77,9 @@ uniform float uMinAffinity;
 uniform float uFocusGid;
 uniform float uFocusGid2;
 uniform float uFocusAmt;
-uniform float uTideSpeed;
+uniform float uTideOffset[${MAX_TIDE_COLLISIONS}];
+uniform float uBoostRid;
+uniform float uBoostGlow;
 uniform float uSubBass;
 uniform float uClashSize;
 uniform float uClashAlpha;
@@ -88,8 +98,10 @@ void main() {
   float a = alpha * uGain * (isStructure ? uClashAlpha : 1.0);
 
   if (sameId(kind, 4.0)) {
-    // tidal stream: quadratic Bézier core A (anchor) → control (position) → core B (axis)
-    float t = fract(seed + uTime * spin * uTideSpeed);
+    // tidal stream: quadratic Bézier core A (anchor) → control (position) → core B (axis).
+    // The per-collision offset only grows while its bridge song plays, so speeding up never jumps.
+    float extra = rid < ${MAX_TIDE_COLLISIONS - 0.5} ? uTideOffset[int(rid)] : 0.0;
+    float t = fract(seed + (uTime + extra) * spin);
     float w = 1.0 - t;
     p = w * w * anchor + 2.0 * w * t * position + t * t * axis;
     c = mix(color, colorB, t);
@@ -104,6 +116,7 @@ void main() {
 
   a *= 0.85 + 0.15 * sin(uTime * 1.4 + seed * 40.0);
   if (sameId(kind, 3.0)) a *= 1.0 + uSubBass * 0.35; // shock fronts flare with the sub-bass
+  if (sameId(rid, uBoostRid)) a *= 1.0 + uBoostGlow; // the collision whose bridge song plays
   a *= smoothstep(210.0, 42.0, d) * smoothstep(1.1, 5.6, d);
   a *= smoothstep(uMinAffinity - 0.02, uMinAffinity, aAffinity);
   // lit when either genre of the pair is focused, dimmed like the field otherwise

@@ -4,6 +4,7 @@
 // Usage: npx tsx tests/visual/compileShaders.ts [--out test-results/visual/compile-shaders.png]
 import fs from 'node:fs';
 import path from 'node:path';
+import { PNG } from 'pngjs';
 import {
   createNebulaFieldUniforms,
   NEBULA_FIELD_CACHE_KEY,
@@ -11,6 +12,7 @@ import {
   NEBULA_FIELD_VERTEX_SHADER,
 } from '../../src/components/canvas/nebulaV3/shaders/nebulaFieldShaders';
 import {
+  MAX_TIDE_COLLISIONS,
   createNebulaCollisionUniforms,
   NEBULA_COLLISION_CACHE_KEY,
   NEBULA_COLLISION_FRAGMENT_SHADER,
@@ -36,9 +38,12 @@ const outArg = process.argv.indexOf('--out');
 const outFile = outArg > 0 ? process.argv[outArg + 1] : 'test-results/visual/compile-shaders.png';
 
 const layout = computeNebulaLayout(GALAXY_PRESET_50);
-const uniformValues = (u: Record<string, { value: number }>) =>
-  // brighter than default for the preview frame
-  ({ ...Object.fromEntries(Object.entries(u).map(([k, v]) => [k, v.value])), uGain: 2.5 });
+const uniformValues = (u: Record<string, { value: number | Float32Array }>) =>
+  // brighter than default for the preview frame; typed arrays travel as plain arrays
+  ({
+    ...Object.fromEntries(Object.entries(u).map(([k, v]) => [k, v.value instanceof Float32Array ? Array.from(v.value) : v.value])),
+    uGain: 2.5,
+  });
 
 const programs: ProgramSpec[] = [
   {
@@ -99,6 +104,25 @@ async function main(): Promise<boolean> {
     [{ ...collisionSpec, uniforms: { ...collisionSpec.uniforms, uFocusGid: pairA, uFocusGid2: pairB, uFocusAmt: 1 } }],
     camera
   );
+  // tide boost (M7.5): an offset on collision 0 moves only its tides; zero offsets change nothing
+  const canvasPng = async () => PNG.sync.read(await page.locator('#c').screenshot());
+  const changedPixels = (a: PNG, b: PNG) => {
+    let n = 0;
+    for (let i = 0; i < a.data.length; i += 4) {
+      if (Math.abs(a.data[i] - b.data[i]) + Math.abs(a.data[i + 1] - b.data[i + 1]) + Math.abs(a.data[i + 2] - b.data[i + 2]) > 30) n++;
+    }
+    return n;
+  };
+  const zeros = new Array(MAX_TIDE_COLLISIONS).fill(0);
+  const shifted = zeros.map((v, i) => (i === 0 ? 3.7 : v));
+  await renderPrograms(page, [{ ...collisionSpec, uniforms: { ...collisionSpec.uniforms, uTideOffset: zeros } }], camera);
+  const tideBase = await canvasPng();
+  await renderPrograms(page, [{ ...collisionSpec, uniforms: { ...collisionSpec.uniforms, uTideOffset: zeros } }], camera);
+  const tideSame = await canvasPng();
+  await renderPrograms(page, [{ ...collisionSpec, uniforms: { ...collisionSpec.uniforms, uTideOffset: shifted } }], camera);
+  const tideShifted = await canvasPng();
+  const tideNoise = changedPixels(tideBase, tideSame);
+  const tideMoved = changedPixels(tideBase, tideShifted);
   const together = await renderPrograms(page, programs, camera);
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   await page.locator('#c').screenshot({ path: outFile });
@@ -124,6 +148,8 @@ async function main(): Promise<boolean> {
       focusedCollisions.litShare > 0 && focusedCollisions.litShare < perProgram[1].litShare,
       `collisions, focus on one pair: dims the others (${(focusedCollisions.litShare * 100).toFixed(2)}% vs ${(perProgram[1].litShare * 100).toFixed(2)}% lit)`,
     ],
+    [tideNoise === 0, `collisions, zero tide offsets: frame identical (${tideNoise} px differ)`],
+    [tideMoved > 0, `collisions, tide offset on one collision moves its tides (${tideMoved} px differ)`],
   ];
   for (const [ok, label] of checks) console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`);
   console.log(`  WebGL2: ${together.webgl2} · preview: ${outFile}`);

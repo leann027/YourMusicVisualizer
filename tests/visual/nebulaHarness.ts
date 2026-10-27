@@ -13,7 +13,7 @@ export interface ProgramSpec {
   cacheKey: string;
   attributes: Record<string, number[]>;
   itemSizes: Record<string, number>;
-  uniforms: Record<string, number>;
+  uniforms: Record<string, number | number[]>; // arrays become Float32Array uniforms
   primitive?: 'points' | 'lines'; // default points; lines = LineSegments
 }
 
@@ -89,7 +89,9 @@ export async function renderPrograms(
           blending: THREE.AdditiveBlending,
           vertexShader: spec.vertexShader,
           fragmentShader: spec.fragmentShader,
-          uniforms: Object.fromEntries(Object.entries(spec.uniforms).map(([k, v]) => [k, { value: v }])),
+          uniforms: Object.fromEntries(
+            Object.entries(spec.uniforms).map(([k, v]) => [k, { value: Array.isArray(v) ? new Float32Array(v) : v }])
+          ),
         });
         material.customProgramCacheKey = () => spec.cacheKey;
         const geometry = new THREE.BufferGeometry();

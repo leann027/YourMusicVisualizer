@@ -35,6 +35,7 @@ export const NEBULA_COLLISION_ATTRIBUTES = {
   spin: 1, // tides: travel speed
   seed: 1,
   aAffinity: 1,
+  rid: 1, // index of the collision in collisionRelations(layout): per-collision tide phase (M7.5)
 } as const;
 type AttributeName = keyof typeof NEBULA_COLLISION_ATTRIBUTES;
 
@@ -82,12 +83,18 @@ const along = (o: Vec3, u: Vec3, v: Vec3, d: Vec3, cu: number, cv: number, cd: n
   o[2] + u[2] * cu + v[2] * cv + d[2] * cd,
 ];
 
+/** Collisions that get particles, in particle order; `rid` indexes this list. */
+export function collisionRelations(layout: NebulaLayoutResult): NebulaRelation[] {
+  const cores = new Set(layout.cores.map((c) => c.genreId));
+  return layout.relations.filter((r) => cores.has(r.a) && cores.has(r.b));
+}
+
 export function buildNebulaCollisionGeometry(layout: NebulaLayoutResult, particleCount: number): NebulaCollisionGeometryResult {
-  const { data, cores, relations } = layout;
+  const { data, cores } = layout;
   const gidOf = new Map(data.genres.map((g, i) => [g.id, i]));
   const genreOf = new Map(data.genres.map((g) => [g.id, g]));
   const coreOf = new Map(cores.map((c) => [c.genreId, c]));
-  const usable = relations.filter((r) => coreOf.has(r.a) && coreOf.has(r.b));
+  const usable = collisionRelations(layout);
   const countsByRelation = nebulaCollisionCounts(usable.map((r) => r.strength), particleCount);
   const total = countsByRelation.reduce((a, b) => a + b, 0);
 
@@ -191,6 +198,7 @@ export function buildNebulaCollisionGeometry(layout: NebulaLayoutResult, particl
       arrays.spin[i] = spin;
       arrays.seed[i] = rng();
       arrays.aAffinity[i] = affinity;
+      arrays.rid[i] = ri;
     }
   });
 
