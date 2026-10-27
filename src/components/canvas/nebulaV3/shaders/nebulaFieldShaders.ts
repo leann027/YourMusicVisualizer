@@ -15,6 +15,12 @@ export const NEBULA_FIELD_CACHE_KEY = 'nebula-field-v3';
 /** Reference point sizes are `size·260/d` in ~200 u space; Novafy distances are WORLD_SCALE smaller. */
 export const NEBULA_FIELD_SIZE_ATTENUATION = 260 * WORLD_SCALE;
 
+/**
+ * Calibrated gas look (M6.4, chosen from a 3×3 grid on preset 300): 1.8× puffs read as soft gas
+ * without washing out the sector focus. `?nebulaTune=size,alpha` overrides it in development.
+ */
+export const NEBULA_GAS_LOOK = { size: 1.8, alpha: 1 };
+
 export interface NebulaFieldUniforms {
   [uniform: string]: THREE.IUniform;
   uTime: { value: number };
@@ -28,6 +34,8 @@ export interface NebulaFieldUniforms {
   uPlayingGid: { value: number }; // -1 = nothing playing
   uSubBass: { value: number };
   uHighShimmer: { value: number };
+  uGasSize: { value: number }; // calibration multipliers for gas particles only
+  uGasAlpha: { value: number };
 }
 
 export function createNebulaFieldUniforms(): NebulaFieldUniforms {
@@ -43,6 +51,8 @@ export function createNebulaFieldUniforms(): NebulaFieldUniforms {
     uPlayingGid: { value: -1 },
     uSubBass: { value: 0 },
     uHighShimmer: { value: 0 },
+    uGasSize: { value: NEBULA_GAS_LOOK.size },
+    uGasAlpha: { value: NEBULA_GAS_LOOK.alpha },
   };
 }
 
@@ -70,6 +80,8 @@ uniform float uArtistAmt;
 uniform float uPlayingGid;
 uniform float uSubBass;
 uniform float uHighShimmer;
+uniform float uGasSize;
+uniform float uGasAlpha;
 
 varying vec3 vColor;
 varying float vAlpha;
@@ -109,10 +121,11 @@ void main() {
 
   vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
   float d = max(0.001, -mvPosition.z);
-  gl_PointSize = clamp(size * uPixelRatio * (${NEBULA_FIELD_SIZE_ATTENUATION.toFixed(2)} / d), 1.0, 34.0 * uPixelRatio);
+  float pointSize = isGas ? size * uGasSize : size;
+  gl_PointSize = clamp(pointSize * uPixelRatio * (${NEBULA_FIELD_SIZE_ATTENUATION.toFixed(2)} / d), 1.0, 34.0 * uPixelRatio);
   gl_Position = projectionMatrix * mvPosition;
 
-  float a = alpha * uGain;
+  float a = alpha * uGain * (isGas ? uGasAlpha : 1.0);
   a *= 0.85 + 0.15 * sin(uTime * 1.4 + seed * 40.0);
   a *= smoothstep(210.0, 42.0, d) * smoothstep(1.1, 5.6, d);
   a *= smoothstep(uMinAffinity - 0.02, uMinAffinity, aAffinity);

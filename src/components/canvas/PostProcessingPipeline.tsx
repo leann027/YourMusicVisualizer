@@ -9,6 +9,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
+import { computeBloomTargets } from './bloomTargets';
 
 /**
  * Memory-safe, deferred `UnrealBloomPass` post-processing pipeline (`PostProcessingPipeline`).
@@ -103,22 +104,11 @@ export const PostProcessingPipeline: React.FC = () => {
 
     const fft = webAudioEngine.sampleFFT();
 
-    // Adaptive Proximity Anti-Glare:
-    // When zoomed into an inspected star, its projected screen area expands dramatically.
-    // Progressively dampening bloom strength and lifting the threshold prevents blinding glare and washed out screens.
-    const proximityBloomFactor = THREE.MathUtils.clamp(
-      (cameraDistance - 5.0) / 22.0,
-      0.02,
-      1.0
+    const { strength: targetStrength, radius: targetRadius, threshold: targetThreshold } = computeBloomTargets(
+      useGalaxyStore.getState().rendererMode,
+      cameraDistance,
+      fft
     );
-
-    const baseStrength = fft.isPlaying
-      ? 0.08 + fft.subBass * 0.02
-      : 0.07;
-
-    const targetStrength = baseStrength * proximityBloomFactor;
-    const targetRadius = 0.16;
-    const targetThreshold = THREE.MathUtils.lerp(0.97, 0.92, proximityBloomFactor);
 
     bloomPass.strength = THREE.MathUtils.lerp(
       bloomPass.strength,
