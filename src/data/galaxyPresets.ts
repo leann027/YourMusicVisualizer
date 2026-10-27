@@ -2,15 +2,22 @@ import { RawLibraryTrackInput, RawLibraryPayload, buildMusicGalaxyFromPayload } 
 import { MusicGalaxyData } from '../types/music';
 
 // Artist definitions with metadata
-interface PresetArtistSeed {
+export interface PresetArtistSeed {
   name: string;
   genre: string;
   origin: string;
   bio: string;
-  tracks: { title: string; album: string; year: number; duration: number; affinity: number }[];
+  tracks: {
+    title: string;
+    album: string;
+    year: number;
+    duration: number;
+    affinity: number;
+    secondaryGenre?: string; // curated bridge to another preset nebula (Nebulosas v3 · M5.2b)
+  }[];
 }
 
-const ARTIST_DATABASE: PresetArtistSeed[] = [
+export const ARTIST_DATABASE: PresetArtistSeed[] = [
   // 1. SYNTHWAVE & FRENCH TOUCH
   {
     name: 'Daft Punk',
@@ -32,7 +39,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'París, Francia · 2006',
     bio: 'Pionero del outrun synthwave con sintetizadores analógicos oscuros y bajos cinematográficos.',
     tracks: [
-      { title: 'Nightcall', album: 'OutRun', year: 2013, duration: 259, affinity: 0.98 },
+      { title: 'Nightcall', album: 'OutRun', year: 2013, duration: 259, affinity: 0.98, secondaryGenre: 'CYBERPUNK & ELECTRO-POP' },
       { title: 'Pacific Coast Highway', album: 'OutRun', year: 2013, duration: 388, affinity: 0.94 },
       { title: 'Roadgame', album: 'OutRun', year: 2013, duration: 224, affinity: 0.92 },
       { title: 'Protovision', album: 'OutRun', year: 2013, duration: 206, affinity: 0.91 },
@@ -70,7 +77,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     bio: 'Tecno oscuro industrial, percusiones secas y atmósferas minimalistas monolíticas.',
     tracks: [
       { title: 'Opr', album: 'Aleph', year: 2013, duration: 238, affinity: 0.94 },
-      { title: 'Pursuit', album: 'Aleph', year: 2013, duration: 247, affinity: 0.93 },
+      { title: 'Pursuit', album: 'Aleph', year: 2013, duration: 247, affinity: 0.93, secondaryGenre: 'CYBERPUNK & ELECTRO-POP' },
       { title: 'Hate or Glory', album: 'Aleph', year: 2013, duration: 288, affinity: 0.90 },
     ],
   },
@@ -83,7 +90,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     bio: 'Vanguardistas del rock alternativo: polirritmias sutiles, texturas de ondas Martenot y letras existenciales.',
     tracks: [
       { title: 'Weird Fishes / Arpeggi', album: 'In Rainbows', year: 2007, duration: 318, affinity: 0.99 },
-      { title: 'Reckoner', album: 'In Rainbows', year: 2007, duration: 290, affinity: 0.98 },
+      { title: 'Reckoner', album: 'In Rainbows', year: 2007, duration: 290, affinity: 0.98, secondaryGenre: 'POST-ROCK & CINEMATIC' },
       { title: 'Everything In Its Right Place', album: 'Kid A', year: 2000, duration: 251, affinity: 0.97 },
       { title: 'Paranoid Android', album: 'OK Computer', year: 1997, duration: 383, affinity: 0.96 },
       { title: 'Nude', album: 'In Rainbows', year: 2007, duration: 255, affinity: 0.95 },
@@ -109,7 +116,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     bio: 'Paredes de reverberación glacial, murmullos vocales entrelazados y atmósferas envolventes.',
     tracks: [
       { title: 'Alison', album: 'Souvlaki', year: 1993, duration: 231, affinity: 0.96 },
-      { title: 'When the Sun Hits', album: 'Souvlaki', year: 1993, duration: 287, affinity: 0.95 },
+      { title: 'When the Sun Hits', album: 'Souvlaki', year: 1993, duration: 287, affinity: 0.95, secondaryGenre: 'POST-ROCK & CINEMATIC' },
       { title: 'Sugar for the Pill', album: 'Slowdive', year: 2017, duration: 271, affinity: 0.93 },
       { title: 'kisses', album: 'everything is alive', year: 2023, duration: 237, affinity: 0.90 },
     ],
@@ -144,7 +151,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Bristol, Reino Unido · 1988',
     bio: 'Pioneros del sonido Bristol: líneas de bajo sub-graves, ritmos hipnotizantes y atmósferas cinematográficas oscuras.',
     tracks: [
-      { title: 'Teardrop', album: 'Mezzanine', year: 1998, duration: 330, affinity: 0.99 },
+      { title: 'Teardrop', album: 'Mezzanine', year: 1998, duration: 330, affinity: 0.99, secondaryGenre: 'NEO-SOUL & DOWNTEMPO R&B' },
       { title: 'Angel', album: 'Mezzanine', year: 1998, duration: 379, affinity: 0.98 },
       { title: 'Inertia Creeps', album: 'Mezzanine', year: 1998, duration: 356, affinity: 0.95 },
       { title: 'Unfinished Sympathy', album: 'Blue Lines', year: 1991, duration: 308, affinity: 0.96 },
@@ -157,7 +164,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Bristol, Reino Unido · 1991',
     bio: 'Muestras de vinilos crujientes, órganos Rhodes melancólicos y la inconfundible voz noir de Beth Gibbons.',
     tracks: [
-      { title: 'Glory Box', album: 'Dummy', year: 1994, duration: 306, affinity: 0.98 },
+      { title: 'Glory Box', album: 'Dummy', year: 1994, duration: 306, affinity: 0.98, secondaryGenre: 'NEO-SOUL & DOWNTEMPO R&B' },
       { title: 'Roads', album: 'Dummy', year: 1994, duration: 302, affinity: 0.97 },
       { title: 'Sour Times', album: 'Dummy', year: 1994, duration: 254, affinity: 0.94 },
       { title: 'The Rip', album: 'Third', year: 2008, duration: 269, affinity: 0.92 },
@@ -169,7 +176,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'San José, California · 1989',
     bio: 'Muestreo instrumental pionero, collages sonoros de vinilo y percusiones hip-hop cinemáticas.',
     tracks: [
-      { title: 'Midnight in a Perfect World', album: 'Endtroducing.....', year: 1996, duration: 300, affinity: 0.97 },
+      { title: 'Midnight in a Perfect World', album: 'Endtroducing.....', year: 1996, duration: 300, affinity: 0.97, secondaryGenre: 'IDM & AMBIENT EXPERIMENTAL' },
       { title: 'Building Steam with a Grain of Salt', album: 'Endtroducing.....', year: 1996, duration: 399, affinity: 0.94 },
       { title: 'Stem / Long Stem', album: 'Endtroducing.....', year: 1996, duration: 562, affinity: 0.91 },
     ],
@@ -229,7 +236,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     bio: 'Genio compositor y letrista: arreglos vocales hipercreativos y melodías pop memorables.',
     tracks: [
       { title: 'Lemon', album: 'STRAY SHEEP', year: 2020, duration: 255, affinity: 0.98 },
-      { title: 'KICK BACK', album: 'LOST CORNER', year: 2024, duration: 193, affinity: 0.96 },
+      { title: 'KICK BACK', album: 'LOST CORNER', year: 2024, duration: 193, affinity: 0.96, secondaryGenre: 'FUTURE BASS & MELODIC GLITCH' },
       { title: 'Chikyuugi (地球儀)', album: 'LOST CORNER', year: 2024, duration: 274, affinity: 0.95 },
     ],
   },
@@ -266,7 +273,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Londres, Reino Unido · 2005',
     bio: 'Future garage nocturno, vinilos con sonido a lluvia londinense, voces etéreas procesadas y sub-graves oscuros.',
     tracks: [
-      { title: 'Archangel', album: 'Untrue', year: 2007, duration: 238, affinity: 0.99 },
+      { title: 'Archangel', album: 'Untrue', year: 2007, duration: 238, affinity: 0.99, secondaryGenre: 'TRIP-HOP & BRISTOL DUB' },
       { title: 'Ghost Hardware', album: 'Untrue', year: 2007, duration: 293, affinity: 0.96 },
       { title: 'Near Dark', album: 'Untrue', year: 2007, duration: 234, affinity: 0.94 },
     ],
@@ -277,7 +284,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'San Francisco, California · 2001',
     bio: 'Paisajes sonoros de puesta de sol: sintetizadores analógicos luminosos, guitarras orgánicas y pulsos downtempo.',
     tracks: [
-      { title: 'A Walk', album: 'Dive', year: 2011, duration: 316, affinity: 0.96 },
+      { title: 'A Walk', album: 'Dive', year: 2011, duration: 316, affinity: 0.96, secondaryGenre: 'POST-ROCK & CINEMATIC' },
       { title: 'Awake', album: 'Awake', year: 2014, duration: 283, affinity: 0.95 },
       { title: 'Coastal Brake', album: 'Dive', year: 2011, duration: 334, affinity: 0.93 },
     ],
@@ -302,7 +309,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Londres, Reino Unido · 2012',
     bio: 'Riffs de guitarra limpios con influencias de J Dilla, armonías de neo-soul y ritmos jazzy reconfortantes.',
     tracks: [
-      { title: 'Movie', album: 'Geography', year: 2018, duration: 357, affinity: 0.97 },
+      { title: 'Movie', album: 'Geography', year: 2018, duration: 357, affinity: 0.97, secondaryGenre: 'MODERN JAZZ & FUSION' },
       { title: 'Lost in Paris', album: 'Geography', year: 2018, duration: 194, affinity: 0.95 },
       { title: 'South of the River', album: 'Geography', year: 2018, duration: 269, affinity: 0.93 },
     ],
@@ -313,7 +320,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Melbourne, Australia · 2011',
     bio: 'Future soul polirrítmico, giros armónicos impredecibles y la virtuosa elasticidad vocal de Nai Palm.',
     tracks: [
-      { title: 'Nakamarra', album: 'Tawk Tomahawk', year: 2012, duration: 282, affinity: 0.96 },
+      { title: 'Nakamarra', album: 'Tawk Tomahawk', year: 2012, duration: 282, affinity: 0.96, secondaryGenre: 'MODERN JAZZ & FUSION' },
       { title: 'Red Room', album: 'Mood Valiant', year: 2021, duration: 191, affinity: 0.94 },
       { title: 'Breathing Underwater', album: 'Choose Your Weapon', year: 2015, duration: 344, affinity: 0.92 },
     ],
@@ -325,7 +332,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     bio: 'La elegancia definitiva del sophisti-pop y quiet storm: voz aterciopelada y bajos de seda.',
     tracks: [
       { title: 'Smooth Operator', album: 'Diamond Life', year: 1984, duration: 258, affinity: 0.97 },
-      { title: 'No Ordinary Love', album: 'Love Deluxe', year: 1992, duration: 440, affinity: 0.96 },
+      { title: 'No Ordinary Love', album: 'Love Deluxe', year: 1992, duration: 440, affinity: 0.96, secondaryGenre: 'TRIP-HOP & BRISTOL DUB' },
       { title: 'By Your Side', album: 'Lovers Rock', year: 2000, duration: 274, affinity: 0.95 },
     ],
   },
@@ -349,8 +356,8 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     bio: 'Dream-synth futurista, capas vocales etéreas y secuenciadores industriales de dormitorio.',
     tracks: [
       { title: 'Oblivion', album: 'Visions', year: 2012, duration: 251, affinity: 0.96 },
-      { title: 'Genesis', album: 'Visions', year: 2012, duration: 255, affinity: 0.95 },
-      { title: 'Kill V. Maim', album: 'Art Angels', year: 2015, duration: 246, affinity: 0.92 },
+      { title: 'Genesis', album: 'Visions', year: 2012, duration: 255, affinity: 0.95, secondaryGenre: 'SYNTHWAVE & FRENCH TOUCH' },
+      { title: 'Kill V. Maim', album: 'Art Angels', year: 2015, duration: 246, affinity: 0.92, secondaryGenre: 'FUTURE BASS & MELODIC GLITCH' },
     ],
   },
   {
@@ -359,8 +366,8 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Northampton, Massachusetts · 2014',
     bio: 'Darkwave hipnótico, sintetizadores analógicos secos y pulsos cinematográficos seductores.',
     tracks: [
-      { title: 'Pain', album: 'Yr Body Is Nothing', year: 2016, duration: 440, affinity: 0.95 },
-      { title: 'Motion', album: 'Careful', year: 2019, duration: 217, affinity: 0.93 },
+      { title: 'Pain', album: 'Yr Body Is Nothing', year: 2016, duration: 440, affinity: 0.95, secondaryGenre: 'ART ROCK & SHOEGAZE' },
+      { title: 'Motion', album: 'Careful', year: 2019, duration: 217, affinity: 0.93, secondaryGenre: 'ART ROCK & SHOEGAZE' },
       { title: 'Fate', album: 'Careful', year: 2019, duration: 258, affinity: 0.91 },
     ],
   },
@@ -372,7 +379,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Austin, Texas · 1999',
     bio: 'Crescendos de guitarras monumentales, dinámicas narrativas sinfónicas y percusiones marciales emotivas.',
     tracks: [
-      { title: 'Your Hand in Mine', album: 'The Earth Is Not a Cold Dead Place', year: 2003, duration: 488, affinity: 0.98 },
+      { title: 'Your Hand in Mine', album: 'The Earth Is Not a Cold Dead Place', year: 2003, duration: 488, affinity: 0.98, secondaryGenre: 'ART ROCK & SHOEGAZE' },
       { title: 'First Breath After Coma', album: 'The Earth Is Not a Cold Dead Place', year: 2003, duration: 573, affinity: 0.96 },
       { title: 'The Only Moment We Were Alone', album: 'The Earth Is Not a Cold Dead Place', year: 2003, duration: 610, affinity: 0.94 },
     ],
@@ -384,7 +391,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     bio: 'Guitarras tocadas con arco de chelo, falsete celestial en Vonlenska y paisajes glaciales.',
     tracks: [
       { title: 'Hoppípolla', album: 'Takk...', year: 2005, duration: 268, affinity: 0.98 },
-      { title: 'Svefn-g-englar', album: 'Ágætis byrjun', year: 1999, duration: 604, affinity: 0.96 },
+      { title: 'Svefn-g-englar', album: 'Ágætis byrjun', year: 1999, duration: 604, affinity: 0.96, secondaryGenre: 'ART ROCK & SHOEGAZE' },
       { title: 'Starálfur', album: 'Ágætis byrjun', year: 1999, duration: 406, affinity: 0.94 },
     ],
   },
@@ -394,7 +401,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Berlín / Reino Unido · 1995',
     bio: 'Post-minimalismo neoclásico: cuartetos de cuerda conmovedores entrelazados con sutiles sintetizadores modulares.',
     tracks: [
-      { title: 'On the Nature of Daylight', album: 'The Blue Notebooks', year: 2004, duration: 371, affinity: 0.98 },
+      { title: 'On the Nature of Daylight', album: 'The Blue Notebooks', year: 2004, duration: 371, affinity: 0.98, secondaryGenre: 'IDM & AMBIENT EXPERIMENTAL' },
       { title: 'November', album: 'Memoryhouse', year: 2002, duration: 382, affinity: 0.95 },
       { title: 'Spring 1', album: 'Recomposed by Max Richter: Vivaldi', year: 2012, duration: 151, affinity: 0.94 },
     ],
@@ -420,7 +427,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     bio: 'Funk psicodélico global, melodías de guitarra con reverb de cinta, líneas de bajo profundas de Laura Lee y ritmos thai-funk.',
     tracks: [
       { title: 'Texas Sun (with Leon Bridges)', album: 'Texas Sun EP', year: 2020, duration: 252, affinity: 0.98 },
-      { title: 'White Gloves', album: 'The Universe Smiles Upon You', year: 2015, duration: 218, affinity: 0.95 },
+      { title: 'White Gloves', album: 'The Universe Smiles Upon You', year: 2015, duration: 218, affinity: 0.95, secondaryGenre: 'LATIN ALTERNATIVE & TROPICAL PSYCH' },
       { title: 'Time (You and I)', album: 'Mordechai', year: 2020, duration: 342, affinity: 0.93 },
     ],
   },
@@ -430,8 +437,8 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Baltimore, Maryland · 2004',
     bio: 'Dream-pop hipnótico, órganos vintage, arpegios de guitarra con slide y la voz ensoñadora de Victoria Legrand.',
     tracks: [
-      { title: 'Space Song', album: 'Depression Cherry', year: 2015, duration: 320, affinity: 0.99 },
-      { title: 'Myth', album: 'Bloom', year: 2012, duration: 258, affinity: 0.97 },
+      { title: 'Space Song', album: 'Depression Cherry', year: 2015, duration: 320, affinity: 0.99, secondaryGenre: 'ART ROCK & SHOEGAZE' },
+      { title: 'Myth', album: 'Bloom', year: 2012, duration: 258, affinity: 0.97, secondaryGenre: 'ART ROCK & SHOEGAZE' },
       { title: 'Silver Soul', album: 'Teen Dream', year: 2010, duration: 298, affinity: 0.94 },
     ],
   },
@@ -443,7 +450,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Sídney, Australia · 2011',
     bio: 'Deconstrucción del beat, caídas melódicas de sintetizador con sidechain extremo y texturas orgánicas.',
     tracks: [
-      { title: 'Never Be Like You', album: 'Skin', year: 2016, duration: 234, affinity: 0.98 },
+      { title: 'Never Be Like You', album: 'Skin', year: 2016, duration: 234, affinity: 0.98, secondaryGenre: 'CYBERPUNK & ELECTRO-POP' },
       { title: 'Say It (feat. Tove Lo)', album: 'Skin', year: 2016, duration: 262, affinity: 0.95 },
       { title: 'Sleepless', album: 'Flume', year: 2012, duration: 209, affinity: 0.93 },
     ],
@@ -467,7 +474,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     tracks: [
       { title: 'Shelter (with Madeon)', album: 'Shelter', year: 2016, duration: 219, affinity: 0.99 },
       { title: 'Sad Machine', album: 'Worlds', year: 2014, duration: 350, affinity: 0.97 },
-      { title: 'Look at the Sky', album: 'Nurture', year: 2021, duration: 310, affinity: 0.95 },
+      { title: 'Look at the Sky', album: 'Nurture', year: 2021, duration: 310, affinity: 0.95, secondaryGenre: 'J-POP, J-ROCK & ANIME' },
     ],
   },
 
@@ -491,7 +498,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     bio: 'Exploraciones electrónicas y de pop-rock barroco: guitarras psicodélicas y poesía sensorial.',
     tracks: [
       { title: 'Crimen', album: 'Ahí Vamos', year: 2006, duration: 228, affinity: 0.99 },
-      { title: 'Puente', album: 'Bocanada', year: 1999, duration: 273, affinity: 0.98 },
+      { title: 'Puente', album: 'Bocanada', year: 1999, duration: 273, affinity: 0.98, secondaryGenre: 'INDIE FOLK & PSYCHEDELIA' },
       { title: 'Adiós', album: 'Ahí Vamos', year: 2006, duration: 231, affinity: 0.96 },
       { title: 'Paseo Inmoral', album: 'Bocanada', year: 1999, duration: 331, affinity: 0.94 },
     ],
@@ -537,7 +544,7 @@ const ARTIST_DATABASE: PresetArtistSeed[] = [
     origin: 'Los Ángeles, California · 2011',
     bio: 'Bajo de seis cuerdas ultrarrápido con acordes de jazz fusion, falsetes soul y humor surrealista.',
     tracks: [
-      { title: 'Them Changes', album: 'Drunk', year: 2017, duration: 188, affinity: 0.98 },
+      { title: 'Them Changes', album: 'Drunk', year: 2017, duration: 188, affinity: 0.98, secondaryGenre: 'NEO-SOUL & DOWNTEMPO R&B' },
       { title: 'Dragonball Durag', album: 'It Is What It Is', year: 2020, duration: 181, affinity: 0.95 },
       { title: 'Funny Thing', album: 'It Is What It Is', year: 2020, duration: 116, affinity: 0.94 },
     ],
@@ -567,6 +574,7 @@ function sliceCuratedTracks(targetCount: number): RawLibraryTrackInput[] {
           durationSec: t.duration,
           playCount: Math.round(50 + t.affinity * 65 + (t.year % 10) * 4),
           affinity: t.affinity,
+          secondaryGenre: t.secondaryGenre,
           origin: artist.origin,
           bio: artist.bio,
         });
@@ -593,6 +601,7 @@ function sliceCuratedTracks(targetCount: number): RawLibraryTrackInput[] {
           durationSec: baseTrack.duration + 45,
           playCount: Math.round(30 + baseTrack.affinity * 40),
           affinity: Math.max(0.68, Number((baseTrack.affinity - 0.04 * cycle).toFixed(2))),
+          secondaryGenre: baseTrack.secondaryGenre,
           origin: artist.origin,
           bio: artist.bio,
         });
