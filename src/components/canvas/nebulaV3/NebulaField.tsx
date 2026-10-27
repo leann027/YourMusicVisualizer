@@ -59,6 +59,7 @@ export const NebulaField: React.FC = () => {
       selectedNode: state.selectedNode,
       cameraMode: state.cameraMode,
       playingTrackId: state.playingTrackId,
+      selectedCollision: state.selectedCollision,
     });
 
     if (!prefersReducedMotion) u.uTime.value += Math.min(delta, 0.05);
@@ -66,7 +67,10 @@ export const NebulaField: React.FC = () => {
     u.uGain.value = targets.gain;
     u.uMinAffinity.value = targets.minAffinity;
     // keep the last focused genre/artist while fading out, so the dimming doesn't jump
-    if (targets.focusGid >= 0) u.uFocusGid.value = targets.focusGid;
+    if (targets.focusGid >= 0) {
+      u.uFocusGid.value = targets.focusGid;
+      u.uFocusGid2.value = targets.focusGid2;
+    }
     u.uFocusAmt.value += (targets.focusAmt - u.uFocusAmt.value) * FOCUS_EASE;
     if (targets.artistAid >= 0) u.uArtistAid.value = targets.artistAid;
     u.uArtistAmt.value += (targets.artistAmt - u.uArtistAmt.value) * ARTIST_EASE;

@@ -61,13 +61,18 @@ export const NebulaCollisions: React.FC = () => {
       selectedNode: state.selectedNode,
       cameraMode: state.cameraMode,
       playingTrackId: state.playingTrackId,
+      selectedCollision: state.selectedCollision,
     });
 
     if (!prefersReducedMotion) u.uTime.value += Math.min(delta, 0.05);
     u.uPixelRatio.value = gl.getPixelRatio();
     u.uGain.value = targets.gain;
     u.uMinAffinity.value = targets.minAffinity;
-    if (targets.focusGid >= 0) u.uFocusGid.value = targets.focusGid;
+    // keep the last focus while fading out, so the dimming doesn't jump
+    if (targets.focusGid >= 0) {
+      u.uFocusGid.value = targets.focusGid;
+      u.uFocusGid2.value = targets.focusGid2;
+    }
     u.uFocusAmt.value += (targets.focusAmt - u.uFocusAmt.value) * FOCUS_EASE;
     if (tune) {
       u.uClashSize.value = tune.size;

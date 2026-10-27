@@ -24,6 +24,7 @@ export interface NebulaCollisionUniforms {
   uGain: { value: number };
   uMinAffinity: { value: number };
   uFocusGid: { value: number }; // -1 = none; a collision is lit when either of its genres is focused
+  uFocusGid2: { value: number }; // with a focused collision (M7.3) only that pair stays lit
   uFocusAmt: { value: number };
   uTideSpeed: { value: number }; // 1 = reference speed; M7.5 accelerates it for a playing bridge song
   uSubBass: { value: number };
@@ -38,6 +39,7 @@ export function createNebulaCollisionUniforms(): NebulaCollisionUniforms {
     uGain: { value: 1 },
     uMinAffinity: { value: 0 },
     uFocusGid: { value: -1 },
+    uFocusGid2: { value: -1 },
     uFocusAmt: { value: 0 },
     uTideSpeed: { value: 1 },
     uSubBass: { value: 0 },
@@ -65,6 +67,7 @@ uniform float uPixelRatio;
 uniform float uGain;
 uniform float uMinAffinity;
 uniform float uFocusGid;
+uniform float uFocusGid2;
 uniform float uFocusAmt;
 uniform float uTideSpeed;
 uniform float uSubBass;
@@ -104,7 +107,9 @@ void main() {
   a *= smoothstep(210.0, 42.0, d) * smoothstep(1.1, 5.6, d);
   a *= smoothstep(uMinAffinity - 0.02, uMinAffinity, aAffinity);
   // lit when either genre of the pair is focused, dimmed like the field otherwise
-  bool lit = uFocusGid < 0.0 || sameId(gid, uFocusGid) || sameId(gid2, uFocusGid);
+  bool samePair = (sameId(gid, uFocusGid) && sameId(gid2, uFocusGid2)) || (sameId(gid, uFocusGid2) && sameId(gid2, uFocusGid));
+  bool touchesGenre = sameId(gid, uFocusGid) || sameId(gid2, uFocusGid);
+  bool lit = uFocusGid < 0.0 || (uFocusGid2 >= 0.0 ? samePair : touchesGenre);
   a *= lit ? 1.0 : mix(1.0, 0.07, uFocusAmt);
 
   vColor = c;

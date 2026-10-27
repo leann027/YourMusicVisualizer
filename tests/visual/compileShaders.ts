@@ -90,6 +90,15 @@ async function main(): Promise<boolean> {
     const spec = { ...threads, uniforms: { ...threads.uniforms, ...c.uniforms } };
     threadResults.push(await renderPrograms(page, [spec], camera));
   }
+  // collision focus (M7.3): only the focused pair stays lit, the rest dims
+  const pairA = layout.data.genres.findIndex((g) => g.id === layout.relations[0].a);
+  const pairB = layout.data.genres.findIndex((g) => g.id === layout.relations[0].b);
+  const collisionSpec = programs[1];
+  const focusedCollisions = await renderPrograms(
+    page,
+    [{ ...collisionSpec, uniforms: { ...collisionSpec.uniforms, uFocusGid: pairA, uFocusGid2: pairB, uFocusAmt: 1 } }],
+    camera
+  );
   const together = await renderPrograms(page, programs, camera);
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   await page.locator('#c').screenshot({ path: outFile });
@@ -111,6 +120,10 @@ async function main(): Promise<boolean> {
           : threadResults[i].litShare > 0,
       `bridge threads, ${c.label}: ${c.expectLit ? 'visible' : 'hidden'} (${(threadResults[i].litShare * 100).toFixed(2)}% lit)`,
     ]),
+    [
+      focusedCollisions.litShare > 0 && focusedCollisions.litShare < perProgram[1].litShare,
+      `collisions, focus on one pair: dims the others (${(focusedCollisions.litShare * 100).toFixed(2)}% vs ${(perProgram[1].litShare * 100).toFixed(2)}% lit)`,
+    ],
   ];
   for (const [ok, label] of checks) console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`);
   console.log(`  WebGL2: ${together.webgl2} · preview: ${outFile}`);

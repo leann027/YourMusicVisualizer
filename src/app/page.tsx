@@ -30,6 +30,12 @@ export default function HomePage() {
   const loadCustomGalaxyData = useGalaxyStore((s) => s.loadCustomGalaxyData);
   const setRendererMode = useGalaxyStore((s) => s.setRendererMode);
 
+  // Development only: expose the store so Playwright flows can drive selections (e.g. collisions)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    (window as unknown as { __galaxyStore?: typeof useGalaxyStore }).__galaxyStore = useGalaxyStore;
+  }, []);
+
   // Read ?renderer=classic|nebula once on mount (window avoids a Suspense boundary for useSearchParams)
   useEffect(() => {
     const mode = parseRendererParam(new URLSearchParams(window.location.search).get('renderer'));
