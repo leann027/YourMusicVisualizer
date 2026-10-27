@@ -8,6 +8,13 @@ import {
 
 export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song';
 
+export type RendererMode = 'classic' | 'nebula';
+
+// Parses the ?renderer= query param; anything unknown is ignored.
+export function parseRendererParam(value: string | null): RendererMode | null {
+  return value === 'classic' || value === 'nebula' ? value : null;
+}
+
 export interface RenderPerfStats {
   fps: number;
   drawCalls: number;
@@ -39,6 +46,7 @@ interface GalaxyState {
   perfStats: RenderPerfStats;
   isWarpActive: boolean;
   hasWarpCompleted: boolean;
+  rendererMode: RendererMode;
 
   // Actions
   finishWarp: () => void;
@@ -65,6 +73,7 @@ interface GalaxyState {
   ) => void;
   restoreDefaultGalaxy: () => void;
   updatePerfStats: (stats: RenderPerfStats) => void;
+  setRendererMode: (mode: RendererMode) => void;
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
@@ -96,6 +105,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   },
   isWarpActive: true,
   hasWarpCompleted: false,
+  rendererMode: 'classic',
 
   finishWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
   skipWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
@@ -246,4 +256,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   },
 
   updatePerfStats: (perfStats) => set({ perfStats }),
+
+  setRendererMode: (rendererMode) => {
+    if (get().rendererMode === rendererMode) return;
+    set({ rendererMode });
+  },
 }));
