@@ -1,5 +1,6 @@
 import { ArtistNode, GenreNode, MusicGalaxyData, SongNode } from '../../types/music';
-import { createRng, gauss, goldenFibonacci, randDir, Rng } from '../math/prng';
+// Per-id seeds keep a nebula's orientation stable when other genres change
+import { createRng, gauss, goldenFibonacci, randDir, Rng, seedFromString } from '../math/prng';
 import { computeGenreRelations, GenreRelation } from './genreRelations';
 
 /**
@@ -177,16 +178,6 @@ function inFrame(origin: Vec3, frame: NebulaFrame, x: number, y: number, z: numb
   ];
 }
 
-/** FNV-1a: stable seed per id, so a nebula keeps its orientation when other genres change. */
-function seedFromId(id: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
 function frameFor(core: NebulaCore, rng: Rng): NebulaFrame {
   const normal = randDir(rng);
   const [u, v] = basis(normal);
@@ -203,7 +194,7 @@ const artistKey = (genreId: string, artistId: string) => `${genreId}::${artistId
 export function computeNebulaLayout(data: MusicGalaxyData): NebulaLayoutResult {
   const genreRelations = computeGenreRelations(data);
   const frames = computeNebulaCores(data, genreRelations).map((core) =>
-    frameFor(core, createRng(seedFromId(core.genreId)))
+    frameFor(core, createRng(seedFromString(core.genreId)))
   );
   const frameOf = new Map(frames.map((f) => [f.genreId, f]));
 
@@ -223,7 +214,7 @@ export function computeNebulaLayout(data: MusicGalaxyData): NebulaLayoutResult {
     const t = nextArtistIdx.get(artist.genreId) ?? 0;
     nextArtistIdx.set(artist.genreId, t + 1);
     const n = artistCount.get(artist.genreId) ?? 1;
-    const rng = createRng(seedFromId(artistKey(artist.genreId, artist.id)));
+    const rng = createRng(seedFromString(artistKey(artist.genreId, artist.id)));
     const maxRadius = Math.max(ARTIST_MIN_RADIUS, frame.radius * ARTIST_MAX_RADIUS_FACTOR);
     const rr = ARTIST_MIN_RADIUS + (maxRadius - ARTIST_MIN_RADIUS) * Math.sqrt((t + 0.5) / n);
     const angle = t * 2.39996 + rng() * 0.5;
@@ -268,7 +259,7 @@ export function computeNebulaLayout(data: MusicGalaxyData): NebulaLayoutResult {
     relations.push({ ...relation, contact, dir, radius });
 
     const [u, v] = basis(dir);
-    const rng = createRng(seedFromId(`${relation.a}|${relation.b}`));
+    const rng = createRng(seedFromString(`${relation.a}|${relation.b}`));
     relation.bridgeSongIds.forEach((songId, q) => {
       const idx = songIndex.get(songId);
       if (idx === undefined) return;
