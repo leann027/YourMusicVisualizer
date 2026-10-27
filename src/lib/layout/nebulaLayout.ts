@@ -282,3 +282,16 @@ export function computeNebulaLayout(data: MusicGalaxyData): NebulaLayoutResult {
 export function applyNebulaLayout(data: MusicGalaxyData): MusicGalaxyData {
   return computeNebulaLayout(data).data;
 }
+
+// One layout per source dataset, shared by the store (positions) and NebulaField (cores/frames)
+const nebulaLayoutCache = new WeakMap<MusicGalaxyData, NebulaLayoutResult>();
+
+/** Cached computeNebulaLayout: the same dataset object always returns the same result object. */
+export function getNebulaLayout(data: MusicGalaxyData): NebulaLayoutResult {
+  let layout = nebulaLayoutCache.get(data);
+  if (!layout) {
+    layout = computeNebulaLayout(data);
+    nebulaLayoutCache.set(data, layout);
+  }
+  return layout;
+}

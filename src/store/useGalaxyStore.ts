@@ -5,25 +5,16 @@ import {
   GALAXY_PRESET_150,
   GALAXY_PRESET_300,
 } from '../data/galaxyPresets';
-import { applyNebulaLayout } from '../lib/layout/nebulaLayout';
+import { getNebulaLayout } from '../lib/layout/nebulaLayout';
 
 export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song';
 
 export type RendererMode = 'classic' | 'nebula';
 
-// Nebula positions per source dataset: switching modes or presets reuses the same object,
-// so components memoised on `data` don't rebuild geometry.
-const nebulaLayoutCache = new WeakMap<MusicGalaxyData, MusicGalaxyData>();
-
 /** The dataset components render for `mode`: classic is the imported data as-is. */
 export function layoutForMode(baseData: MusicGalaxyData, mode: RendererMode): MusicGalaxyData {
-  if (mode === 'classic') return baseData;
-  let laidOut = nebulaLayoutCache.get(baseData);
-  if (!laidOut) {
-    laidOut = applyNebulaLayout(baseData);
-    nebulaLayoutCache.set(baseData, laidOut);
-  }
-  return laidOut;
+  // getNebulaLayout caches per dataset, so mode/preset switches keep stable references
+  return mode === 'classic' ? baseData : getNebulaLayout(baseData).data;
 }
 
 /** Same node (by id, and genre for artists split across genres) inside another dataset. */
