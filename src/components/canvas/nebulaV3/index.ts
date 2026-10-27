@@ -8,3 +8,4 @@ export { createNebulaCollisionMaterial, NEBULA_COLLISION_CACHE_KEY } from './sha
 export { BridgeThreads } from './BridgeThreads';
 export { bridgeRingColor, buildBridgeThreadGeometry, BRIDGE_THREAD_ATTRIBUTES } from './bridges';
 export { createBridgeThreadMaterial, BRIDGE_THREAD_CACHE_KEY } from './shaders/bridgeThreadShaders';
+export { CollisionMarkers } from './CollisionMarkers';

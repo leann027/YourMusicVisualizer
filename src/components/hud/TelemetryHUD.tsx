@@ -11,11 +11,13 @@ import {
   SlidersHorizontal,
   Volume2,
   VolumeX,
+  Waypoints,
   Zap,
 } from 'lucide-react';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StellarSearchBar } from './StellarSearchBar';
 import { ArtistSleeveCard } from './ArtistSleeveCard';
+import { CollisionCard } from './CollisionCard';
 import { DataSourceModal } from './DataSourceModal';
 import { FFTSpectrumDock } from './FFTSpectrumDock';
 import { webAudioEngine } from '../../lib/audio/WebAudioEngine';
@@ -60,6 +62,8 @@ export const TelemetryHUD: React.FC = () => {
   const setStellarBrightness = useGalaxyStore((s) => s.setStellarBrightness);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
   const toggleBloom = useGalaxyStore((s) => s.toggleBloom);
+  const linksVisible = useGalaxyStore((s) => s.linksVisible);
+  const toggleLinksVisible = useGalaxyStore((s) => s.toggleLinksVisible);
   const skipWarp = useGalaxyStore((s) => s.skipWarp);
 
   const activeSectorGenre = useMemo(() => {
@@ -469,13 +473,35 @@ export const TelemetryHUD: React.FC = () => {
                     })}
                   </div>
                 </div>
+
+                {/* Constellation links toggle (the store action existed without a control) */}
+                <div className="border-t border-[#00F5D4]/20 pt-2.5">
+                  <button
+                    type="button"
+                    aria-pressed={linksVisible}
+                    onClick={toggleLinksVisible}
+                    aria-label={linksVisible ? 'Ocultar hilos de constelación' : 'Mostrar hilos de constelación'}
+                    className={`w-full min-h-8 flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                      linksVisible
+                        ? 'border-[#00F5D4] bg-[#131826] text-[#F2F4F8]'
+                        : 'border-[#00F5D4]/25 bg-[#050508] text-[#B8DCE8] hover:border-[#00F5D4]'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Waypoints className={`h-3.5 w-3.5 ${linksVisible ? 'text-[#00F5D4]' : 'text-[#B8DCE8]'}`} strokeWidth={2} />
+                      <span>Hilos de constelación</span>
+                    </span>
+                    <span className={linksVisible ? 'text-[#00F5D4]' : 'text-[#B8DCE8]'}>{linksVisible ? 'ON' : 'OFF'}</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </nav>
 
         {/* Story 4: Right Active Star Inspection Placard (Archival Record-Sleeve Aesthetic) */}
-        <ArtistSleeveCard />
+        {/* Nebulosas v3: the collision card takes the artist card's place while a collision is selected */}
+        {cameraMode === 'collision' ? <CollisionCard /> : <ArtistSleeveCard />}
 
       {/* Bottom Floating Glass Dock */}
       <footer className="pointer-events-auto fixed bottom-3 md:bottom-4 left-3 md:left-6 right-3 md:right-6 z-30 flex flex-wrap items-center justify-between gap-2.5 border border-[#00F5D4]/25 bg-[#080A14]/85 backdrop-blur-xl px-4 md:px-5 py-2 rounded-2xl text-xs text-[#B8DCE8] shadow-[0_12px_40px_rgba(0,0,0,0.65)]">
