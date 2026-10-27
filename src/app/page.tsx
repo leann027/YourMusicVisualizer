@@ -7,7 +7,7 @@ import {
   fetchSpotifyLikedSongsGalaxy,
   getStoredAccessToken,
 } from '../lib/spotify/spotifyClient';
-import { useGalaxyStore } from '../store/useGalaxyStore';
+import { parseRendererParam, useGalaxyStore } from '../store/useGalaxyStore';
 
 // Dynamic import for 3D Canvas to disable SSR cleanly
 const MusicVisualizerCanvas = dynamic(
@@ -28,6 +28,13 @@ const MusicVisualizerCanvas = dynamic(
 export default function HomePage() {
   const spotifyUser = useGalaxyStore((s) => s.spotifyUser);
   const loadCustomGalaxyData = useGalaxyStore((s) => s.loadCustomGalaxyData);
+  const setRendererMode = useGalaxyStore((s) => s.setRendererMode);
+
+  // Read ?renderer=classic|nebula once on mount (window avoids a Suspense boundary for useSearchParams)
+  useEffect(() => {
+    const mode = parseRendererParam(new URLSearchParams(window.location.search).get('renderer'));
+    if (mode) setRendererMode(mode);
+  }, [setRendererMode]);
 
   // Auto-restore active Spotify session if token is still valid in localStorage
   useEffect(() => {

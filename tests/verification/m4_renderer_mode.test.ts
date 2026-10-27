@@ -1,4 +1,4 @@
-import { useGalaxyStore } from '../../src/store/useGalaxyStore';
+import { parseRendererParam, useGalaxyStore } from '../../src/store/useGalaxyStore';
 
 interface TestResult {
   name: string;
@@ -69,8 +69,16 @@ assert(after.rendererMode === 'nebula', 'setPresetScale keeps rendererMode', `go
 store.getState().setRendererMode('classic');
 assert(store.getState().rendererMode === 'classic', 'setRendererMode(classic) switches back');
 
+// Test 6: ?renderer= query param parsing (M4.2)
+assert(parseRendererParam('nebula') === 'nebula', "parseRendererParam('nebula') -> nebula");
+assert(parseRendererParam('classic') === 'classic', "parseRendererParam('classic') -> classic");
+assert(parseRendererParam(null) === null, 'parseRendererParam(null) -> null');
+assert(parseRendererParam('NEBULA') === null, "parseRendererParam('NEBULA') -> null (case-sensitive)");
+assert(parseRendererParam('foo') === null, "parseRendererParam('foo') -> null");
+assert(parseRendererParam('') === null, "parseRendererParam('') -> null");
+
 console.log('\n================================================================');
-console.log('SUMMARY OF M4.1 VERIFICATION');
+console.log('SUMMARY OF M4 VERIFICATION');
 console.log('================================================================');
 const total = results.length;
 const passed = results.filter((r) => r.passed).length;

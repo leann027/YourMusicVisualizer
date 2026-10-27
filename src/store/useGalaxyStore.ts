@@ -10,6 +10,11 @@ export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song';
 
 export type RendererMode = 'classic' | 'nebula';
 
+// Parses the ?renderer= query param; anything unknown is ignored.
+export function parseRendererParam(value: string | null): RendererMode | null {
+  return value === 'classic' || value === 'nebula' ? value : null;
+}
+
 export interface RenderPerfStats {
   fps: number;
   drawCalls: number;

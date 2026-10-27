@@ -22,6 +22,7 @@ export const GalaxyScene: React.FC = () => {
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const linksVisible = useGalaxyStore((s) => s.linksVisible);
+  const rendererMode = useGalaxyStore((s) => s.rendererMode);
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -87,7 +88,7 @@ export const GalaxyScene: React.FC = () => {
       />
 
       {/* Rotating Galaxy Container: Everything revolves slowly around the supermassive black hole at [0, 0, 0] */}
-      <group ref={galaxyContainerRef} name="celestial-galaxy-cosmos">
+      <group ref={galaxyContainerRef} name="celestial-galaxy-cosmos" userData={{ rendererMode }}>
         {/* Deep-Space Spiral Stardust Disc & Relativistic Central Black Hole */}
         <GalacticDustDisc />
 
