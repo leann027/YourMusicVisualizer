@@ -6,13 +6,15 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useGalaxyStore } from '../../../store/useGalaxyStore';
 import { webAudioEngine } from '../../../lib/audio/WebAudioEngine';
 import { getNebulaLayout } from '../../../lib/layout/nebulaLayout';
-import { buildNebulaCollisionGeometry } from './nebulaCollisionGeometry';
+import { buildNebulaCollisionGeometry, collisionRelations } from './nebulaCollisionGeometry';
+import { advanceTideOffsets, tideBoostTarget } from './tideBoost';
 import { FIELD_SHARE, NEBULA_FIELD_DENSITY } from './nebulaFieldGeometry';
 import { computeNebulaFieldTargets } from './nebulaFieldTargets';
 import { createNebulaCollisionMaterial } from './shaders/nebulaCollisionShaders';
 import { parseNebulaTune } from './nebulaTune';
 
 const FOCUS_EASE = 0.07;
+const BOOST_EASE = 0.1; // smooths FFT peaks so tides don't jitter
 
 /**
  * Nebulosas v3 collisions (M7.1): shock fronts, tidal streams and mixed gas where related
@@ -41,6 +43,8 @@ export const NebulaCollisions: React.FC = () => {
     return parseNebulaTune(new URLSearchParams(window.location.search).get('clashTune'));
   }, []);
   const genreIds = useMemo(() => layout.data.genres.map((g) => g.id), [layout]);
+  const relations = useMemo(() => collisionRelations(layout), [layout]);
+  const boostSpeed = useRef(1);
 
   useEffect(() => () => collisions.geometry.dispose(), [collisions]);
   useEffect(() => () => material.dispose(), [material]);
@@ -81,6 +85,15 @@ export const NebulaCollisions: React.FC = () => {
 
     const fft = webAudioEngine.sampleFFT();
     u.uSubBass.value = fft.isPlaying ? fft.subBass : 0;
+
+    // a playing bridge song speeds up its collision's tides with the audio energy (M7.5)
+    const boost = tideBoostTarget(state.playingTrackId, state.isAudioPlaying, relations, fft.isPlaying ? fft.energy : 0);
+    boostSpeed.current += (boost.speed - boostSpeed.current) * BOOST_EASE;
+    if (boost.rid >= 0) u.uBoostRid.value = boost.rid;
+    u.uBoostGlow.value += (boost.glow - u.uBoostGlow.value) * BOOST_EASE;
+    if (!prefersReducedMotion) {
+      advanceTideOffsets(u.uTideOffset.value as Float32Array, u.uBoostRid.value, boostSpeed.current, Math.min(delta, 0.05));
+    }
   });
 
   return (

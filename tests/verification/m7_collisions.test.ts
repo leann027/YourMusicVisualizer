@@ -66,17 +66,21 @@ const mat = createNebulaCollisionMaterial();
 assert(NEBULA_COLLISION_CACHE_KEY === 'nebula-collisions-v3' && mat.customProgramCacheKey() === NEBULA_COLLISION_CACHE_KEY, 'cache key nebula-collisions-v3');
 assert((NEBULA_COLLISION_CACHE_KEY as string) !== NEBULA_FIELD_CACHE_KEY, 'collision program distinct from the field program');
 mat.uniforms.uGain.value = 2;
-mat.uniforms.uTideSpeed.value = 3;
+mat.uniforms.uBoostRid.value = 3;
 assert(mat.customProgramCacheKey() === NEBULA_COLLISION_CACHE_KEY, 'cache key unchanged by uniforms');
 assert(mat.transparent && !mat.depthWrite && mat.blending === THREE.AdditiveBlending, 'additive, transparent, no depth write');
-assert(createNebulaCollisionUniforms().uTideSpeed.value === 1, 'uTideSpeed defaults to reference speed');
+assert(
+  createNebulaCollisionUniforms().uBoostRid.value === -1 && createNebulaCollisionUniforms().uTideOffset.value.every((v) => v === 0),
+  'no tide boost by default (rid -1, zero offsets)'
+);
+assert(createNebulaCollisionUniforms().uTideOffset.value !== createNebulaCollisionUniforms().uTideOffset.value, 'each material gets its own tide offsets');
 assert(createNebulaCollisionUniforms().uClashSize.value === 2.6 && createNebulaCollisionUniforms().uClashAlpha.value === 1.8, 'clash look defaults to the calibrated 2.6 · 1.8');
 const declared = [...NEBULA_COLLISION_VERTEX_SHADER.matchAll(/attribute (float|vec3) (\w+);/g)].map((m) => ({ name: m[2], size: m[1] === 'vec3' ? 3 : 1 }));
 const geomAttrs = Object.entries(NEBULA_COLLISION_ATTRIBUTES).filter(([n]) => n !== 'position');
 assert(geomAttrs.every(([n, s]) => declared.some((d) => d.name === n && d.size === s)), 'every geometry attribute declared with matching type');
 assert(declared.every((d) => d.name in NEBULA_COLLISION_ATTRIBUTES), 'no shader attribute missing from the geometry');
 assert(
-  Object.keys(createNebulaCollisionUniforms()).every((u) => new RegExp(`uniform float ${u};`).test(NEBULA_COLLISION_VERTEX_SHADER)),
+  Object.keys(createNebulaCollisionUniforms()).every((u) => new RegExp(`uniform float ${u}(\\[\\d+\\])?;`).test(NEBULA_COLLISION_VERTEX_SHADER)),
   'every uniform declared in the vertex shader'
 );
 mat.dispose();
