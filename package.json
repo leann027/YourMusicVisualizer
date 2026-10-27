@@ -11,7 +11,8 @@
     "test:visual:baseline": "node tests/visual/captureScenes.mjs --renderer classic --preset 50 --out test-results/visual/baseline-classic && node tests/visual/captureScenes.mjs --renderer classic --preset 300 --out test-results/visual/baseline-classic",
     "test:visual": "node tests/visual/captureScenes.mjs --renderer classic --preset 50 --out test-results/visual/latest-classic && node tests/visual/captureScenes.mjs --renderer classic --preset 300 --out test-results/visual/latest-classic && node tests/visual/compareScenes.mjs test-results/visual/baseline-classic test-results/visual/latest-classic",
     "test:visual:flows": "node tests/visual/checklistFlows.mjs --renderer classic && node tests/visual/checklistFlows.mjs --renderer nebula",
-    "test:visual:shaders": "tsx tests/visual/compileShaders.ts"
+    "test:visual:shaders": "tsx tests/visual/compileShaders.ts",
+    "test:visual:clash": "tsx tests/visual/calibrateClash.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

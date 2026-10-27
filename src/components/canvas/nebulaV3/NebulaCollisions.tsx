@@ -10,6 +10,7 @@ import { buildNebulaCollisionGeometry } from './nebulaCollisionGeometry';
 import { FIELD_SHARE, NEBULA_FIELD_DENSITY } from './nebulaFieldGeometry';
 import { computeNebulaFieldTargets } from './nebulaFieldTargets';
 import { createNebulaCollisionMaterial } from './shaders/nebulaCollisionShaders';
+import { parseNebulaTune } from './nebulaTune';
 
 const FOCUS_EASE = 0.07;
 
@@ -34,6 +35,11 @@ export const NebulaCollisions: React.FC = () => {
     [layout, density]
   );
   const material = useMemo(() => createNebulaCollisionMaterial(), []);
+  // Development-only look override: ?clashTune=<size>,<alpha>
+  const tune = useMemo(() => {
+    if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return null;
+    return parseNebulaTune(new URLSearchParams(window.location.search).get('clashTune'));
+  }, []);
   const genreIds = useMemo(() => layout.data.genres.map((g) => g.id), [layout]);
 
   useEffect(() => () => collisions.geometry.dispose(), [collisions]);
@@ -63,6 +69,10 @@ export const NebulaCollisions: React.FC = () => {
     u.uMinAffinity.value = targets.minAffinity;
     if (targets.focusGid >= 0) u.uFocusGid.value = targets.focusGid;
     u.uFocusAmt.value += (targets.focusAmt - u.uFocusAmt.value) * FOCUS_EASE;
+    if (tune) {
+      u.uClashSize.value = tune.size;
+      u.uClashAlpha.value = tune.alpha;
+    }
 
     const fft = webAudioEngine.sampleFFT();
     u.uSubBass.value = fft.isPlaying ? fft.subBass : 0;

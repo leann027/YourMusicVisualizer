@@ -54,7 +54,8 @@ const idle = computeNebulaFieldTargets(base);
 assert(idle.focusGid === -1 && idle.focusAmt === 0, 'no selection: no genre focus');
 assert(idle.artistAid === -1 && idle.artistAmt === 0, 'no selection: no artist focus');
 assert(idle.playingGid === -1, 'nothing playing: playingGid -1');
-assert(Math.abs(idle.gain - 1) < 0.01, 'default brightness at full density → gain ≈ 1', idle.gain.toFixed(3));
+// the gas look was calibrated with 32,200 field particles (M6.4); the field now has 85% of 35k
+assert(Math.abs(idle.gain - Math.sqrt(32200 / particleCount)) < 1e-9 && idle.gain > 1, 'default brightness: gain compensates the smaller field (√(32200/n))', idle.gain.toFixed(3));
 
 // 3. Genre focus
 const genre = layout.data.genres[4];

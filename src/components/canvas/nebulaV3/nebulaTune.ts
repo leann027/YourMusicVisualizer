@@ -1,4 +1,4 @@
-/** Parses the development `?nebulaTune=<gasSize>,<gasAlpha>` override (M6.4 calibration). */
+/** Parses the development `?nebulaTune=` / `?clashTune=` `<size>,<alpha>` look overrides (M6.4, M7.1b). */
 export function parseNebulaTune(value: string | null): { size: number; alpha: number } | null {
   if (!value) return null;
   const [size, alpha] = value.split(',').map(Number);

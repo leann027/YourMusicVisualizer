@@ -58,7 +58,8 @@ console.log('================================================================');
 // ---------- helpers ----------
 assert(Math.abs(hueMix(0.9, 0.1, 0.5) - 0) < 1e-9, 'hueMix wraps around the colour wheel');
 assert(Math.abs(hueMix(0.2, 0.4, 0.25) - 0.25) < 1e-9, 'hueMix interpolates on the short arc');
-assert(JSON.stringify(nebulaCollisionCounts([2, 6, 0], 1000)) === JSON.stringify([20, 60, 12]), 'counts proportional to strength with min 12', JSON.stringify(nebulaCollisionCounts([2, 6, 0], 1000)));
+assert(JSON.stringify(nebulaCollisionCounts([2, 6, 0], 1000)) === JSON.stringify([38, 113, 12]), 'counts proportional to strength with min 12 (15% budget)', JSON.stringify(nebulaCollisionCounts([2, 6, 0], 1000)));
+assert(Math.abs(COLLISION_SHARE - 0.15) < 1e-9, 'collisions get 15% of the particle budget');
 
 // ---------- material ----------
 const mat = createNebulaCollisionMaterial();
@@ -69,6 +70,7 @@ mat.uniforms.uTideSpeed.value = 3;
 assert(mat.customProgramCacheKey() === NEBULA_COLLISION_CACHE_KEY, 'cache key unchanged by uniforms');
 assert(mat.transparent && !mat.depthWrite && mat.blending === THREE.AdditiveBlending, 'additive, transparent, no depth write');
 assert(createNebulaCollisionUniforms().uTideSpeed.value === 1, 'uTideSpeed defaults to reference speed');
+assert(createNebulaCollisionUniforms().uClashSize.value === 2.6 && createNebulaCollisionUniforms().uClashAlpha.value === 1.8, 'clash look defaults to the calibrated 2.6 · 1.8');
 const declared = [...NEBULA_COLLISION_VERTEX_SHADER.matchAll(/attribute (float|vec3) (\w+);/g)].map((m) => ({ name: m[2], size: m[1] === 'vec3' ? 3 : 1 }));
 const geomAttrs = Object.entries(NEBULA_COLLISION_ATTRIBUTES).filter(([n]) => n !== 'position');
 assert(geomAttrs.every(([n, s]) => declared.some((d) => d.name === n && d.size === s)), 'every geometry attribute declared with matching type');

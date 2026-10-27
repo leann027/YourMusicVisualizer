@@ -10,6 +10,13 @@ import { NEBULA_FIELD_SIZE_ATTENUATION } from './nebulaFieldShaders';
 
 export const NEBULA_COLLISION_CACHE_KEY = 'nebula-collisions-v3';
 
+/**
+ * Shock front and tide look (M7.1b, chosen from a 3×3 grid on preset 300): fronts read as a band
+ * in a collision close-up (8.4% of pixels) without competing with the gas in the overview (4.6%).
+ * `?clashTune=size,alpha` overrides it in development.
+ */
+export const NEBULA_CLASH_LOOK = { size: 2.6, alpha: 1.8 };
+
 export interface NebulaCollisionUniforms {
   [uniform: string]: THREE.IUniform;
   uTime: { value: number };
@@ -20,6 +27,8 @@ export interface NebulaCollisionUniforms {
   uFocusAmt: { value: number };
   uTideSpeed: { value: number }; // 1 = reference speed; M7.5 accelerates it for a playing bridge song
   uSubBass: { value: number };
+  uClashSize: { value: number }; // calibration multipliers for shock fronts and tides
+  uClashAlpha: { value: number };
 }
 
 export function createNebulaCollisionUniforms(): NebulaCollisionUniforms {
@@ -32,6 +41,8 @@ export function createNebulaCollisionUniforms(): NebulaCollisionUniforms {
     uFocusAmt: { value: 0 },
     uTideSpeed: { value: 1 },
     uSubBass: { value: 0 },
+    uClashSize: { value: NEBULA_CLASH_LOOK.size },
+    uClashAlpha: { value: NEBULA_CLASH_LOOK.alpha },
   };
 }
 
@@ -57,6 +68,8 @@ uniform float uFocusGid;
 uniform float uFocusAmt;
 uniform float uTideSpeed;
 uniform float uSubBass;
+uniform float uClashSize;
+uniform float uClashAlpha;
 
 varying vec3 vColor;
 varying float vAlpha;
@@ -67,7 +80,9 @@ ${NEBULA_COMMON_GLSL.trim()}
 void main() {
   vec3 p = position;
   vec3 c = color;
-  float a = alpha * uGain;
+  // fronts and tides carry the collision; mixed gas keeps the reference look
+  bool isStructure = kind < 4.5;
+  float a = alpha * uGain * (isStructure ? uClashAlpha : 1.0);
 
   if (sameId(kind, 4.0)) {
     // tidal stream: quadratic Bézier core A (anchor) → control (position) → core B (axis)
@@ -80,7 +95,8 @@ void main() {
 
   vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
   float d = max(0.001, -mvPosition.z);
-  gl_PointSize = clamp(size * uPixelRatio * (${NEBULA_FIELD_SIZE_ATTENUATION.toFixed(2)} / d), 1.0, 34.0 * uPixelRatio);
+  float pointSize = isStructure ? size * uClashSize : size;
+  gl_PointSize = clamp(pointSize * uPixelRatio * (${NEBULA_FIELD_SIZE_ATTENUATION.toFixed(2)} / d), 1.0, 34.0 * uPixelRatio);
   gl_Position = projectionMatrix * mvPosition;
 
   a *= 0.85 + 0.15 * sin(uTime * 1.4 + seed * 40.0);
