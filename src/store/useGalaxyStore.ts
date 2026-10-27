@@ -7,7 +7,13 @@ import {
 } from '../data/galaxyPresets';
 import { getNebulaLayout } from '../lib/layout/nebulaLayout';
 
-export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song';
+export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song' | 'collision';
+
+/** A collision between two related genre nebulae (Nebulosas v3), ids sorted a < b. */
+export interface CollisionSelection {
+  a: string;
+  b: string;
+}
 
 export type RendererMode = 'classic' | 'nebula';
 
@@ -68,6 +74,7 @@ interface GalaxyState {
   hasWarpCompleted: boolean;
   rendererMode: RendererMode;
   nebulaFieldDensity: NebulaFieldDensity; // drops to 'reduced' once if FPS stay low (one-way per session)
+  selectedCollision: CollisionSelection | null; // nebula mode only; cameraMode is 'collision' while set
 
   // Actions
   finishWarp: () => void;
@@ -96,6 +103,7 @@ interface GalaxyState {
   updatePerfStats: (stats: RenderPerfStats) => void;
   setRendererMode: (mode: RendererMode) => void;
   reduceNebulaFieldDensity: () => void;
+  selectCollision: (pair: CollisionSelection | null) => void;
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
@@ -130,6 +138,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   hasWarpCompleted: false,
   rendererMode: 'classic',
   nebulaFieldDensity: 'full',
+  selectedCollision: null,
 
   finishWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
   skipWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
@@ -138,6 +147,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     if (!node) {
       set((state) => ({
         selectedNode: null,
+        selectedCollision: null,
         cameraMode: 'galaxy',
         flightVersion: state.flightVersion + 1,
       }));
@@ -155,6 +165,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
 
     set((state) => ({
       selectedNode: node,
+      selectedCollision: null,
       selectedSectorId: sectorId,
       cameraMode: mode,
       isSleeveCollapsed: false,
@@ -171,6 +182,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     set((state) => ({
       selectedSectorId: genreId,
       selectedNode: genre,
+      selectedCollision: null,
       cameraMode: 'sector',
       isSleeveCollapsed: false,
       flightVersion: state.flightVersion + 1,
@@ -180,6 +192,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   resetToGalaxyView: () =>
     set((state) => ({
       cameraMode: 'galaxy',
+      selectedCollision: null,
       flightVersion: state.flightVersion + 1,
     })),
 
@@ -194,6 +207,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     set((state) => ({
       selectedSectorId: nextGenre.id,
       selectedNode: nextGenre,
+      selectedCollision: null,
       cameraMode: 'sector',
       flightVersion: state.flightVersion + 1,
     }));
@@ -248,6 +262,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       return {
         baseData: presetData,
         data,
+        selectedCollision: null,
         dataSourceLabel: label,
         activePresetScale: scale,
         spotifyUser: null,
@@ -269,6 +284,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       return {
         baseData,
         data,
+        selectedCollision: null,
         dataSourceLabel,
         activePresetScale: 'custom',
         spotifyUser,
@@ -289,6 +305,27 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
 
   updatePerfStats: (perfStats) => set({ perfStats }),
 
+  selectCollision: (pair) => {
+    const state = get();
+    if (!pair) {
+      if (!state.selectedCollision) return;
+      set({ selectedCollision: null, cameraMode: 'galaxy', flightVersion: state.flightVersion + 1 });
+      return;
+    }
+    const [a, b] = pair.a < pair.b ? [pair.a, pair.b] : [pair.b, pair.a];
+    // only real collisions of the current nebula layout can be selected
+    if (state.rendererMode !== 'nebula') return;
+    const exists = getNebulaLayout(state.baseData).relations.some((r) => r.a === a && r.b === b);
+    if (!exists) return;
+    set({
+      selectedCollision: { a, b },
+      selectedSectorId: a,
+      cameraMode: 'collision',
+      isSleeveCollapsed: false,
+      flightVersion: state.flightVersion + 1,
+    });
+  },
+
   reduceNebulaFieldDensity: () => {
     if (get().nebulaFieldDensity === 'reduced') return;
     set({ nebulaFieldDensity: 'reduced' });
@@ -298,11 +335,15 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     if (get().rendererMode === rendererMode) return;
     set((state) => {
       const data = layoutForMode(state.baseData, rendererMode);
+      // collisions only exist in nebula mode: leaving it returns to the galaxy view
+      const leavingCollision = rendererMode === 'classic' && state.selectedCollision !== null;
       return {
         rendererMode,
         data,
         selectedNode: remapNode(state.selectedNode, data),
         hoveredNode: remapNode(state.hoveredNode, data),
+        selectedCollision: rendererMode === 'classic' ? null : state.selectedCollision,
+        cameraMode: leavingCollision ? 'galaxy' : state.cameraMode,
         // reframe the selection at its new position
         flightVersion: state.flightVersion + 1,
       };

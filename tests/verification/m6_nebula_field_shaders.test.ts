@@ -54,7 +54,7 @@ assert(a.blending === THREE.AdditiveBlending, 'additive blending');
 // 3. Uniforms present with neutral defaults
 const defaults = createNebulaFieldUniforms();
 const expected: Record<string, number> = {
-  uTime: 0, uPixelRatio: 1, uGain: 1, uMinAffinity: 0, uFocusGid: -1, uFocusAmt: 0,
+  uTime: 0, uPixelRatio: 1, uGain: 1, uMinAffinity: 0, uFocusGid: -1, uFocusGid2: -1, uFocusAmt: 0,
   uArtistAid: -1, uArtistAmt: 0, uPlayingGid: -1, uSubBass: 0, uHighShimmer: 0,
   uGasSize: NEBULA_GAS_LOOK.size, uGasAlpha: NEBULA_GAS_LOOK.alpha,
 };

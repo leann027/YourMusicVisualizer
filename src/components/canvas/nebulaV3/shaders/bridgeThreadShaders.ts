@@ -14,6 +14,7 @@ export interface BridgeThreadUniforms {
   uGain: { value: number };
   uShowAll: { value: number }; // 1 when constellation links are on (eased)
   uFocusGid: { value: number }; // -1 = none
+  uFocusGid2: { value: number }; // with a focused collision (M7.3) only that pair's threads show
   uFocusAmt: { value: number }; // threads touching the focused genre fade in with it
 }
 
@@ -23,6 +24,7 @@ export function createBridgeThreadUniforms(): BridgeThreadUniforms {
     uGain: { value: 1 },
     uShowAll: { value: 0 },
     uFocusGid: { value: -1 },
+    uFocusGid2: { value: -1 },
     uFocusAmt: { value: 0 },
   };
 }
@@ -37,6 +39,7 @@ attribute float seed;
 uniform float uGain;
 uniform float uShowAll;
 uniform float uFocusGid;
+uniform float uFocusGid2;
 uniform float uFocusAmt;
 
 varying vec3 vColor;
@@ -48,7 +51,9 @@ ${NEBULA_COMMON_GLSL.trim()}
 
 void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  bool touchesFocus = uFocusGid >= 0.0 && (sameId(gid, uFocusGid) || sameId(gid2, uFocusGid));
+  bool samePair = (sameId(gid, uFocusGid) && sameId(gid2, uFocusGid2)) || (sameId(gid, uFocusGid2) && sameId(gid2, uFocusGid));
+  bool touchesGenre = sameId(gid, uFocusGid) || sameId(gid2, uFocusGid);
+  bool touchesFocus = uFocusGid >= 0.0 && (uFocusGid2 >= 0.0 ? samePair : touchesGenre);
   float visibility = max(uShowAll, touchesFocus ? uFocusAmt : 0.0);
   vColor = color;
   vAlpha = 0.55 * uGain * visibility;

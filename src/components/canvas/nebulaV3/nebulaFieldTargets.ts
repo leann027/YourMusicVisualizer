@@ -1,4 +1,5 @@
 import { MusicGalaxyData, MusicNode } from '../../../types/music';
+import type { CollisionSelection } from '../../../store/useGalaxyStore';
 
 /**
  * Store state → NebulaField uniform targets (M6.3). Pure, so it is testable in node;
@@ -21,12 +22,14 @@ export interface NebulaFieldTargetInput {
   selectedNode: MusicNode | null;
   cameraMode: string;
   playingTrackId: string | null;
+  selectedCollision?: CollisionSelection | null;
 }
 
 export interface NebulaFieldTargets {
   gain: number;
   minAffinity: number;
   focusGid: number;
+  focusGid2: number; // second genre of a focused collision, else -1
   focusAmt: number;
   artistAid: number;
   artistAmt: number;
@@ -39,6 +42,8 @@ export function computeNebulaFieldTargets(input: NebulaFieldTargetInput): Nebula
 
   const focusGid = gidOf(input.selectedSectorId);
   const focusAmt = focusGid >= 0 && input.cameraMode !== 'galaxy' ? 1 : 0;
+  const collision = input.cameraMode === 'collision' ? input.selectedCollision : null;
+  const focusGid2 = collision ? gidOf(collision.a === input.selectedSectorId ? collision.b : collision.a) : -1;
 
   // aid follows the order of artists inside their genre, as in the geometry
   let artistAid = -1;
@@ -60,6 +65,7 @@ export function computeNebulaFieldTargets(input: NebulaFieldTargetInput): Nebula
     gain,
     minAffinity: input.minAffinityFilter,
     focusGid,
+    focusGid2,
     focusAmt,
     artistAid,
     artistAmt,

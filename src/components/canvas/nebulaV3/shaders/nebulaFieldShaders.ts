@@ -29,6 +29,7 @@ export interface NebulaFieldUniforms {
   uGain: { value: number };
   uMinAffinity: { value: number };
   uFocusGid: { value: number }; // -1 = none
+  uFocusGid2: { value: number }; // -1 = none; second genre lit when a collision is focused (M7.3)
   uFocusAmt: { value: number }; // 0..1
   uArtistAid: { value: number }; // -1 = none
   uArtistAmt: { value: number }; // 0..1
@@ -46,6 +47,7 @@ export function createNebulaFieldUniforms(): NebulaFieldUniforms {
     uGain: { value: 1 },
     uMinAffinity: { value: 0 },
     uFocusGid: { value: -1 },
+    uFocusGid2: { value: -1 },
     uFocusAmt: { value: 0 },
     uArtistAid: { value: -1 },
     uArtistAmt: { value: 0 },
@@ -75,6 +77,7 @@ uniform float uPixelRatio;
 uniform float uGain;
 uniform float uMinAffinity;
 uniform float uFocusGid;
+uniform float uFocusGid2;
 uniform float uFocusAmt;
 uniform float uArtistAid;
 uniform float uArtistAmt;
@@ -94,7 +97,8 @@ ${NEBULA_COMMON_GLSL.trim()}
 // Dims everything outside the focused genre / artist (reference focusMul)
 float focusMul() {
   if (uFocusGid < 0.0) return 1.0;
-  if (!sameId(gid, uFocusGid)) return mix(1.0, 0.07, uFocusAmt);
+  bool inFocus = sameId(gid, uFocusGid) || (uFocusGid2 >= 0.0 && sameId(gid, uFocusGid2));
+  if (!inFocus) return mix(1.0, 0.07, uFocusAmt);
   if (uArtistAid >= 0.0) {
     if (aid >= 0.0 && !sameId(aid, uArtistAid)) return mix(1.0, 0.18, uArtistAmt);
     if (aid < 0.0 && sameId(kind, 1.0)) return mix(1.0, 0.45, uArtistAmt);

@@ -48,11 +48,16 @@ export const BridgeThreads: React.FC = () => {
       selectedNode: state.selectedNode,
       cameraMode: state.cameraMode,
       playingTrackId: state.playingTrackId,
+      selectedCollision: state.selectedCollision,
     });
     if (!prefersReducedMotion) u.uTime.value += Math.min(delta, 0.05);
     u.uGain.value = state.stellarBrightness / 0.25;
     u.uShowAll.value += ((state.linksVisible ? 1 : 0) - u.uShowAll.value) * EASE;
-    if (targets.focusGid >= 0) u.uFocusGid.value = targets.focusGid;
+    // keep the last focus while fading out, so the dimming doesn't jump
+    if (targets.focusGid >= 0) {
+      u.uFocusGid.value = targets.focusGid;
+      u.uFocusGid2.value = targets.focusGid2;
+    }
     u.uFocusAmt.value += (targets.focusAmt - u.uFocusAmt.value) * EASE;
   });
 

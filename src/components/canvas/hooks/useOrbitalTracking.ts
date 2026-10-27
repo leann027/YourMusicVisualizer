@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import type CameraControlsImpl from 'camera-controls';
 import { useGalaxyStore } from '../../../store/useGalaxyStore';
+import { getNebulaLayout } from '../../../lib/layout/nebulaLayout';
+import { findCollision, trackedLocalPosition } from '../nebulaV3/collisionCamera';
 
 export interface UseOrbitalTrackingOptions {
   controlsRef: React.RefObject<CameraControlsImpl | null>;
@@ -26,18 +28,22 @@ export function useOrbitalTracking({
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
   const isFlying = useGalaxyStore((s) => s.isFlying);
+  const selectedCollision = useGalaxyStore((s) => s.selectedCollision);
 
   useFrame(() => {
+    // the selected node, or the contact point of the selected collision (Nebulosas v3)
+    const collision =
+      cameraMode === 'collision' ? findCollision(getNebulaLayout(useGalaxyStore.getState().baseData), selectedCollision) : null;
+    const tracked = trackedLocalPosition(cameraMode, selectedNode, collision);
     if (
       galaxyContainerRef?.current &&
-      selectedNode &&
-      cameraMode !== 'galaxy' &&
+      tracked &&
       !isFlightActive() &&
       !isFlying
     ) {
       const controls = controlsRef.current;
       if (controls) {
-        const localPos = new THREE.Vector3(...selectedNode.position);
+        const localPos = new THREE.Vector3(...tracked);
         const curWorldPos = localPos.applyMatrix4(galaxyContainerRef.current.matrixWorld);
 
         if (lastTargetWorldPos.current.lengthSq() > 0.001) {
