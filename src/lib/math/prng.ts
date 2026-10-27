@@ -16,6 +16,16 @@ export function createRng(seed: number): Rng {
   };
 }
 
+/** FNV-1a hash of a string: stable per-id seed for createRng. */
+export function seedFromString(id: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
 /** Standard normal sample (Box–Muller). */
 export function gauss(rng: Rng): number {
   let u = 0;
