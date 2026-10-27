@@ -31,7 +31,8 @@ assert(
   `got ${store.getState().rendererMode}`
 );
 
-// Test 2: switching modes does not touch data, selection or camera flights
+// Test 2: switching modes keeps the selection and camera mode.
+// Since M5.5 the mode swaps `data` for the nebula layout and reframes the camera (see m5_store_layout).
 const before = store.getState();
 const snapshot = {
   data: before.data,
@@ -44,11 +45,11 @@ const snapshot = {
 store.getState().setRendererMode('nebula');
 let after = store.getState();
 assert(after.rendererMode === 'nebula', 'setRendererMode(nebula) switches mode', `got ${after.rendererMode}`);
-assert(after.data === snapshot.data, 'switching mode keeps data reference');
-assert(after.selectedNode === snapshot.selectedNode, 'switching mode keeps selectedNode');
+assert(after.data !== snapshot.data, 'switching to nebula swaps data for the nebula layout (M5.5)');
+assert(after.selectedNode?.id === snapshot.selectedNode?.id, 'switching mode keeps the selected node (by id)');
 assert(after.selectedSectorId === snapshot.selectedSectorId, 'switching mode keeps selectedSectorId');
 assert(after.cameraMode === snapshot.cameraMode, 'switching mode keeps cameraMode');
-assert(after.flightVersion === snapshot.flightVersion, 'switching mode does not trigger a camera flight');
+assert(after.flightVersion === snapshot.flightVersion + 1, 'switching mode reframes the camera once (M5.5)');
 
 // Test 3: setting the same mode is a no-op (no state update emitted)
 let emitted = 0;
