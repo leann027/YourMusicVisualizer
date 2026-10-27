@@ -3,7 +3,7 @@
 **Versión del Proyecto:** 1.1.0  
 **Fecha de Publicación:** 27 de Octubre de 2026  
 **Audiencia:** Desarrolladores de software, ingenieros de gráficos WebGL, arquitectos web y nuevos colaboradores.  
-**Estado del Repositorio:** Producción / Estable. Migración a Nebulosas v3 en curso en `feat/nebulosas-v3` (M4, M5 y M6 cerrados; ver `docs/MIGRATION_NEBULOSAS.md`).
+**Estado del Repositorio:** Producción / Estable. Migración a Nebulosas v3 en curso en `feat/nebulosas-v3` (M4, M5, M6 y M7 cerrados; M6 pendiente de medir FPS en celular; ver `docs/MIGRATION_NEBULOSAS.md`).
 
 ---
 
@@ -196,11 +196,15 @@ YourMusicVisualizer/
 - `galaxy/`: Módulo del núcleo cósmico (`SupermassiveBlackHole.tsx` con horizonte de sucesos y lente gravitacional Gargantua, `SpiralStardustPoints.tsx` con 5,600 partículas espirales keplerianas, generador determinista `spiralStardustGeometry.ts` y shaders GLSL `blackHoleShaders.ts` y `spiralDustShaders.ts`).
 - `nebula/`: Módulo de gas interestelar volumétrico (`SectorNebulaCluster.tsx` con cavidad interior de Stromgren de 3.2 unidades, `nebulaGeometry.ts` y shaders de turbulencia fractal `nebulaShaders.ts`).
 - `nebulaV3/`: Gas de Nebulosas v3, montado por `GalaxyScene` en lugar de `NebulaClusters` cuando `rendererMode === 'nebula'`. `nebulaFieldGeometry.ts` genera en un solo `BufferGeometry` el polvo de Plummer alrededor de cada artista (42%), el gas filamentoso por fBm *ridged* (52%) y el frente de ionización (6%), con el 92% del presupuesto (el 8% queda para los choques de M7). `shaders/nebulaFieldShaders.ts` es un `ShaderMaterial` aditivo con cache key fija `nebula-field-v3` y todo el estado en uniforms (brillo, afinidad, foco de género/artista, género que suena, FFT, `uGasSize`/`uGasAlpha`); el aspecto calibrado es `NEBULA_GAS_LOOK = { size: 1.8, alpha: 1 }`. `NebulaField.tsx` actualiza los uniforms por `ref` en cada frame con `computeNebulaFieldTargets` (pura) y reconstruye la geometría a 20k si el store pasa `nebulaFieldDensity` a `reduced`. En desarrollo, `?nebulaTune=<size>,<alpha>` sobrescribe el aspecto del gas.
+  - Desde M7, `nebulaV3/` también dibuja los **choques** entre géneros relacionados: `NebulaCollisions` (frente de choque, mareas Bézier animadas en el shader y gas mixto; 15% del presupuesto de partículas, cache key `nebula-collisions-v3`, aspecto `NEBULA_CLASH_LOOK = { size: 2.6, alpha: 1.8 }`), `BridgeThreads` (hilos artista → canción puente → núcleo del otro género, `nebula-bridges-v3`, visibles con "Hilos de constelación" o alrededor del género/choque enfocado), `CollisionMarkers` (marcadores `∩ n` / `≈` en los puntos de contacto, clicables) y el anillo de color mezclado de las canciones puente (`StarFeatures`, prop `bridgeColor`). Con una canción puente sonando, las mareas de su choque aceleran con la energía del audio mediante desfases de fase por choque (`uTideOffset`, `tideBoost.ts`) que nunca saltan.
+  - `collisionCamera.ts`: pose de cámara de choque (perpendicular a la recta entre núcleos, a `(Sa+Sb)·1.55`) y posición seguida por `useOrbitalTracking`; `useArcFlight` la usa cuando `cameraMode === 'collision'`.
 - `star/`: Módulo de cuerpos celestes individuales (`StarCoreMesh.tsx` con oscurecimiento de limbo, `StarAccretionRings.tsx` con anillos de acreción Cassini, `StarFeatures.tsx` con chorros polares relativistas y picos de difracción óptica, `StarPlaybackPulsar.tsx` con ondas de choque acústicas montadas únicamente sobre la pista en reproducción, `StarLabel.tsx` con tipografía GPU SDF en `<Billboard>`, geometrías estáticas compartidas `starGeometries.ts` y shaders `starShaders.ts`).
 - `hooks/`: Lógica matemática cinemática desacoplada (`useWarpSequence.ts` para el salto hiperespacial, `useArcFlight.ts` para vuelos parabólicos en arco, `useOrbitalTracking.ts` para seguimiento orbital de estrellas mediante `matrixWorld`, y `usePerformanceMonitor.ts` para muestreo de telemetría a 500ms; en modo nebula, si 6 muestras seguidas quedan bajo 40 FPS, baja una sola vez el gas a 20k partículas).
 
 #### `src/components/hud/` — Interfaz de Usuario 2D (Glassmorphism Dock)
-- `TelemetryHUD.tsx`: Interfaz perimetral flotante: telemetría en vivo (FPS, draw calls, estrellas activas), selectores de sector, controles de bloom y reseteo de cámara.
+- `CollisionCard.tsx` (M7.4): ficha que reemplaza a `ArtistSleeveCard` en modo choque: título "A × B", `∩ n` canciones en común (o "≈ afinidad por colaboraciones y estilo"), chips de canciones puente (seleccionan la canción; su ficha habitual la reproduce), "Ir al género" y "Volver".
+- `GenreCollisionsRow.tsx` (M7.4): fila "Choca con" dentro de la ficha del género (solo modo nebula); cada chip selecciona el choque.
+- `TelemetryHUD.tsx`: Interfaz perimetral flotante (desde M7.4 el panel "Filtros & Brillo" incluye el interruptor "Hilos de constelación", que antes no tenía control en la UI): telemetría en vivo (FPS, draw calls, estrellas activas), selectores de sector, controles de bloom y reseteo de cámara.
 - `ArtistSleeveCard.tsx`: Cápsula interactiva deslizable estilo funda de vinilo 3D: biografía, catálogo estelar del artista, medidor de afinidad y controles de reproducción.
 - `DataSourceModal.tsx`: Diálogo modal nativo (`<dialog>`) para alternar entre presets de demo, ingreso de Client ID de Spotify y carga de bibliotecas JSON.
 - `FFTSpectrumDock.tsx`: Ecualizador perimetral inferior que visualiza las 24 barras del espectro de frecuencias en tiempo real.
@@ -215,16 +219,17 @@ YourMusicVisualizer/
 - `layout/classicLayout.ts`: Layout clásico como pasada pura (`applyClassicLayout`, `classicSectorCenter`): anillo de constelaciones, espiral de artistas y órbitas doradas de canciones, calculadas por orden de arrays y agrupando por `(genreId, artistId)`. Cubierto por un fixture de posiciones previo al refactor.
 - `layout/genreRelations.ts`: `computeGenreRelations(data, minShared = 2)`. Puntúa cada par de géneros con canciones puente (`secondaryGenreId`, peso 1), links `influence` cruzados (peso 0.5; ignora el anillo género↔género) y tags compartidos (0.25, tope 2). Devuelve `sharedSongs`, hasta 3 `bridgeSongIds` y `strength`.
 - `layout/nebulaLayout.ts`: Layout de Nebulosas v3 (port de `layout()` de `docs/reference/nebulosas-v3.html` con `WORLD_SCALE = 0.14`). Núcleos en esfera de Fibonacci de dos capas relajados con resortes y repulsión (S = 4.8–9.0 u), marco inclinado por género con semilla por id, artistas por ángulo dorado entre 2.4 u y 0.75·S, canciones en órbitas compactas (0.9–2.0 u) y canciones puente en el disco de contacto. `computeNebulaLayout` devuelve `{ data, cores, relations }` (con `contact`, `dir`, `radius` para M7); `applyNebulaLayout` es el atajo del store.
+- `layout/collisionModel.ts` (M7.4): modelos puros del HUD de choques (`genreCollisions`, `collisionCardModel`, `visibleCollisionMarkers`, `collisionBadge`, `collisionSummary`).
 - `math/prng.ts`: `createRng` (mulberry32), `gauss`, `randDir` y `goldenFibonacci`, usados por el código nuevo.
 - `music/genreClassifier.ts`: Clasificador musical universal en memoria (0ms de latencia) que clasifica artistas en 20 constelaciones universales canónicas con reglas fonéticas y palabras clave.
 - `music/taxonomy.ts`: Definición de 12 macro-géneros canónicos, normalización de etiquetas musicales y cálculo de enlaces inter-estelares TF-IDF.
 - `spotify/spotifyClient.ts`: Cliente de red para la API de Spotify: autenticación PKCE, cola de peticiones con control de concurrencia (`RequestQueue`), reintentos automáticos ante errores HTTP 429 con retroceso exponencial y jitter (`fetchWithRetry`), y caché persistente de artistas en `localStorage`.
 
 #### `src/store/` — Almacén de Estado Global
-- `useGalaxyStore.ts`: Almacén creado con Zustand. Centraliza datos galácticos, entidad seleccionada, entidad en hover, sector activo, modo de cámara (`galaxy`, `sector`, `artist`, `song`), versión de vuelo cinemático (`flightVersion`), estado de reproducción de audio, brillo estelar y métricas de rendimiento. Desde M4 incluye `rendererMode: 'classic' | 'nebula'` (default `'classic'`) y `setRendererMode`, el flag que separa el renderer clásico del de Nebulosas v3; `GalaxyScene` lo expone en el `userData` del grupo `celestial-galaxy-cosmos`. Desde M5.5 guarda `baseData` (lo importado, con posiciones clásicas) y deriva `data = layoutForMode(baseData, rendererMode)`; el layout nebula se cachea por dataset en un `WeakMap`. `setPresetScale`, `loadCustomGalaxyData` y `setRendererMode` lo aplican; al cambiar de modo se remapean `selectedNode`/`hoveredNode` por id y se incrementa `flightVersion` para reencuadrar. Ningún componente cambió: todos siguen leyendo `data`.
+- `useGalaxyStore.ts`: Almacén creado con Zustand. Centraliza datos galácticos, entidad seleccionada, entidad en hover, sector activo, modo de cámara (`galaxy`, `sector`, `artist`, `song`), versión de vuelo cinemático (`flightVersion`), estado de reproducción de audio, brillo estelar y métricas de rendimiento. Desde M4 incluye `rendererMode: 'classic' | 'nebula'` (default `'classic'`) y `setRendererMode`, el flag que separa el renderer clásico del de Nebulosas v3; `GalaxyScene` lo expone en el `userData` del grupo `celestial-galaxy-cosmos`. Desde M7.3 incluye `selectedCollision` y `selectCollision` (modo de cámara `'collision'`, solo con choques reales del layout nebula; cualquier otra selección, preset o el paso a clásico lo limpian). Desde M5.5 guarda `baseData` (lo importado, con posiciones clásicas) y deriva `data = layoutForMode(baseData, rendererMode)`; el layout nebula se cachea por dataset en un `WeakMap`. `setPresetScale`, `loadCustomGalaxyData` y `setRendererMode` lo aplican; al cambiar de modo se remapean `selectedNode`/`hoveredNode` por id y se incrementa `flightVersion` para reencuadrar. Ningún componente cambió: todos siguen leyendo `data`.
 
 #### `src/types/` — Tipos TypeScript del Dominio
-- `music.ts`: Interfaces y contratos TypeScript: `GenreNode`, `ArtistNode`, `SongNode` (desde M5.2 con `secondaryGenreId?`), `MusicGalaxyData`, clases espectrales estelares y funciones puras para el cálculo de radios y métricas visuales.
+- `music.ts`: Interfaces y contratos TypeScript: `GenreNode`, `ArtistNode`, `SongNode` (desde M5.2 con `secondaryGenreId?`), `MusicLink` (desde M7.2 con el tipo `'bridge'`, que solo aparece en `NebulaLayoutResult.bridgeLinks`, nunca en `data.links`), `MusicGalaxyData`, clases espectrales estelares y funciones puras para el cálculo de radios y métricas visuales.
 
 #### Directorios Complementarios
 - `public/`: Recursos gráficos estáticos (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`).
@@ -453,12 +458,13 @@ Los comandos declarados en `package.json` son:
 | `npm run build` | `next build` | Compila la aplicación para producción utilizando Turbopack y valida tipado estricto con TypeScript. |
 | `npm run start` | `next start` | Inicia el servidor Node.js en modo producción utilizando los artefactos generados en `.next`. |
 | `npm run lint` | `eslint` | Ejecuta ESLint 9 con Flat Config (`eslint.config.mjs`) validando reglas de Next.js y TypeScript. |
-| `npm test` | `tsx tests/verification/...` | Ejecuta las 548 aserciones de pruebas automatizadas (matemáticas, geometrías, shaders, flag `rendererMode`, layouts clásico y nebula, relaciones, store, campo de gas v3, bloom y densidad adaptativa) con `tsx`. |
+| `npm test` | `tsx tests/verification/...` | Ejecuta las 680 aserciones de pruebas automatizadas (matemáticas, geometrías, shaders, flag `rendererMode`, layouts, relaciones, store, gas v3, bloom, densidad adaptativa, choques, hilos puente, cámara de choque, HUD de choques y mareas) con `tsx`. |
 | `npm run test:visual:baseline` | `node tests/visual/captureScenes.mjs ...` | Captura el baseline visual del renderer clásico (presets 50 y 300) en `test-results/visual/baseline-classic/`. Requiere `npm run dev` corriendo. |
 | `npm run test:visual` | `captureScenes.mjs` + `compareScenes.mjs` | Recaptura las 6 escenas y las compara con el baseline (≈4 min con WebGL por software). No corre en CI. |
 | `npm run test:visual:flows` | `checklistFlows.mjs` | Recorre la parte automatizable de la checklist de no-regresión (drawer, Próxima, buscador, ficha, filtros, bloom, pulso FFT, presets) en `classic` y `nebula`. Requiere `npm run dev`. |
 | `npm run test:visual:shaders` | `tsx tests/visual/compileShaders.ts` | Compila el material del gas v3 en Chromium (WebGL2/SwiftShader) y renderiza un cuadro del preset 50. Detecta errores de GLSL que Node no puede ver. |
 | `node tests/visual/calibrateGas.mjs` | Playwright + `?nebulaTune` | Genera una lámina 3×3 de tamaño × alpha del gas en el preset 300 para recalibrar `NEBULA_GAS_LOOK`. Requiere `npm run dev`. |
+| `npm run test:visual:clash` | `tsx tests/visual/calibrateClash.ts` | Lámina 3×3 de tamaño × alpha de los choques (render fuera de la app con densidad completa) con el % de píxeles que aportan, para recalibrar `NEBULA_CLASH_LOOK`. |
 
 #### Secuencia de Comandos para Nuevos Desarrolladores:
 
@@ -490,7 +496,7 @@ npm run dev
 
 ### 7.1 Inventario de Código Sin Pruebas Automatizadas
 
-El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `milestone2_challenger.test.ts`) ejecutaba 205 aserciones al inicio de la migración (222 tras M4, 426 tras M5 y 548 tras M6, con las suites `m4_*`, `m5_*` y `m6_*`) centradas en validaciones matemáticas de geometrías, determinismo de shaders y fórmulas de cinemática de cámara.
+El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `milestone2_challenger.test.ts`) ejecutaba 205 aserciones al inicio de la migración (222 tras M4, 426 tras M5, 548 tras M6 y 680 tras M7, con las suites `m4_*` a `m7_*`) centradas en validaciones matemáticas de geometrías, determinismo de shaders y fórmulas de cinemática de cámara.
 
 **Sin embargo, la totalidad de los módulos de integración, audio, red, estado global y componentes de interfaz carece de pruebas automatizadas:**
 
@@ -594,10 +600,14 @@ Se detectaron 5 casos claros de código duplicado que deberían refactorizarse e
    - `buildMusicGalaxyFromPayload` escribe `rawTrack.secondaryGenre` con el valor del clasificador en cada tema que no lo trae. Quien reutilice el payload (presets, tests) ve datos que no puso. Los tests de M5 leen los valores curados desde `ARTIST_DATABASE` por este motivo.
 7. **Vocabularios distintos en el clasificador (detectado en M5.2):**
    - Los géneros principales usan nombres específicos (p. ej. `TRIP-HOP & BRISTOL DUB`) y los secundarios un vocabulario amplio (`ELECTRÓNICA, HOUSE & TECHNO`, `POP INTERNACIONAL & SYNTH-POP`…) que casi nunca existe como nebulosa; varios parecen valores por defecto. Con datos reales, `secondaryGenreId` aporta poca señal y las relaciones dependen sobre todo de colaboraciones y TF-IDF. Queda pendiente derivar las relaciones de forma más dinámica a partir de las canciones del usuario.
-8. **Modo nebula: pendientes tras M6 (detectado en M5.5, actualizado en M6.4):**
+8. **Modo nebula: pendientes tras M7 (detectado en M5.5, actualizado en M6.4 y M7):**
    - Resuelto en M6: el gas v3 reemplaza a `NebulaClusters` en modo nebula, ya no satura el bloom y vuelven a verse el agujero negro y el disco espiral.
-   - Pendiente para M8: la cámara de vista general (`[0, 18, 52]`) y el warp-in siguen pensados para el disco clásico y encuadran la esfera nebula de lado; el agujero negro queda dentro del cúmulo de nebulosas.
-   - Calibración: `NEBULA_GAS_LOOK` se eligió sobre capturas de 800×450 con densidad reducida (WebGL por software). En monitores grandes y con 35k partículas en GPU real el gas puede verse distinto; falta validarlo en hardware real, junto con los FPS del preset 300 en celular (criterio ≥ 50 FPS).
+   - Resuelto en M7: choques visibles y navegables (universo → choque → canción puente → reproducir verificado con Playwright).
+   - Pendiente para M8: la cámara de vista general (`[0, 18, 52]`) y el warp-in siguen pensados para el disco clásico y encuadran la esfera nebula de lado; el agujero negro queda dentro del cúmulo de nebulosas. Los marcadores `∩ n` pueden pisar etiquetas de artistas (LOD de etiquetas: máximo 5 géneros + 4 choques).
+   - Calibración: `NEBULA_GAS_LOOK` y `NEBULA_CLASH_LOOK` se eligieron sobre renders por software (densidad reducida en la app, 35k fuera de ella). Falta validarlos en GPU real, junto con los FPS del preset 300 en celular (criterio ≥ 50 FPS).
+9. **Entorno de pruebas visuales (detectado en M7.3):**
+   - Con WebGL por software el warp-in de entrada no termina: GSAP trata los frames > 500 ms como de 33 ms (*lag smoothing*). Pasa igual en `classic`; las capturas usan `prefers-reduced-motion` para saltarlo. No afecta a GPUs reales.
+   - `300_sector` en `test:visual` varía entre ~0.01 y ~0.16 según el estado de hover/pulso de la cápsula "Ficha" (punto con `animate-pulse` bajo el puntero tras cerrar la ficha); queda bajo el umbral de 0.5.
 ---
 
 ## 8. Gestión de Dudas y Aspectos No Deducibles (`PREGUNTA:`)
