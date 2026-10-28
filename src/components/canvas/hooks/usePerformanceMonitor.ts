@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import type CameraControlsImpl from 'camera-controls';
 import { useGalaxyStore } from '../../../store/useGalaxyStore';
+import { LOW_FPS_SAMPLES, shouldReduceNebulaDensity } from '../nebulaV3/nebulaDensity';
 
 export interface UsePerformanceMonitorOptions {
   controlsRef: React.RefObject<CameraControlsImpl | null>;
@@ -21,6 +22,7 @@ export function usePerformanceMonitor({
   const frameCountRef = useRef(0);
   const lastSampleTimeRef = useRef(0);
   const tempTargetRef = useRef(new THREE.Vector3());
+  const fpsSamplesRef = useRef<number[]>([]);
 
   const setCameraDistance = useGalaxyStore((s) => s.setCameraDistance);
   const updatePerfStats = useGalaxyStore((s) => s.updatePerfStats);
@@ -45,6 +47,15 @@ export function usePerformanceMonitor({
         controls.getTarget(tempTargetRef.current);
         const dist = Number(camera.position.distanceTo(tempTargetRef.current).toFixed(1));
         setCameraDistance(dist);
+      }
+
+      // Nebula mode: drop the gas field to 20k particles once if FPS stay low for 3 s
+      const { rendererMode, nebulaFieldDensity, reduceNebulaFieldDensity } = useGalaxyStore.getState();
+      if (rendererMode === 'nebula' && nebulaFieldDensity === 'full') {
+        fpsSamplesRef.current = [...fpsSamplesRef.current, fps].slice(-LOW_FPS_SAMPLES);
+        if (shouldReduceNebulaDensity(fpsSamplesRef.current)) reduceNebulaFieldDensity();
+      } else {
+        fpsSamplesRef.current = [];
       }
 
       updatePerfStats({

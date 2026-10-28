@@ -7,7 +7,8 @@ import {
   fetchSpotifyLikedSongsGalaxy,
   getStoredAccessToken,
 } from '../lib/spotify/spotifyClient';
-import { useGalaxyStore } from '../store/useGalaxyStore';
+import { parseRendererParam, useGalaxyStore } from '../store/useGalaxyStore';
+import { readStoredRenderer, resolveInitialRenderer } from '../lib/rendererPreference';
 
 // Dynamic import for 3D Canvas to disable SSR cleanly
 const MusicVisualizerCanvas = dynamic(
@@ -28,6 +29,20 @@ const MusicVisualizerCanvas = dynamic(
 export default function HomePage() {
   const spotifyUser = useGalaxyStore((s) => s.spotifyUser);
   const loadCustomGalaxyData = useGalaxyStore((s) => s.loadCustomGalaxyData);
+  const setRendererMode = useGalaxyStore((s) => s.setRendererMode);
+
+  // Development only: expose the store so Playwright flows can drive selections (e.g. collisions)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    (window as unknown as { __galaxyStore?: typeof useGalaxyStore }).__galaxyStore = useGalaxyStore;
+  }, []);
+
+  // Renderer on mount: ?renderer=classic|nebula, else the HUD preference, else nebula (M8.4).
+  // window avoids a Suspense boundary for useSearchParams.
+  useEffect(() => {
+    const param = parseRendererParam(new URLSearchParams(window.location.search).get('renderer'));
+    setRendererMode(resolveInitialRenderer(param, readStoredRenderer()));
+  }, [setRendererMode]);
 
   // Auto-restore active Spotify session if token is still valid in localStorage
   useEffect(() => {

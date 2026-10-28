@@ -7,6 +7,7 @@ import { Stars } from '@react-three/drei';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { NebulaClusters } from './NebulaClusters';
+import { BridgeThreads, CollisionMarkers, NebulaCollisions, NebulaField } from './nebulaV3';
 import { DistantSongsCloud } from './DistantSongsCloud';
 import { GalacticDustDisc } from './GalacticDustDisc';
 import { ConstellationLinks } from './ConstellationLinks';
@@ -22,6 +23,7 @@ export const GalaxyScene: React.FC = () => {
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const linksVisible = useGalaxyStore((s) => s.linksVisible);
+  const rendererMode = useGalaxyStore((s) => s.rendererMode);
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -87,12 +89,21 @@ export const GalaxyScene: React.FC = () => {
       />
 
       {/* Rotating Galaxy Container: Everything revolves slowly around the supermassive black hole at [0, 0, 0] */}
-      <group ref={galaxyContainerRef} name="celestial-galaxy-cosmos">
+      <group ref={galaxyContainerRef} name="celestial-galaxy-cosmos" userData={{ rendererMode }}>
         {/* Deep-Space Spiral Stardust Disc & Relativistic Central Black Hole */}
         <GalacticDustDisc />
 
-        {/* Cosmic Gas & Nebula Clusters around Genre Sectors with Stochastic Micro-Flashes */}
-        <NebulaClusters />
+        {/* Cosmic gas: Nebulosas v3 field (1 draw call) or classic per-sector Nebula Clusters */}
+        {rendererMode === 'nebula' ? (
+          <>
+            <NebulaField />
+            <NebulaCollisions />
+            <BridgeThreads />
+            <CollisionMarkers />
+          </>
+        ) : (
+          <NebulaClusters />
+        )}
 
         {/* Constellation Filaments & Audio-Reactive Laser Pulses */}
         {linksVisible && <ConstellationLinks />}

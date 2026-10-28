@@ -51,6 +51,7 @@ export interface SongNode {
   spotifyUrl?: string;
   subgenre?: string;
   tags?: string[];
+  secondaryGenreId?: string; // genre this song also belongs to (from the classifier), if it exists in the galaxy
 }
 
 export interface SpotifyUserProfile {
@@ -66,7 +67,9 @@ export interface MusicLink {
   source: string;
   target: string;
   strength: number; // 0 to 1
-  type: 'genre-artist' | 'artist-song' | 'influence';
+  // 'bridge' (Nebulosas v3): artist → bridge song and bridge song → the other genre's core;
+  // only in NebulaLayoutResult.bridgeLinks, never in MusicGalaxyData.links
+  type: 'genre-artist' | 'artist-song' | 'influence' | 'bridge';
 }
 
 export interface MusicGalaxyData {

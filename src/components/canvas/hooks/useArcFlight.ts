@@ -5,6 +5,9 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 import type CameraControlsImpl from 'camera-controls';
 import { useGalaxyStore } from '../../../store/useGalaxyStore';
+import { getNebulaLayout } from '../../../lib/layout/nebulaLayout';
+import { collisionCameraPose, findCollision } from '../nebulaV3/collisionCamera';
+import { cameraAspect, overviewPoseFor } from '../nebulaV3/overviewCamera';
 
 export interface UseArcFlightOptions {
   controlsRef: React.RefObject<CameraControlsImpl | null>;
@@ -31,6 +34,7 @@ export function useArcFlight({
   const flightVersion = useGalaxyStore((s) => s.flightVersion);
   const selectedNode = useGalaxyStore((s) => s.selectedNode);
   const cameraMode = useGalaxyStore((s) => s.cameraMode);
+  const selectedCollision = useGalaxyStore((s) => s.selectedCollision);
   const setFlightState = useGalaxyStore((s) => s.setFlightState);
 
   // Stop active flight tween if the user manually grabs the camera
@@ -75,9 +79,32 @@ export function useArcFlight({
     const endTarget = new THREE.Vector3(0, 0, 0);
     const endEye = new THREE.Vector3(0, 24, 72);
 
-    if (cameraMode === 'galaxy' || !selectedNode) {
-      endTarget.set(0, 0, 0);
-      endEye.set(0, 18, 52);
+    const collision =
+      cameraMode === 'collision'
+        ? findCollision(getNebulaLayout(useGalaxyStore.getState().baseData), selectedCollision)
+        : null;
+
+    if (collision) {
+      // Collision: look at the contact point from a side perpendicular to the collision axis
+      const matrix = galaxyContainerRef?.current?.matrixWorld;
+      const contact = new THREE.Vector3(...collision.contact);
+      const dir = new THREE.Vector3(...collision.dir);
+      if (matrix) {
+        contact.applyMatrix4(matrix);
+        dir.transformDirection(matrix);
+      }
+      const layout = getNebulaLayout(useGalaxyStore.getState().baseData);
+      const radiusOf = (id: string) => layout.cores.find((c) => c.genreId === id)?.radius ?? 0;
+      const pose = collisionCameraPose(contact, dir, radiusOf(collision.a), radiusOf(collision.b), startEye);
+      endTarget.copy(pose.target);
+      endEye.copy(pose.eye);
+    } else if (cameraMode === 'galaxy' || cameraMode === 'collision' || !selectedNode) {
+      // classic [0, 18, 52] or the nebula overview that fits every nebula (M8.2)
+      const { rendererMode, baseData } = useGalaxyStore.getState();
+      const cores = rendererMode === 'nebula' ? getNebulaLayout(baseData).cores : null;
+      const pose = overviewPoseFor(rendererMode, cores, cameraAspect(controls.camera));
+      endTarget.set(...pose.target);
+      endEye.set(...pose.eye);
     } else {
       const localPos = new THREE.Vector3(...selectedNode.position);
       const worldPos = galaxyContainerRef?.current
@@ -189,7 +216,7 @@ export function useArcFlight({
         tweenRef.current = null;
       }
     };
-  }, [flightVersion, cameraMode, selectedNode, setFlightState, galaxyContainerRef, controlsRef, onFlightStart]);
+  }, [flightVersion, cameraMode, selectedNode, selectedCollision, setFlightState, galaxyContainerRef, controlsRef, onFlightStart]);
 
   return { tweenRef };
 }

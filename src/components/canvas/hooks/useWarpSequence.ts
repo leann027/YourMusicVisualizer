@@ -5,6 +5,15 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 import type CameraControlsImpl from 'camera-controls';
 import { useGalaxyStore } from '../../../store/useGalaxyStore';
+import { getNebulaLayout } from '../../../lib/layout/nebulaLayout';
+import { cameraAspect, overviewPoseFor } from '../nebulaV3/overviewCamera';
+
+// Overview framing for the current renderer mode, read at call time (the mode can change mid-warp)
+function currentOverview(controls: CameraControlsImpl) {
+  const { rendererMode, baseData } = useGalaxyStore.getState();
+  const cores = rendererMode === 'nebula' ? getNebulaLayout(baseData).cores : null;
+  return overviewPoseFor(rendererMode, cores, cameraAspect(controls.camera));
+}
 
 export interface UseWarpSequenceOptions {
   controlsRef: React.RefObject<CameraControlsImpl | null>;
@@ -75,7 +84,8 @@ export function useWarpSequence({
         cancelWarp();
         const controls = controlsRef.current;
         if (controls) {
-          controls.setLookAt(0, 18, 52, 0, 0, 0, false);
+          const { eye, target } = currentOverview(controls);
+          controls.setLookAt(eye[0], eye[1], eye[2], target[0], target[1], target[2], false);
         }
         setFlightState(false);
         skipWarp();
@@ -98,7 +108,8 @@ export function useWarpSequence({
 
     if (prefersReducedMotion) {
       if (warpProgressRef) warpProgressRef.current = 1.0;
-      controls.setLookAt(0, 18, 52, 0, 0, 0, false);
+      const { eye, target } = currentOverview(controls);
+      controls.setLookAt(eye[0], eye[1], eye[2], target[0], target[1], target[2], false);
       finishWarp();
       return true;
     }
@@ -108,9 +119,6 @@ export function useWarpSequence({
     const startY = 46;
     const startZ = 295;
 
-    const endX = 0;
-    const endY = 18;
-    const endZ = 52;
 
     controls.setLookAt(startX, startY, startZ, 0, 3, 0, false);
     setFlightState(true, 3400);
@@ -126,6 +134,8 @@ export function useWarpSequence({
           warpProgressRef.current = p;
         }
 
+        // destination re-read every frame: classic [0, 18, 52] or the nebula overview (M8.2)
+        const [endX, endY, endZ] = currentOverview(controls).eye;
         const curEyeX = THREE.MathUtils.lerp(startX, endX, p);
         const curEyeY = THREE.MathUtils.lerp(startY, endY, p);
         const curEyeZ = THREE.MathUtils.lerp(startZ, endZ, p);
