@@ -17,8 +17,8 @@ import {
   spiralDustOnBeforeCompile,
 } from '../../src/components/canvas/galaxy/shaders/spiralDustShaders';
 
-// Import re-exports from GalacticDustDisc
-import * as GalacticDustDiscModule from '../../src/components/canvas/GalacticDustDisc';
+// galaxy/ module exports (the root GalacticDustDisc.tsx re-export file was removed in the reorganisation)
+import * as GalacticDustDiscModule from '../../src/components/canvas/galaxy';
 import * as GalaxyIndexModule from '../../src/components/canvas/galaxy/index';
 
 // Import hooks and CameraFlightController
@@ -268,16 +268,16 @@ console.log('\n================================================================'
 console.log('SUITE 3: Re-export Wrappers Verification');
 console.log('================================================================');
 
-// Test GalacticDustDisc re-exports
-assert(typeof GalacticDustDiscModule.GalacticDustDisc === 'function', 'GalacticDustDisc is exported from GalacticDustDisc.tsx');
+// Test galaxy/ exports
+assert(typeof GalacticDustDiscModule.GalacticDustDisc === 'function', 'GalacticDustDisc is exported from galaxy/');
 assert(typeof GalaxyIndexModule.GalacticDustDisc === 'function', 'GalacticDustDisc is exported from galaxy/index.ts');
-assert(typeof GalacticDustDiscModule.SupermassiveBlackHole === 'function', 'SupermassiveBlackHole is exported from GalacticDustDisc.tsx');
-assert(typeof GalacticDustDiscModule.SpiralStardustPoints === 'function', 'SpiralStardustPoints is exported from GalacticDustDisc.tsx');
-assert(typeof GalacticDustDiscModule.generateSpiralStardustGeometry === 'function', 'generateSpiralStardustGeometry is exported from GalacticDustDisc.tsx');
-assert(typeof GalacticDustDiscModule.createPRNG === 'function', 'createPRNG is exported from GalacticDustDisc.tsx');
-assert(typeof GalacticDustDiscModule.createAccretionDiskMaterial === 'function', 'createAccretionDiskMaterial is exported from GalacticDustDisc.tsx');
-assert(typeof GalacticDustDiscModule.createLensingArchMaterial === 'function', 'createLensingArchMaterial is exported from GalacticDustDisc.tsx');
-assert(typeof GalacticDustDiscModule.createSpiralDustMaterial === 'function', 'createSpiralDustMaterial is exported from GalacticDustDisc.tsx');
+assert(typeof GalacticDustDiscModule.SupermassiveBlackHole === 'function', 'SupermassiveBlackHole is exported from galaxy/');
+assert(typeof GalacticDustDiscModule.SpiralStardustPoints === 'function', 'SpiralStardustPoints is exported from galaxy/');
+assert(typeof GalacticDustDiscModule.generateSpiralStardustGeometry === 'function', 'generateSpiralStardustGeometry is exported from galaxy/');
+assert(typeof GalacticDustDiscModule.createPRNG === 'function', 'createPRNG is exported from galaxy/');
+assert(typeof GalacticDustDiscModule.createAccretionDiskMaterial === 'function', 'createAccretionDiskMaterial is exported from galaxy/');
+assert(typeof GalacticDustDiscModule.createLensingArchMaterial === 'function', 'createLensingArchMaterial is exported from galaxy/');
+assert(typeof GalacticDustDiscModule.createSpiralDustMaterial === 'function', 'createSpiralDustMaterial is exported from galaxy/');
 assert(GalacticDustDiscModule.SPIRAL_DUST_CACHE_KEY === SPIRAL_DUST_CACHE_KEY, 'SPIRAL_DUST_CACHE_KEY is exported');
 assert(GalacticDustDiscModule.ACCRETION_DISK_CACHE_KEY === ACCRETION_DISK_CACHE_KEY, 'ACCRETION_DISK_CACHE_KEY is exported');
 assert(GalacticDustDiscModule.LENSING_ARCH_CACHE_KEY === LENSING_ARCH_CACHE_KEY, 'LENSING_ARCH_CACHE_KEY is exported');

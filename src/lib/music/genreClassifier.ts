@@ -99,8 +99,6 @@ export const CANONICAL_GENRES: Record<string, { sister: string; description: str
   },
 };
 
-export const ALL_CANONICAL_GENRES = Object.keys(CANONICAL_GENRES);
-
 /**
  * Regular expression matching Japanese / CJK scripts:
  * Hiragana (\u3040-\u309F), Katakana (\u30A0-\u30FF),

@@ -1,4 +1,4 @@
-import { smoothIdf } from './taxonomy';
+import { smoothIdf } from './tfidf';
 import type { WeightedTag } from './tagModel';
 
 /**

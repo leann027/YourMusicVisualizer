@@ -5,8 +5,6 @@ import { MusicGalaxyData, GenreNode } from '../../../types/music';
 import { useGalaxyStore } from '../../../store/useGalaxyStore';
 import { SectorNebulaCluster } from './SectorNebulaCluster';
 
-export type GalaxyData = MusicGalaxyData;
-
 export interface NebulaClustersProps {
   data?: MusicGalaxyData;
   stellarBrightness?: number;
