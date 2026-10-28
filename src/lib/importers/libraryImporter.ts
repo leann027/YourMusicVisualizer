@@ -10,7 +10,8 @@ import {
 import { classifyUniversalMusic } from '../music/genreClassifier';
 import { artistTagProfile, RawTag, songTagProfile } from '../music/tagModel';
 import { classifyLibrary, UNCLASSIFIED_GENRE } from '../music/dynamicGenres';
-import { computeTfIdfLinks, normalizeMusicalTag } from '../music/taxonomy';
+import { normalizeMusicalTag } from '../music/taxonomy';
+import { computeTfIdfLinks } from '../music/tfidf';
 import { applyClassicLayout, classicSectorCenter } from '../layout/classicLayout';
 
 /**
