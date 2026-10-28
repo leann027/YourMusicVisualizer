@@ -26,8 +26,8 @@ const store = useGalaxyStore;
 
 // Test 1: default mode
 assert(
-  store.getState().rendererMode === 'classic',
-  'rendererMode defaults to classic',
+  store.getState().rendererMode === 'nebula',
+  'rendererMode defaults to nebula (M8.4)',
   `got ${store.getState().rendererMode}`
 );
 

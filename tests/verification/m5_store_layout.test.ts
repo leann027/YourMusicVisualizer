@@ -38,9 +38,12 @@ assert(layoutForMode(GALAXY_PRESET_50, 'nebula') === nebula50, 'layoutForMode: n
 assert(positions(nebula50) === positions(applyNebulaLayout(GALAXY_PRESET_50)), 'layoutForMode: nebula positions match applyNebulaLayout');
 assert(nebula50.links === GALAXY_PRESET_50.links, 'layoutForMode: links shared with the source dataset');
 
-// 2. Classic mode is untouched
+// 2. Classic mode is untouched (nebula is the default since M8.4: switch first, during the warp-in)
+assert(store.getState().rendererMode === 'nebula', 'store: starts in nebula (M8.4 default)');
+assert(store.getState().data === layoutForMode(GALAXY_PRESET_50, 'nebula'), 'store: initial data is the nebula layout');
+store.getState().setRendererMode('classic');
 let s = store.getState();
-assert(s.rendererMode === 'classic', 'store: starts in classic');
+assert(s.rendererMode === 'classic', 'store: classic selected');
 assert(s.data === GALAXY_PRESET_50 && s.baseData === GALAXY_PRESET_50, 'store: classic data is the preset object itself');
 
 // 3. Switching to nebula: new positions, selection remapped by id, one camera reframe (after the warp-in)

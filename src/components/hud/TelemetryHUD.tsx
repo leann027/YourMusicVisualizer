@@ -15,6 +15,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
+import { storeRenderer } from '../../lib/rendererPreference';
 import { StellarSearchBar } from './StellarSearchBar';
 import { ArtistSleeveCard } from './ArtistSleeveCard';
 import { CollisionCard } from './CollisionCard';
@@ -64,6 +65,8 @@ export const TelemetryHUD: React.FC = () => {
   const toggleBloom = useGalaxyStore((s) => s.toggleBloom);
   const linksVisible = useGalaxyStore((s) => s.linksVisible);
   const toggleLinksVisible = useGalaxyStore((s) => s.toggleLinksVisible);
+  const rendererMode = useGalaxyStore((s) => s.rendererMode);
+  const setRendererMode = useGalaxyStore((s) => s.setRendererMode);
   const skipWarp = useGalaxyStore((s) => s.skipWarp);
 
   const activeSectorGenre = useMemo(() => {
@@ -468,6 +471,37 @@ export const TelemetryHUD: React.FC = () => {
                           }`}
                         >
                           {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Renderer selector (M8.4): Nebulosas v3 by default, classic kept as an option; remembered per viewer */}
+                <div className="border-t border-[#00F5D4]/20 pt-2.5">
+                  <p className="text-[11px] font-semibold text-[#F2F4F8] mb-1">Render</p>
+                  <div className="grid grid-cols-2 gap-1" role="group" aria-label="Modo de render">
+                    {([
+                      { mode: 'nebula', label: 'Nebulosas' },
+                      { mode: 'classic', label: 'Clásico' },
+                    ] as const).map((option) => {
+                      const active = rendererMode === option.mode;
+                      return (
+                        <button
+                          key={option.mode}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => {
+                            setRendererMode(option.mode);
+                            storeRenderer(option.mode);
+                          }}
+                          className={`min-h-7 py-1 px-1 text-[10px] font-semibold rounded-lg border transition-all ${
+                            active
+                              ? 'bg-[#00F5D4] text-[#050508] border-[#00F5D4] font-bold'
+                              : 'bg-[#050508] text-[#B8DCE8] border-[#00F5D4]/25 hover:border-[#00F5D4]'
+                          }`}
+                        >
+                          {option.label}
                         </button>
                       );
                     })}

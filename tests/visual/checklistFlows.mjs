@@ -177,6 +177,30 @@ if (renderer === 'nebula') {
   check(await page.getByRole('button', { name: 'FFT ACTIVO', exact: true }).isVisible(), 'FFT dock shows playback');
 }
 
+// Default renderer and stored preference (M8.4), in a fresh context (clean localStorage)
+if (renderer === 'nebula') {
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, reducedMotion: 'reduce' });
+  const p2 = await ctx.newPage();
+  p2.setDefaultTimeout(120000);
+  p2.on('pageerror', (e) => pageErrors.push(e.message));
+  const modeOf = async () => {
+    await p2.waitForFunction(() => !!window.__galaxyStore);
+    await p2.waitForTimeout(1200);
+    return p2.evaluate(() => window.__galaxyStore.getState().rendererMode);
+  };
+  await p2.goto(`${BASE_URL}/`, { waitUntil: 'load' });
+  check((await modeOf()) === 'nebula', 'No parameter → nebula by default');
+  await p2.getByRole('button', { name: /Filtros & Brillo/i }).click();
+  await p2.waitForTimeout(400);
+  await p2.getByRole('group', { name: 'Modo de render' }).getByRole('button', { name: 'Clásico' }).click();
+  check((await modeOf()) === 'classic', 'HUD selector → classic');
+  await p2.reload({ waitUntil: 'load' });
+  check((await modeOf()) === 'classic', 'Classic preference survives a reload');
+  await p2.goto(`${BASE_URL}/?renderer=nebula`, { waitUntil: 'load' });
+  check((await modeOf()) === 'nebula', '?renderer= beats the stored preference');
+  await ctx.close();
+}
+
 check(pageErrors.length === 0, 'No page errors', pageErrors.join(' | '));
 await browser.close();
 
