@@ -20,7 +20,17 @@ export const WORLD_SCALE = 0.14;
 const INNER_SHELL = 120 * WORLD_SCALE;
 const OUTER_SHELL = 210 * WORLD_SCALE;
 const SHELL_Y_SQUASH = 0.75;
-const RELAX_ITERATIONS = 320;
+const RELAX_ITERATIONS = 420;
+/**
+ * Compaction phase (C1): during the first iterations every nebula is pulled weakly towards the
+ * centre, harder vertically. The overview must frame the cosmos at any rotation around Y, so its
+ * height sets the camera distance on wide screens; a lower, compact cosmos lets the camera come
+ * ~30% closer. The remaining iterations relax without the pull, so springs and repulsion restore
+ * every overlap / gap rule.
+ */
+export const COMPACT_ITERATIONS = 200;
+export const COMPACT_PULL_H = 0.01;
+export const COMPACT_PULL_V = 0.05;
 const SPRING_K = 0.08;
 const REPULSION_K = 0.5;
 const UNRELATED_GAP = 1.3; // unrelated nebulae are pushed to (Sa+Sb)·1.3
@@ -31,6 +41,7 @@ export const BLACK_HOLE_CLEARANCE = 3.3;
 /** Largest rigid shift allowed to bring a void onto the black hole. */
 export const MAX_VOID_SHIFT = 6;
 const VOID_STEP = 0.5;
+const WIDE_VOID_STEP = 1; // coarser grid for the rare whole-cosmos search (C1b)
 
 type Vec3 = [number, number, number];
 
@@ -55,25 +66,42 @@ export function clearanceAt(cores: NebulaCore[], p: Vec3): number {
   return min;
 }
 
-/**
- * Centre of the emptiest point within MAX_VOID_SHIFT of the origin (grid search, deterministic).
- * Translating the cosmos by its negative puts the black hole in a void without changing any
- * distance between nebulae, so every layout guarantee is preserved.
- */
-export function findCentralVoid(cores: NebulaCore[]): { point: Vec3; clearance: number } {
+/** Best point of a cubic grid within `maxShift` of the origin (deterministic scan order). */
+function scanVoid(cores: NebulaCore[], maxShift: number, step: number, better: (p: Vec3, clearance: number, best: { point: Vec3; clearance: number }) => boolean) {
   let best = { point: [0, 0, 0] as Vec3, clearance: clearanceAt(cores, [0, 0, 0]) };
-  const steps = Math.round(MAX_VOID_SHIFT / VOID_STEP);
+  const steps = Math.round(maxShift / step);
   for (let i = -steps; i <= steps; i++) {
     for (let j = -steps; j <= steps; j++) {
       for (let k = -steps; k <= steps; k++) {
-        const p: Vec3 = [i * VOID_STEP, j * VOID_STEP, k * VOID_STEP];
-        if (Math.hypot(p[0], p[1], p[2]) > MAX_VOID_SHIFT) continue;
+        const p: Vec3 = [i * step, j * step, k * step];
+        if (Math.hypot(p[0], p[1], p[2]) > maxShift) continue;
         const clearance = clearanceAt(cores, p);
-        if (clearance > best.clearance) best = { point: p, clearance };
+        if (better(p, clearance, best)) best = { point: p, clearance };
       }
     }
   }
   return best;
+}
+
+/**
+ * Centre of the emptiest point within MAX_VOID_SHIFT of the origin (grid search, deterministic).
+ * Translating the cosmos by its negative puts the black hole in a void without changing any
+ * distance between nebulae, so every layout guarantee is preserved.
+ * Small cosmos (one nebula, or two overlapping ones) have no void that close (C1b): then the
+ * search widens to the whole cosmos and takes the smallest shift that clears BLACK_HOLE_CLEARANCE.
+ */
+export function findCentralVoid(cores: NebulaCore[]): { point: Vec3; clearance: number } {
+  const near = scanVoid(cores, MAX_VOID_SHIFT, VOID_STEP, (_, clearance, best) => clearance > best.clearance);
+  if (near.clearance >= BLACK_HOLE_CLEARANCE || cores.length === 0) return near;
+  const reach = Math.max(...cores.map((c) => Math.hypot(c.center[0], c.center[1], c.center[2]) + c.radius)) + BLACK_HOLE_CLEARANCE + 2 * WIDE_VOID_STEP;
+  const shift = (p: Vec3) => Math.hypot(p[0], p[1], p[2]);
+  const wide = scanVoid(cores, reach, WIDE_VOID_STEP, (p, clearance, best) => {
+    const clears = clearance >= BLACK_HOLE_CLEARANCE;
+    const bestClears = best.clearance >= BLACK_HOLE_CLEARANCE;
+    if (clears !== bestClears) return clears;
+    return clears ? shift(p) < shift(best.point) : clearance > best.clearance;
+  });
+  return wide.clearance > near.clearance ? wide : near;
 }
 
 /**
@@ -94,7 +122,9 @@ export function computeNebulaCores(data: MusicGalaxyData, relations: GenreRelati
     };
   });
   if (count === 1) {
-    cores[0].center = [0, 0, 0];
+    // a single nebula sits beside the black hole, not on top of it (C1b)
+    const { point } = findCentralVoid(cores.map((c) => ({ ...c, center: [0, 0, 0] as Vec3 })));
+    cores[0].center = [-point[0], -point[1], -point[2]];
     return cores;
   }
 
@@ -109,6 +139,13 @@ export function computeNebulaCores(data: MusicGalaxyData, relations: GenreRelati
   }
 
   for (let it = 0; it < RELAX_ITERATIONS; it++) {
+    if (it < COMPACT_ITERATIONS) {
+      for (const c of cores) {
+        c.center[0] *= 1 - COMPACT_PULL_H;
+        c.center[1] *= 1 - COMPACT_PULL_V;
+        c.center[2] *= 1 - COMPACT_PULL_H;
+      }
+    }
     for (let i = 0; i < count; i++) {
       for (let j = i + 1; j < count; j++) {
         const A = cores[i].center;

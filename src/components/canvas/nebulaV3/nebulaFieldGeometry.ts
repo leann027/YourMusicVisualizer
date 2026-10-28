@@ -66,7 +66,7 @@ const smoothstep = (a: number, b: number, x: number) => {
 };
 
 /** Local nebula coordinates (x along u, y along normal, z along v) → world, optionally squashed by the gas ellipsoid. */
-function toWorld(origin: Vec3, frame: NebulaFrame, x: number, y: number, z: number, squash: boolean): Vec3 {
+export function toWorld(origin: Vec3, frame: NebulaFrame, x: number, y: number, z: number, squash: boolean): Vec3 {
   const ax = squash ? frame.axes : ([1, 1, 1] as Vec3);
   const lx = x * ax[0];
   const ly = y * ax[1];

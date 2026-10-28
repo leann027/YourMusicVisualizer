@@ -1,183 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  resolveTrackTaxonomy,
-  MACRO_GENRES,
-} from '@/lib/music/taxonomy';
-import {
-  classifyUniversalMusic,
-} from '@/lib/music/genreClassifier';
+import type { RawTag } from '@/lib/music/tagModel';
+import { cleanTrackTitle, parseLastfmTopTags } from '@/lib/music/lastfmTags';
 
 interface EnrichTrackRequestItem {
   key: string;
   title: string;
   artist: string;
-  existingGenre?: string;
-  existingSecondaryGenre?: string;
   existingPreviewUrl?: string;
 }
 
+/**
+ * Raw weighted Last.fm tags (A4): song tags and artist tags are kept apart, because the
+ * importer uses song tags to detect bridges between nebulae. Classification happens client-side
+ * in the importer (dynamicGenres), not here.
+ */
 export interface EnrichTrackResultItem {
   key: string;
-  genre: string;
-  subgenre: string;
-  secondaryGenre?: string;
-  rawGenre: string;
-  tags: string[];
+  trackTags: RawTag[];
+  artistTags: RawTag[];
   previewUrl: string;
 }
 
-interface CachedTrackTaxonomy {
-  genre: string;
-  subgenre: string;
-  secondaryGenre?: string;
-  rawGenre: string;
-  tags: string[];
-}
-
-const trackTaxonomyCache = new Map<string, CachedTrackTaxonomy>();
-const artistTagsCache = new Map<string, Array<{ name: string; weight: number }>>();
-
 const LASTFM_API_KEY =
   process.env.LASTFM_API_KEY || 'b25b959554ed76058ac220b7b2e0a026';
+const LASTFM_TIMEOUT_MS = 1800;
 
-function cleanTrackTitle(title: string): string {
-  return title
-    .replace(/\s*\([^)]*(remaster|live|version|edit|feat|ft|deluxe|edition|anniversary|mono|stereo|soundtrack|ost)[^)]*\)/gi, '')
-    .replace(/\s*\[[^\]]*(remaster|live|version|edit|feat|ft|deluxe|edition|anniversary|mono|stereo|soundtrack|ost)[^\]]*\]/gi, '')
-    .replace(/\s*-\s*.*(remaster|live|version|mono|stereo|deluxe).*/gi, '')
-    .replace(/["'“”]/g, '')
-    .trim();
+// Successful lookups only: a timeout or HTTP error is retried on the next request
+const trackTagsCache = new Map<string, RawTag[]>();
+// One in-flight lookup per artist, shared by all its songs
+const artistTagsCache = new Map<string, Promise<RawTag[] | null>>();
+
+/** Last.fm top tags, or null when the request failed (network, timeout, HTTP error). */
+async function fetchLastfmTopTags(params: Record<string, string>): Promise<RawTag[] | null> {
+  const query = new URLSearchParams({ ...params, api_key: LASTFM_API_KEY, format: 'json' });
+  try {
+    const res = await fetch(`https://ws.audioscrobbler.com/2.0/?${query.toString()}`, {
+      signal: AbortSignal.timeout(LASTFM_TIMEOUT_MS),
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    return parseLastfmTopTags(await res.json());
+  } catch {
+    return null;
+  }
 }
 
-/**
- * Fetches listener-curated tags at the TRACK level (Last.fm track.getTopTags)
- * with a fast 1.8s timeout and fallback to artist-level tags.
- */
-async function fetchTrackLevelTags(
-  artist: string,
-  title: string
-): Promise<Array<{ name: string; weight: number }>> {
+async function getTrackTags(artist: string, title: string): Promise<RawTag[]> {
   const cleanTitle = cleanTrackTitle(title);
-  if (!cleanTitle || !artist) return [];
-
-  try {
-    const trackUrl = `https://ws.audioscrobbler.com/2.0/?method=track.gettoptags&artist=${encodeURIComponent(
-      artist
-    )}&track=${encodeURIComponent(cleanTitle)}&api_key=${LASTFM_API_KEY}&format=json`;
-
-    const res = await fetch(trackUrl, {
-      signal: AbortSignal.timeout(1800),
-      headers: { Accept: 'application/json' },
-    });
-
-    if (res.ok) {
-      const data = (await res.json()) as {
-        toptags?: {
-          tag?: Array<{ name: string; count: number | string }>;
-        };
-      };
-      const rawTags = data?.toptags?.tag;
-      if (Array.isArray(rawTags) && rawTags.length > 0) {
-        return rawTags
-          .map((t) => ({
-            name: String(t.name).toLowerCase().trim(),
-            weight: Number(t.count) || 50,
-          }))
-          .filter((t) => t.weight >= 4 && t.name.length > 1);
-      }
-    }
-  } catch {
-    // Non-blocking fallback
-  }
-
-  // Fallback to cached or queried artist tags
-  const aKey = artist.toLowerCase().trim();
-  const cachedArtist = artistTagsCache.get(aKey);
-  if (cachedArtist) return cachedArtist;
-
-  try {
-    const artistUrl = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptags&artist=${encodeURIComponent(
-      artist
-    )}&api_key=${LASTFM_API_KEY}&format=json`;
-
-    const aRes = await fetch(artistUrl, {
-      signal: AbortSignal.timeout(1800),
-      headers: { Accept: 'application/json' },
-    });
-
-    if (aRes.ok) {
-      const aData = (await aRes.json()) as {
-        toptags?: {
-          tag?: Array<{ name: string; count: number | string }>;
-        };
-      };
-      const rawTags = aData?.toptags?.tag;
-      if (Array.isArray(rawTags) && rawTags.length > 0) {
-        const parsed = rawTags
-          .map((t) => ({
-            name: String(t.name).toLowerCase().trim(),
-            weight: Number(t.count) || 50,
-          }))
-          .filter((t) => t.weight >= 4 && t.name.length > 1);
-        artistTagsCache.set(aKey, parsed);
-        return parsed;
-      }
-    }
-  } catch {
-    // Non-blocking
-  }
-
-  return [];
+  if (!artist || !cleanTitle) return [];
+  const key = `${artist.toLowerCase().trim()}::${cleanTitle.toLowerCase()}`;
+  const cached = trackTagsCache.get(key);
+  if (cached) return cached;
+  const tags = await fetchLastfmTopTags({ method: 'track.gettoptags', artist, track: cleanTitle });
+  if (tags) trackTagsCache.set(key, tags);
+  return tags ?? [];
 }
 
-/**
- * Resolves a track's definitive 2-level taxonomy (Macro Constellation + Normalized Subgenre)
- * and extracts tags for TF-IDF edge computation.
- */
-async function resolveTrackEnrichment(
-  item: EnrichTrackRequestItem
-): Promise<CachedTrackTaxonomy> {
-  const cacheKey = `${item.artist.toLowerCase().trim()}::${item.title.toLowerCase().trim()}`;
-  const cached = trackTaxonomyCache.get(cacheKey);
-  if (cached) return cached;
-
-  // 1. Fetch track-level listener tags (Last.fm track.getTopTags)
-  const trackTags = await fetchTrackLevelTags(item.artist, item.title);
-
-  // Combine with existing Spotify genres if available
-  const combinedTagList: Array<{ name: string; weight: number }> = [...trackTags];
-  if (item.existingGenre) {
-    combinedTagList.push({ name: item.existingGenre, weight: 85 });
+async function getArtistTags(artist: string): Promise<RawTag[]> {
+  const key = artist.toLowerCase().trim();
+  if (!key) return [];
+  let pending = artistTagsCache.get(key);
+  if (!pending) {
+    pending = fetchLastfmTopTags({ method: 'artist.gettoptags', artist });
+    artistTagsCache.set(key, pending);
   }
-  if (item.existingSecondaryGenre) {
-    combinedTagList.push({ name: item.existingSecondaryGenre, weight: 65 });
-  }
-
-  let result: CachedTrackTaxonomy;
-
-  if (combinedTagList.length > 0) {
-    const resolved = resolveTrackTaxonomy(combinedTagList, item.artist, item.title);
-    result = {
-      genre: resolved.macroGenre.name,
-      subgenre: resolved.subgenre,
-      secondaryGenre: MACRO_GENRES[resolved.macroGenre.sister]?.name,
-      rawGenre: `${resolved.macroGenre.shortName} · ${resolved.subgenre}`,
-      tags: resolved.normalizedTags,
-    };
-  } else {
-    // Fallback to instant universal classifier heuristics
-    const fast = classifyUniversalMusic(item.artist, item.existingGenre, item.title);
-    result = {
-      genre: fast.genre,
-      subgenre: fast.rawGenre !== fast.genre ? fast.rawGenre : fast.genre,
-      secondaryGenre: fast.secondaryGenre,
-      rawGenre: fast.genre,
-      tags: [fast.genre],
-    };
-  }
-
-  trackTaxonomyCache.set(cacheKey, result);
-  return result;
+  const tags = await pending;
+  if (!tags) artistTagsCache.delete(key);
+  return tags ?? [];
 }
 
 export async function POST(req: NextRequest) {
@@ -197,7 +86,10 @@ export async function POST(req: NextRequest) {
       const chunk = tracks.slice(i, i + batchSize);
       const chunkResults = await Promise.all(
         chunk.map(async (item) => {
-          const taxonomy = await resolveTrackEnrichment(item);
+          const [trackTags, artistTags] = await Promise.all([
+            getTrackTags(item.artist, item.title),
+            getArtistTags(item.artist),
+          ]);
           const previewParams = new URLSearchParams({
             artist: item.artist,
             title: item.title,
@@ -208,11 +100,8 @@ export async function POST(req: NextRequest) {
 
           return {
             key: item.key,
-            genre: taxonomy.genre,
-            subgenre: taxonomy.subgenre,
-            secondaryGenre: taxonomy.secondaryGenre,
-            rawGenre: taxonomy.rawGenre,
-            tags: taxonomy.tags,
+            trackTags,
+            artistTags,
             previewUrl: `/api/track-preview?${previewParams.toString()}`,
           };
         })
@@ -227,7 +116,7 @@ export async function POST(req: NextRequest) {
         error:
           err instanceof Error
             ? err.message
-            : 'Error enriqueciendo géneros musicales y etiquetas a nivel de pista',
+            : 'Error enriqueciendo canciones con etiquetas de Last.fm',
         results: [],
       },
       { status: 500 }

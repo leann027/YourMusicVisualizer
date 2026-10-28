@@ -102,29 +102,6 @@ export const CANONICAL_GENRES: Record<string, { sister: string; description: str
 export const ALL_CANONICAL_GENRES = Object.keys(CANONICAL_GENRES);
 
 /**
- * Universal global genres safely used for deterministic hashing fallbacks.
- * Regional / culture-specific genres (e.g. 'ROCK NACIONAL & ARGENTINO',
- * 'CUMBIA, CUARTETO & TROPICAL', 'POP LATINO & BALADA', 'J-POP, J-ROCK & ANIME')
- * are strictly EXCLUDED from blind fallbacks so unfamiliar foreign tracks
- * are NEVER erroneously classified into regional categories.
- */
-export const UNIVERSAL_FALLBACK_GENRES = [
-  'POP INTERNACIONAL & SYNTH-POP',
-  'INDIE ROCK & POST-PUNK',
-  'ELECTRÓNICA, HOUSE & TECHNO',
-  'SYNTHWAVE & FRENCH TOUCH',
-  'ART ROCK & SHOEGAZE',
-  'ROCK CLÁSICO & PSICODELIA',
-  'IDM & AMBIENT EXPERIMENTAL',
-  'TRIP-HOP, DOWNTEMPO & DUB',
-  'R&B, SOUL, FUNK & DISCO',
-  'HARD ROCK & HEAVY METAL',
-  'DREAM POP & PSYCHEDELIA',
-  'HIP-HOP, RAP & BOOM BAP',
-  'JAZZ, BLUES & FOLK',
-];
-
-/**
  * Regular expression matching Japanese / CJK scripts:
  * Hiragana (\u3040-\u309F), Katakana (\u30A0-\u30FF),
  * CJK Unified Ideographs / Kanji (\u4E00-\u9FAF, \u3400-\u4DBF),
@@ -440,14 +417,6 @@ const INSTANT_ARTIST_PATTERNS: Array<{
   },
 ];
 
-function hashStr(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = (h * 31 + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
-}
-
 /**
  * Cleans and formats an incoming raw genre string into an elegant, capitalized constellation name.
  * Handles abbreviations (K-POP, J-ROCK, DNB, R&B, IDM, EDM, LO-FI, OST) cleanly.
@@ -623,7 +592,7 @@ export function deriveSisterConstellation(genreTitle: string): string {
  *    it cleans and formats it, DYNAMICALLY CREATING a new constellation in the universe.
  * 2. If untagged, uses Japanese CJK script detection, 400+ curated artist knowledge bases,
  *    and audio keyword heuristics.
- * 3. Fallbacks distribute safely across universal global genres, never leaking into regional categories.
+ * 3. Nothing matched → empty genre: the caller decides (the importer sends the artist to OTRAS ÓRBITAS).
  */
 export function classifyUniversalMusic(
   artistName: string,
@@ -856,11 +825,9 @@ export function classifyUniversalMusic(
     matchedGenre = 'ROCK CLÁSICO & PSICODELIA';
   }
 
-  // 5. Safe Universal Distribution Fallback:
-  // Distributes unfamiliar artists evenly across UNIVERSAL global genres.
+  // 5. No match: never a random guess, unknown stays unknown (empty genre)
   if (!matchedGenre) {
-    const idx = hashStr(a || 'music') % UNIVERSAL_FALLBACK_GENRES.length;
-    matchedGenre = UNIVERSAL_FALLBACK_GENRES[idx];
+    return { genre: '', secondaryGenre: '', rawGenre: rawGenreText || '' };
   }
 
   const sister = CANONICAL_GENRES[matchedGenre]?.sister || deriveSisterConstellation(matchedGenre);

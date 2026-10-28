@@ -15,6 +15,8 @@ export interface ProgramSpec {
   itemSizes: Record<string, number>;
   uniforms: Record<string, number | number[]>; // arrays become Float32Array uniforms
   primitive?: 'points' | 'lines'; // default points; lines = LineSegments
+  blending?: 'additive' | 'multiply'; // default additive
+  renderOrder?: number;
 }
 
 export interface CameraSpec {
@@ -28,6 +30,7 @@ export interface RenderResult {
   programs: number;
   cacheKeys: string[];
   litShare: number; // share of pixels brighter than the background
+  meanLuma: number; // mean (r+g+b)/3 over the canvas, 0..255
 }
 
 const THREE_BUILD = path.resolve('node_modules/three/build');
@@ -86,7 +89,8 @@ export async function renderPrograms(
         const material = new THREE.ShaderMaterial({
           transparent: true,
           depthWrite: false,
-          blending: THREE.AdditiveBlending,
+          blending: spec.blending === 'multiply' ? THREE.MultiplyBlending : THREE.AdditiveBlending,
+          premultipliedAlpha: spec.blending === 'multiply',
           vertexShader: spec.vertexShader,
           fragmentShader: spec.fragmentShader,
           uniforms: Object.fromEntries(
@@ -100,6 +104,7 @@ export async function renderPrograms(
         }
         const object = spec.primitive === 'lines' ? new THREE.LineSegments(geometry, material) : new THREE.Points(geometry, material);
         object.frustumCulled = false;
+        object.renderOrder = spec.renderOrder ?? 0;
         scene.add(object);
       }
       const cam = new THREE.PerspectiveCamera(camera.fov ?? 52, canvas.width / canvas.height, 0.1, 400);
@@ -111,13 +116,19 @@ export async function renderPrograms(
       const pixels = new Uint8Array(canvas.width * canvas.height * 4);
       gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
       let lit = 0;
-      for (let i = 0; i < pixels.length; i += 4) if (pixels[i] + pixels[i + 1] + pixels[i + 2] > 40) lit++;
+      let luma = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const sum = pixels[i] + pixels[i + 1] + pixels[i + 2];
+        if (sum > 40) lit++;
+        luma += sum / 3;
+      }
       const compiled = renderer.info.programs ?? [];
       const result = {
         webgl2: renderer.capabilities.isWebGL2,
         programs: compiled.length,
         cacheKeys: compiled.map((p: { cacheKey: string }) => p.cacheKey),
         litShare: lit / (canvas.width * canvas.height),
+        meanLuma: luma / (canvas.width * canvas.height),
       };
       renderer.dispose();
       return result;

@@ -88,7 +88,13 @@ assert(nebulaRadius(10, 40) < nebulaRadius(30, 40), 'radius: grows with song cou
 
 // ---------- edge cases ----------
 const one: MusicGalaxyData = { ...GALAXY_PRESET_50, genres: GALAXY_PRESET_50.genres.slice(0, 1) };
-assert(JSON.stringify(computeNebulaCores(one, [])[0].center) === '[0,0,0]', 'edge: single genre sits at origin');
+const oneCore = computeNebulaCores(one, [])[0];
+// C1b: a single nebula sits beside the black hole instead of on top of it
+assert(
+  Math.abs(Math.hypot(...oneCore.center) - oneCore.radius) >= BLACK_HOLE_CLEARANCE,
+  'edge: single genre sits beside the black hole (clearance kept)',
+  JSON.stringify(oneCore.center)
+);
 assert(computeNebulaCores({ ...GALAXY_PRESET_50, genres: [] }, []).length === 0, 'edge: no genres → no cores');
 
 // ---------- presets ----------
@@ -121,7 +127,17 @@ for (const [name, data] of presets) {
   assert(minUnrelated >= 1.2, `${name}: unrelated pairs ≥ (Sa+Sb)·1.2`, `min ratio ${minUnrelated.toFixed(3)}`);
   assert(related.every((r) => r.ratio < 1), `${name}: related pairs overlap (d < Sa+Sb)`, `max ratio ${Math.max(...related.map((r) => r.ratio)).toFixed(3)}`);
   const rho = spearman(related.map((r) => r.strength), related.map((r) => r.ratio));
-  assert(rho < -0.5, `${name}: stronger relation → more overlap (Spearman < -0.5)`, `rho ${rho.toFixed(3)}`);
+  const distinctStrengths = new Set(related.map((r) => r.strength)).size;
+  if (distinctStrengths >= 4) {
+    assert(rho < -0.5, `${name}: stronger relation → more overlap (Spearman < -0.5)`, `rho ${rho.toFixed(3)}`);
+  } else {
+    // mostly tied strengths (dynamic presets): rank correlation is not informative; the strongest
+    // relation must still overlap at least as much as the median one
+    const ratios = related.map((r) => r.ratio).sort((x, y) => x - y);
+    const median = ratios[Math.floor(ratios.length / 2)];
+    const strongest = [...related].sort((x, y) => y.strength - x.strength)[0];
+    assert(strongest.ratio <= median, `${name}: strongest relation overlaps at least as much as the median (tied strengths)`, `${strongest.ratio.toFixed(2)} vs median ${median.toFixed(2)}`);
+  }
 
   // M8.1: the cosmos is shifted (rigidly) so the black hole at the origin sits in a void
   const mean = [0, 1, 2].map((k) => cores.reduce((a, c) => a + c.center[k], 0) / cores.length);

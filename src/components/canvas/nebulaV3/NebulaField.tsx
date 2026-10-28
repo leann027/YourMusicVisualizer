@@ -9,7 +9,7 @@ import { getNebulaLayout } from '../../../lib/layout/nebulaLayout';
 import { buildNebulaFieldGeometry, NEBULA_FIELD_DENSITY } from './nebulaFieldGeometry';
 import { computeNebulaFieldTargets } from './nebulaFieldTargets';
 import { createNebulaFieldMaterial } from './shaders/nebulaFieldShaders';
-import { parseNebulaTune } from './nebulaTune';
+import { readTuneParam } from './nebulaTune';
 
 // Easing per frame towards focus targets (reference: 0.07 genre, 0.09 artist)
 const FOCUS_EASE = 0.07;
@@ -34,11 +34,8 @@ export const NebulaField: React.FC = () => {
   const layout = useMemo(() => getNebulaLayout(baseData), [baseData]);
   const field = useMemo(() => buildNebulaFieldGeometry(layout, NEBULA_FIELD_DENSITY[density]), [layout, density]);
   const material = useMemo(() => createNebulaFieldMaterial(), []);
-  // Development-only look override: ?nebulaTune=<gasSize>,<gasAlpha>
-  const tune = useMemo(() => {
-    if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return null;
-    return parseNebulaTune(new URLSearchParams(window.location.search).get('nebulaTune'));
-  }, []);
+  // Look override in development and on Vercel previews (B3): ?nebulaTune=<gasSize>,<gasAlpha>
+  const tune = useMemo(() => readTuneParam('nebulaTune'), []);
 
   useEffect(() => () => field.geometry.dispose(), [field]);
   useEffect(() => () => material.dispose(), [material]);

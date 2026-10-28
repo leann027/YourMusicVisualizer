@@ -19,6 +19,7 @@ export interface StarFeaturesProps {
   diffractionRef?: React.RefObject<THREE.Group | null>;
   satelliteRef?: React.RefObject<THREE.Group | null>;
   bridgeColor?: string | null; // Nebulosas v3: mixed colour ring for songs living in a collision
+  bodyFeatures?: boolean; // false in nebula mode (B1): spikes, jets and satellites give way to the StarField
 }
 
 /**
@@ -36,11 +37,12 @@ export const StarFeatures: React.FC<StarFeaturesProps> = ({
   diffractionRef,
   satelliteRef,
   bridgeColor,
+  bodyFeatures = true,
 }) => {
   return (
     <>
       {/* 4-Point Optical Diffraction Spikes (Tier 3 Supergiant Artists - fades on close approach) */}
-      {nodeType === 'artist' && metrics.artistTier === 'supergiant' && (
+      {bodyFeatures && nodeType === 'artist' && metrics.artistTier === 'supergiant' && (
         <group ref={diffractionRef}>
           <Billboard follow lockX={false} lockY={false} lockZ={false}>
             <mesh geometry={UNIT_DIFFRACTION_GEOMETRY} scale={metrics.coreRadius * 2.8}>
@@ -70,7 +72,7 @@ export const StarFeatures: React.FC<StarFeaturesProps> = ({
       )}
 
       {/* Relativistic Polar Energy Jets (Tier 3 Dominant Sector Active Galactic Nuclei) */}
-      {metrics.hasPolarJets && (
+      {bodyFeatures && metrics.hasPolarJets && (
         <group>
           {/* North Polar Jet */}
           <mesh
@@ -103,7 +105,7 @@ export const StarFeatures: React.FC<StarFeaturesProps> = ({
       )}
 
       {/* Orbiting Micro-Satellites (Tier 3 Supergiant Artists) */}
-      {metrics.hasOrbitalSatellites && (
+      {bodyFeatures && metrics.hasOrbitalSatellites && (
         <group ref={satelliteRef}>
           <mesh
             geometry={UNIT_SATELLITE_GEOMETRY}

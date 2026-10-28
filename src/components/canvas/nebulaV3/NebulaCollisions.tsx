@@ -11,7 +11,7 @@ import { advanceTideOffsets, tideBoostTarget } from './tideBoost';
 import { FIELD_SHARE, NEBULA_FIELD_DENSITY } from './nebulaFieldGeometry';
 import { computeNebulaFieldTargets } from './nebulaFieldTargets';
 import { createNebulaCollisionMaterial } from './shaders/nebulaCollisionShaders';
-import { parseNebulaTune } from './nebulaTune';
+import { readTuneParam } from './nebulaTune';
 
 const FOCUS_EASE = 0.07;
 const BOOST_EASE = 0.1; // smooths FFT peaks so tides don't jitter
@@ -37,11 +37,8 @@ export const NebulaCollisions: React.FC = () => {
     [layout, density]
   );
   const material = useMemo(() => createNebulaCollisionMaterial(), []);
-  // Development-only look override: ?clashTune=<size>,<alpha>
-  const tune = useMemo(() => {
-    if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return null;
-    return parseNebulaTune(new URLSearchParams(window.location.search).get('clashTune'));
-  }, []);
+  // Look override in development and on Vercel previews (B3): ?clashTune=<size>,<alpha>
+  const tune = useMemo(() => readTuneParam('clashTune'), []);
   const genreIds = useMemo(() => layout.data.genres.map((g) => g.id), [layout]);
   const relations = useMemo(() => collisionRelations(layout), [layout]);
   const boostSpeed = useRef(1);
