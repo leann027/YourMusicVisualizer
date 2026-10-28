@@ -1,5 +1,12 @@
 import { computeGenreRelations, GenreRelation } from '../../src/lib/layout/genreRelations';
-import { computeNebulaCores, nebulaRadius, WORLD_SCALE } from '../../src/lib/layout/nebulaLayout';
+import {
+  BLACK_HOLE_CLEARANCE,
+  clearanceAt,
+  computeNebulaCores,
+  MAX_VOID_SHIFT,
+  nebulaRadius,
+  WORLD_SCALE,
+} from '../../src/lib/layout/nebulaLayout';
 import { createRng, gauss, goldenFibonacci, randDir } from '../../src/lib/math/prng';
 import { GALAXY_PRESET_50, GALAXY_PRESET_150, GALAXY_PRESET_300 } from '../../src/data/galaxyPresets';
 import { MusicGalaxyData } from '../../src/types/music';
@@ -116,11 +123,16 @@ for (const [name, data] of presets) {
   const rho = spearman(related.map((r) => r.strength), related.map((r) => r.ratio));
   assert(rho < -0.5, `${name}: stronger relation → more overlap (Spearman < -0.5)`, `rho ${rho.toFixed(3)}`);
 
+  // M8.1: the cosmos is shifted (rigidly) so the black hole at the origin sits in a void
   const mean = [0, 1, 2].map((k) => cores.reduce((a, c) => a + c.center[k], 0) / cores.length);
-  assert(mean.every((m) => Math.abs(m) < 1e-6), `${name}: cosmos centred on origin`, JSON.stringify(mean));
+  assert(Math.hypot(mean[0], mean[1], mean[2]) <= MAX_VOID_SHIFT + 1e-9, `${name}: centroid within ${MAX_VOID_SHIFT} u of the black hole`, JSON.stringify(mean));
+  const clearance = clearanceAt(cores, [0, 0, 0]);
+  assert(clearance >= BLACK_HOLE_CLEARANCE, `${name}: ≥ ${BLACK_HOLE_CLEARANCE} u free around the black hole`, clearance.toFixed(2));
   const extent = Math.max(...cores.map((c) => Math.hypot(...c.center) + c.radius));
   assert(extent < 45, `${name}: fits the galaxy view (extent < 45 u)`, `extent ${extent.toFixed(1)}`);
-  console.log(`    ↳ ${name}: minUnrelated ${minUnrelated.toFixed(2)} · rho ${rho.toFixed(2)} · extent ${extent.toFixed(1)} u`);
+  console.log(
+    `    ↳ ${name}: minUnrelated ${minUnrelated.toFixed(2)} · rho ${rho.toFixed(2)} · extent ${extent.toFixed(1)} u · black hole clearance ${clearance.toFixed(2)} u`
+  );
 }
 
 console.log('\n================================================================');

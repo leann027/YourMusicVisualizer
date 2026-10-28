@@ -26,6 +26,11 @@ const REPULSION_K = 0.5;
 const UNRELATED_GAP = 1.3; // unrelated nebulae are pushed to (Sa+Sb)·1.3
 const OVERLAP_MIN = 0.95; // related target distance (Sa+Sb)·(0.95 − 0.35·n/nMax)
 const OVERLAP_RANGE = 0.35;
+/** The black hole and its accretion disc span ~3.2 u: keep at least this much free space around the origin (M8.1). */
+export const BLACK_HOLE_CLEARANCE = 3.3;
+/** Largest rigid shift allowed to bring a void onto the black hole. */
+export const MAX_VOID_SHIFT = 6;
+const VOID_STEP = 0.5;
 
 type Vec3 = [number, number, number];
 
@@ -39,6 +44,36 @@ export interface NebulaCore {
 export function nebulaRadius(songCount: number, maxSongCount: number): number {
   const ratio = maxSongCount > 0 ? Math.max(0, songCount) / maxSongCount : 0;
   return (34 + 30 * Math.sqrt(Math.min(1, ratio))) * WORLD_SCALE;
+}
+
+/** Free distance from `p` to the nearest nebula surface (negative inside a nebula). */
+export function clearanceAt(cores: NebulaCore[], p: Vec3): number {
+  let min = Infinity;
+  for (const c of cores) {
+    min = Math.min(min, Math.hypot(p[0] - c.center[0], p[1] - c.center[1], p[2] - c.center[2]) - c.radius);
+  }
+  return min;
+}
+
+/**
+ * Centre of the emptiest point within MAX_VOID_SHIFT of the origin (grid search, deterministic).
+ * Translating the cosmos by its negative puts the black hole in a void without changing any
+ * distance between nebulae, so every layout guarantee is preserved.
+ */
+export function findCentralVoid(cores: NebulaCore[]): { point: Vec3; clearance: number } {
+  let best = { point: [0, 0, 0] as Vec3, clearance: clearanceAt(cores, [0, 0, 0]) };
+  const steps = Math.round(MAX_VOID_SHIFT / VOID_STEP);
+  for (let i = -steps; i <= steps; i++) {
+    for (let j = -steps; j <= steps; j++) {
+      for (let k = -steps; k <= steps; k++) {
+        const p: Vec3 = [i * VOID_STEP, j * VOID_STEP, k * VOID_STEP];
+        if (Math.hypot(p[0], p[1], p[2]) > MAX_VOID_SHIFT) continue;
+        const clearance = clearanceAt(cores, p);
+        if (clearance > best.clearance) best = { point: p, clearance };
+      }
+    }
+  }
+  return best;
 }
 
 /**
@@ -115,6 +150,14 @@ export function computeNebulaCores(data: MusicGalaxyData, relations: GenreRelati
       c.center[1] -= mean[1];
       c.center[2] -= mean[2];
     }
+  }
+
+  // M8.1: move the emptiest nearby point onto the central black hole (rigid translation)
+  const { point } = findCentralVoid(cores);
+  for (const c of cores) {
+    c.center[0] -= point[0];
+    c.center[1] -= point[1];
+    c.center[2] -= point[2];
   }
 
   return cores;
