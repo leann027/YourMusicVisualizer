@@ -75,6 +75,7 @@ interface GalaxyState {
   rendererMode: RendererMode;
   nebulaFieldDensity: NebulaFieldDensity; // drops to 'reduced' once if FPS stay low (one-way per session)
   selectedCollision: CollisionSelection | null; // nebula mode only; cameraMode is 'collision' while set
+  nebulaGenreLabelIds: string[] | null; // nebula galaxy view: genre labels allowed (5 nearest), null = no limit
 
   // Actions
   finishWarp: () => void;
@@ -104,6 +105,7 @@ interface GalaxyState {
   setRendererMode: (mode: RendererMode) => void;
   reduceNebulaFieldDensity: () => void;
   selectCollision: (pair: CollisionSelection | null) => void;
+  setNebulaGenreLabelIds: (ids: string[] | null) => void;
 }
 
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
@@ -139,6 +141,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   rendererMode: 'classic',
   nebulaFieldDensity: 'full',
   selectedCollision: null,
+  nebulaGenreLabelIds: null,
 
   finishWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
   skipWarp: () => set({ isWarpActive: false, hasWarpCompleted: true }),
@@ -324,6 +327,12 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       isSleeveCollapsed: false,
       flightVersion: state.flightVersion + 1,
     });
+  },
+
+  setNebulaGenreLabelIds: (ids) => {
+    const current = get().nebulaGenreLabelIds;
+    if (current === ids || (current && ids && current.join() === ids.join())) return;
+    set({ nebulaGenreLabelIds: ids });
   },
 
   reduceNebulaFieldDensity: () => {

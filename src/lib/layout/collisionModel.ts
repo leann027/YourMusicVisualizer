@@ -110,3 +110,37 @@ export function collisionSummary(sharedSongs: number): string {
   if (sharedSongs === 0) return 'afinidad por colaboraciones y estilo';
   return sharedSongs === 1 ? 'canción en común' : 'canciones en común';
 }
+
+/** In node views the marker moves towards the other genre so it clears the focused genre's artist labels (M8.3). */
+export const MARKER_AWAY_SHIFT = 0.7; // ·contact radius, towards the other genre
+export const MARKER_AWAY_LIFT = 0.2; // ·contact radius, upwards
+export const MARKER_GALAXY_LIFT = 0.55; // ·contact radius, upwards (galaxy and collision views)
+
+/**
+ * Where to draw a collision's "∩ n" marker. With a focused genre in the pair it shifts away from
+ * that genre; otherwise it floats above the contact point.
+ */
+export function collisionMarkerPosition(relation: NebulaRelation, focusGenreId: string | null): Vec3 {
+  const [x, y, z] = relation.contact;
+  const r = relation.radius;
+  if (focusGenreId === relation.a || focusGenreId === relation.b) {
+    const sign = focusGenreId === relation.a ? 1 : -1; // dir points from a towards b
+    return [
+      x + relation.dir[0] * sign * r * MARKER_AWAY_SHIFT,
+      y + relation.dir[1] * sign * r * MARKER_AWAY_SHIFT + r * MARKER_AWAY_LIFT,
+      z + relation.dir[2] * sign * r * MARKER_AWAY_SHIFT,
+    ];
+  }
+  return [x, y + r * MARKER_GALAXY_LIFT, z];
+}
+
+export const MAX_GALAXY_GENRE_LABELS = 5;
+
+/** Genre labels shown in the nebula galaxy view: the MAX_GALAXY_GENRE_LABELS cores closest to the camera. */
+export function nearestGenreLabelIds(cores: { genreId: string; center: Vec3 }[], cameraLocal: Vec3): string[] {
+  const dist = (p: Vec3) => Math.hypot(p[0] - cameraLocal[0], p[1] - cameraLocal[1], p[2] - cameraLocal[2]);
+  return [...cores]
+    .sort((x, y) => dist(x.center) - dist(y.center) || x.genreId.localeCompare(y.genreId))
+    .slice(0, MAX_GALAXY_GENRE_LABELS)
+    .map((c) => c.genreId);
+}
