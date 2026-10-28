@@ -7,6 +7,8 @@ The 3D canvas is refactored from monolithic components into single-responsibilit
 - `src/components/canvas/nebula/`: Classic sector nebula cluster, procedural geometry generators, cloud shaders (with pinprick sparks and volumetric gas). Used only in `rendererMode: 'classic'`.
 - `src/components/canvas/nebulaV3/`: Nebulosas v3 (default renderer since M8): single-draw-call gas field, collisions between related genres, bridge threads, collision markers, collision and overview cameras.
 - `src/lib/layout/`: Pure spatial layouts (`classicLayout`, `genreRelations`, `nebulaLayout`, `collisionModel`); `src/lib/math/`: deterministic PRNG and noise.
+- `src/lib/music/`: dynamic genre classification by tags (`tagModel`, `dynamicGenres`, `lastfmTags`); `genreClassifier` is only a weak prior. `src/lib/spotify/spotifyPayload.ts`: Spotify + Last.fm → importer input.
+- `src/components/canvas/nebulaV3/`: also `StarField` (luminous stars, one draw call) and `NebulaDepth` (fog, emission knots, dust lanes); look overrides on Vercel previews via `nebulaTune.ts`.
 - `src/components/canvas/galaxy/`: Supermassive black hole, spiral stardust points, stardust geometry, relativistic shaders.
 - `src/components/canvas/hooks/`: Flight dynamic hooks (`useWarpSequence`, `useArcFlight`, `useOrbitalTracking`, `usePerformanceMonitor`).
 - `src/components/canvas/GalaxyScene.tsx`: Top-level composition scene mounting galaxy elements conditionally.
@@ -36,6 +38,9 @@ The 3D canvas is refactored from monolithic components into single-responsibilit
 | M6 | Nebulosas v3 · Gas field | Single-draw-call gas field (geometry, shaders, `NebulaField`), calibrated look, nebula bloom, adaptive density | M5 | DONE (phone FPS check pending) |
 | M7 | Nebulosas v3 · Collisions | Collision particles, bridge threads and rings, collision selection and camera, collision HUD (card, "Choca con", ∩ n markers, links toggle), tide boost for playing bridge songs | M6 | DONE |
 | M8 | Nebulosas v3 · Polish & default | Black hole kept in a void, nebula overview framing (galaxy view and warp-in), genre label LOD and marker placement, `nebula` as default with a Nebulosas / Clásico selector remembered per viewer | M7 | DONE |
+| A1–A4 | Dynamic genres | Tag model, tag clustering with naming and bridges, importer + curated preset tags, Spotify + Last.fm raw tags (no hash fallback) | M8 | DONE |
+| C1 | Compact cosmos | Compaction phase in the nebula layout (overview camera ~30% closer); C1b black hole void for 1–2 nebula cosmos | A3 | DONE |
+| B1–B3 | Stars & nebula depth | Luminous `StarField` (690 → 98 draw calls), `NebulaDepth` fog / knots / dust lanes, look overrides and `?fps` on Vercel previews | C1 | DONE (GPU / phone calibration pending) |
 
 ## Interface Contracts
 ### `src/components/canvas/nebula/`
