@@ -8,7 +8,7 @@ import { getNebulaLayout } from '../../../lib/layout/nebulaLayout';
 import { buildNebulaDepthGeometry } from './nebulaDepthGeometry';
 import { computeNebulaFieldTargets, DEFAULT_STELLAR_BRIGHTNESS } from './nebulaFieldTargets';
 import { createNebulaFogMaterial, createNebulaLanesMaterial } from './shaders/nebulaDepthShaders';
-import { parseNebulaTune } from './nebulaTune';
+import { readTuneParam } from './nebulaTune';
 
 // Same easing as the gas field, so the depth layers dim together with the gas
 const FOCUS_EASE = 0.07;
@@ -36,11 +36,8 @@ export const NebulaDepth: React.FC = () => {
   const depth = useMemo(() => buildNebulaDepthGeometry(layout, density), [layout, density]);
   const fogMaterial = useMemo(() => createNebulaFogMaterial(), []);
   const lanesMaterial = useMemo(() => createNebulaLanesMaterial(), []);
-  // Development-only look override: ?fogTune=<fog>,<lanes>
-  const tune = useMemo(() => {
-    if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return null;
-    return parseNebulaTune(new URLSearchParams(window.location.search).get('fogTune'));
-  }, []);
+  // Look override in development and on Vercel previews (B3): ?fogTune=<fog>,<lanes>
+  const tune = useMemo(() => readTuneParam('fogTune'), []);
 
   useEffect(
     () => () => {

@@ -9,7 +9,7 @@ import { getNebulaLayout } from '../../../lib/layout/nebulaLayout';
 import { buildStarFieldGeometry } from './starFieldGeometry';
 import { computeNebulaFieldTargets, DEFAULT_STELLAR_BRIGHTNESS } from './nebulaFieldTargets';
 import { createStarFieldMaterial } from './shaders/starFieldShaders';
-import { parseNebulaTune } from './nebulaTune';
+import { readTuneParam } from './nebulaTune';
 
 /** After the dust lanes (renderOrder 1, B2): lanes darken the gas, never the stars. */
 export const STAR_FIELD_RENDER_ORDER = 2;
@@ -40,11 +40,8 @@ export const StarField: React.FC = () => {
   );
   const indexOf = useMemo(() => new Map(stars.nodeIds.map((id, i) => [id, i])), [stars]);
   const material = useMemo(() => createStarFieldMaterial(), []);
-  // Development-only look override: ?starTune=<size>,<brightness>
-  const tune = useMemo(() => {
-    if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return null;
-    return parseNebulaTune(new URLSearchParams(window.location.search).get('starTune'));
-  }, []);
+  // Look override in development and on Vercel previews (B3): ?starTune=<size>,<brightness>
+  const tune = useMemo(() => readTuneParam('starTune'), []);
 
   useEffect(() => () => stars.geometry.dispose(), [stars]);
   useEffect(() => () => material.dispose(), [material]);
