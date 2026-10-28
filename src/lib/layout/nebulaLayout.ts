@@ -20,7 +20,17 @@ export const WORLD_SCALE = 0.14;
 const INNER_SHELL = 120 * WORLD_SCALE;
 const OUTER_SHELL = 210 * WORLD_SCALE;
 const SHELL_Y_SQUASH = 0.75;
-const RELAX_ITERATIONS = 320;
+const RELAX_ITERATIONS = 420;
+/**
+ * Compaction phase (C1): during the first iterations every nebula is pulled weakly towards the
+ * centre, harder vertically. The overview must frame the cosmos at any rotation around Y, so its
+ * height sets the camera distance on wide screens; a lower, compact cosmos lets the camera come
+ * ~30% closer. The remaining iterations relax without the pull, so springs and repulsion restore
+ * every overlap / gap rule.
+ */
+export const COMPACT_ITERATIONS = 200;
+export const COMPACT_PULL_H = 0.01;
+export const COMPACT_PULL_V = 0.05;
 const SPRING_K = 0.08;
 const REPULSION_K = 0.5;
 const UNRELATED_GAP = 1.3; // unrelated nebulae are pushed to (Sa+Sb)·1.3
@@ -109,6 +119,13 @@ export function computeNebulaCores(data: MusicGalaxyData, relations: GenreRelati
   }
 
   for (let it = 0; it < RELAX_ITERATIONS; it++) {
+    if (it < COMPACT_ITERATIONS) {
+      for (const c of cores) {
+        c.center[0] *= 1 - COMPACT_PULL_H;
+        c.center[1] *= 1 - COMPACT_PULL_V;
+        c.center[2] *= 1 - COMPACT_PULL_H;
+      }
+    }
     for (let i = 0; i < count; i++) {
       for (let j = i + 1; j < count; j++) {
         const A = cores[i].center;
