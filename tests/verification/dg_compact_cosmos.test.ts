@@ -103,16 +103,29 @@ for (const [name, data] of datasets) {
   const { maxRelated, minUnrelated } = pairRatios(data, cores);
   if (maxRelated > 0) assert(maxRelated < 1, `${name}: related nebulae still overlap (d < Sa+Sb)`, maxRelated.toFixed(3));
   if (Number.isFinite(minUnrelated)) assert(minUnrelated >= 1.2, `${name}: unrelated nebulae still ≥ (Sa+Sb)·1.2`, minUnrelated.toFixed(3));
-  // Known gap (pre-C1, M8.1): two overlapping nebulae leave no void within MAX_VOID_SHIFT of the origin
-  if (cores.length > 2) {
-    const clearance = clearanceAt(cores, [0, 0, 0]);
-    assert(clearance >= BLACK_HOLE_CLEARANCE, `${name}: ≥ ${BLACK_HOLE_CLEARANCE} u free around the black hole`, clearance.toFixed(2));
-  }
+  const clearance = clearanceAt(cores, [0, 0, 0]);
+  assert(clearance >= BLACK_HOLE_CLEARANCE, `${name}: ≥ ${BLACK_HOLE_CLEARANCE} u free around the black hole`, clearance.toFixed(2));
   assert(
     JSON.stringify(computeNebulaCores(data, computeGenreRelations(data))) === JSON.stringify(cores),
     `${name}: deterministic`
   );
 }
+
+// C1b: small cosmos (one nebula, two overlapping ones) also leave the black hole in free space
+const homogeneous = datasets.find(([name]) => name === 'homogeneous')![1];
+const single: MusicGalaxyData = {
+  ...homogeneous,
+  genres: homogeneous.genres.slice(0, 1),
+  artists: homogeneous.artists.filter((a) => a.genreId === homogeneous.genres[0].id),
+  songs: homogeneous.songs.filter((s) => s.genreId === homogeneous.genres[0].id),
+};
+const singleCores = computeNebulaCores(single, []);
+const singleShift = Math.hypot(...singleCores[0].center);
+assert(clearanceAt(singleCores, [0, 0, 0]) >= BLACK_HOLE_CLEARANCE - 1e-9, 'single nebula: black hole outside the gas', clearanceAt(singleCores, [0, 0, 0]).toFixed(2));
+assert(singleShift <= singleCores[0].radius + BLACK_HOLE_CLEARANCE + 1, 'single nebula: right beside the black hole (smallest shift)', singleShift.toFixed(2));
+const t0 = performance.now();
+computeNebulaCores(homogeneous, computeGenreRelations(homogeneous));
+assert(performance.now() - t0 < 500, 'small cosmos: widened void search < 500 ms', `${(performance.now() - t0).toFixed(0)} ms`);
 
 console.log('\n================================================================');
 console.log('SUMMARY OF C1 VERIFICATION');
