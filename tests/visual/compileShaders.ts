@@ -1,4 +1,4 @@
-// Compiles the Nebulosas v3 shaders (gas field and collisions) on a real WebGL driver
+// Compiles the Nebulosas v3 shaders (gas field, collisions, bridge threads and luminous stars) on a real WebGL driver
 // (Chromium + SwiftShader) and renders one frame of preset 50. Outside CI: node has no WebGL,
 // so a GLSL typo would otherwise only show up when the scene mounts.
 // Usage: npx tsx tests/visual/compileShaders.ts [--out test-results/visual/compile-shaders.png]
@@ -30,6 +30,13 @@ import {
   BRIDGE_THREAD_VERTEX_SHADER,
   createBridgeThreadUniforms,
 } from '../../src/components/canvas/nebulaV3/shaders/bridgeThreadShaders';
+import { buildStarFieldGeometry, STAR_FIELD_ATTRIBUTES } from '../../src/components/canvas/nebulaV3/starFieldGeometry';
+import {
+  createStarFieldUniforms,
+  STAR_FIELD_CACHE_KEY,
+  STAR_FIELD_FRAGMENT_SHADER,
+  STAR_FIELD_VERTEX_SHADER,
+} from '../../src/components/canvas/nebulaV3/shaders/starFieldShaders';
 import { computeNebulaLayout } from '../../src/lib/layout/nebulaLayout';
 import { GALAXY_PRESET_50 } from '../../src/data/galaxyPresets';
 import { CameraSpec, geometryArrays, openShaderPage, ProgramSpec, renderPrograms, RenderResult } from './nebulaHarness';
@@ -73,6 +80,19 @@ const programs: ProgramSpec[] = [
     itemSizes: BRIDGE_THREAD_ATTRIBUTES as Record<string, number>,
     uniforms: { ...uniformValues(createBridgeThreadUniforms()), uShowAll: 1 },
     primitive: 'lines',
+  },
+  {
+    label: 'luminous stars',
+    vertexShader: STAR_FIELD_VERTEX_SHADER,
+    fragmentShader: STAR_FIELD_FRAGMENT_SHADER,
+    cacheKey: STAR_FIELD_CACHE_KEY,
+    attributes: geometryArrays(
+      buildStarFieldGeometry(layout.data, layout.data.genres.map((g) => g.id)).geometry,
+      Object.keys(STAR_FIELD_ATTRIBUTES)
+    ),
+    itemSizes: STAR_FIELD_ATTRIBUTES as Record<string, number>,
+    // 600 px canvas, 52° FOV: px per unit at distance 1
+    uniforms: { ...uniformValues(createStarFieldUniforms()), uViewScale: 600 / (2 * Math.tan((52 * Math.PI) / 360)) },
   },
 ];
 // bridge thread visibility, checked on the real shader: hidden without links or focus
@@ -123,6 +143,10 @@ async function main(): Promise<boolean> {
   const tideShifted = await canvasPng();
   const tideNoise = changedPixels(tideBase, tideSame);
   const tideMoved = changedPixels(tideBase, tideShifted);
+  // luminous stars (B1): focus dims the other genres, a full affinity filter hides every star
+  const starSpec = programs[3];
+  const starsFocused = await renderPrograms(page, [{ ...starSpec, uniforms: { ...starSpec.uniforms, uFocusGid: 0, uFocusAmt: 1 } }], camera);
+  const starsFiltered = await renderPrograms(page, [{ ...starSpec, uniforms: { ...starSpec.uniforms, uMinAffinity: 1.1 } }], camera);
   const together = await renderPrograms(page, programs, camera);
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   await page.locator('#c').screenshot({ path: outFile });
@@ -150,6 +174,11 @@ async function main(): Promise<boolean> {
     ],
     [tideNoise === 0, `collisions, zero tide offsets: frame identical (${tideNoise} px differ)`],
     [tideMoved > 0, `collisions, tide offset on one collision moves its tides (${tideMoved} px differ)`],
+    [
+      starsFocused.litShare > 0 && starsFocused.litShare < perProgram[3].litShare,
+      `luminous stars, focus on one genre: dims the others (${(starsFocused.litShare * 100).toFixed(2)}% vs ${(perProgram[3].litShare * 100).toFixed(2)}% lit)`,
+    ],
+    [starsFiltered.litShare === 0, `luminous stars, affinity filter above every node: nothing drawn (${(starsFiltered.litShare * 100).toFixed(2)}% lit)`],
   ];
   for (const [ok, label] of checks) console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`);
   console.log(`  WebGL2: ${together.webgl2} · preview: ${outFile}`);

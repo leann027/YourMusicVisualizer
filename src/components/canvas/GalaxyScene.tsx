@@ -7,7 +7,7 @@ import { Stars } from '@react-three/drei';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { NebulaClusters } from './NebulaClusters';
-import { BridgeThreads, CollisionMarkers, NebulaCollisions, NebulaField } from './nebulaV3';
+import { BridgeThreads, CollisionMarkers, NebulaCollisions, NebulaField, StarField } from './nebulaV3';
 import { DistantSongsCloud } from './DistantSongsCloud';
 import { GalacticDustDisc } from './GalacticDustDisc';
 import { ConstellationLinks } from './ConstellationLinks';
@@ -100,6 +100,8 @@ export const GalaxyScene: React.FC = () => {
             <NebulaCollisions />
             <BridgeThreads />
             <CollisionMarkers />
+            {/* Luminous stars for every node (B1); StarNodeMesh keeps hit spheres, labels and pulsar */}
+            <StarField />
           </>
         ) : (
           <NebulaClusters />
@@ -123,11 +125,14 @@ export const GalaxyScene: React.FC = () => {
         ))}
 
         {/* Background Song Stars Cloud for massive scalability (1 GPU draw call for thousands of stars) */}
-        <DistantSongsCloud
-          songs={data.songs}
-          genreColorMap={genreColorMap}
-          activeSongIds={activeSongIds}
-        />
+        {/* In nebula mode every song is already a StarField point */}
+        {rendererMode !== 'nebula' && (
+          <DistantSongsCloud
+            songs={data.songs}
+            genreColorMap={genreColorMap}
+            activeSongIds={activeSongIds}
+          />
+        )}
 
         {/* Interactive Song Nodes (Mounted only for active cluster to guarantee 60 FPS) */}
         {interactiveSongs.map((song) => (

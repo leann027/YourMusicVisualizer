@@ -63,6 +63,8 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
 
   const isFilteredOut = node.affinity < minAffinityFilter;
+  // Nebulosas v3 (B1): the visible star is a StarField point; this mesh keeps the interactive parts
+  const luminous = rendererMode === 'nebula';
   const metrics = useMemo(() => calculateStarVisualMetrics(node), [node]);
   // Nebulosas v3: songs placed in a collision get a ring in the pair's mixed colour
   const bridgeColor = useMemo(
@@ -100,8 +102,9 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     if (isFilteredOut) return;
     const t = state.clock.getElapsedTime();
 
-    // Gentle celestial drift & planetary undulating motion
-    if (!prefersReducedMotion && groupRef.current) {
+    // Gentle celestial drift & planetary undulating motion (classic only: in nebula mode the
+    // StarField point, the hit sphere and the camera all stay on node.position)
+    if (!prefersReducedMotion && !luminous && groupRef.current) {
       const seed = node.position[0] * 3.1 + node.position[2] * 7.3;
       if (node.type === 'song') {
         groupRef.current.position.x =
@@ -311,16 +314,19 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       onSelect: handleSelect,
       onPointerOver: handlePointerOver,
       onPointerOut: handlePointerOut,
+      showBody: !luminous,
     }),
-    React.createElement(StarAccretionRings, {
-      nodeType: node.type,
-      affinity: node.affinity,
-      metrics,
-      starColor,
-      isSelected,
-      stellarBrightness,
-      ringRef,
-    }),
+    luminous
+      ? null
+      : React.createElement(StarAccretionRings, {
+          nodeType: node.type,
+          affinity: node.affinity,
+          metrics,
+          starColor,
+          isSelected,
+          stellarBrightness,
+          ringRef,
+        }),
     React.createElement(StarFeatures, {
       nodeType: node.type,
       metrics,
@@ -329,6 +335,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
       diffractionRef,
       satelliteRef,
       bridgeColor,
+      bodyFeatures: !luminous,
     }),
     isPlayingNode
       ? React.createElement(StarPlaybackPulsar, {
