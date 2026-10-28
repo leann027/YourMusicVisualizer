@@ -9,3 +9,6 @@ export { BridgeThreads } from './BridgeThreads';
 export { bridgeRingColor, buildBridgeThreadGeometry, BRIDGE_THREAD_ATTRIBUTES } from './bridges';
 export { createBridgeThreadMaterial, BRIDGE_THREAD_CACHE_KEY } from './shaders/bridgeThreadShaders';
 export { CollisionMarkers } from './CollisionMarkers';
+export { StarField } from './StarField';
+export { buildStarFieldGeometry, STAR_FIELD_ATTRIBUTES, STAR_KIND } from './starFieldGeometry';
+export { createStarFieldMaterial, STAR_FIELD_CACHE_KEY } from './shaders/starFieldShaders';
