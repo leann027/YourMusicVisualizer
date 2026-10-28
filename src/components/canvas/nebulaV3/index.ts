@@ -10,5 +10,8 @@ export { bridgeRingColor, buildBridgeThreadGeometry, BRIDGE_THREAD_ATTRIBUTES } 
 export { createBridgeThreadMaterial, BRIDGE_THREAD_CACHE_KEY } from './shaders/bridgeThreadShaders';
 export { CollisionMarkers } from './CollisionMarkers';
 export { StarField } from './StarField';
+export { NebulaDepth } from './NebulaDepth';
+export { buildNebulaDepthGeometry, DEPTH_KIND, NEBULA_DEPTH_ATTRIBUTES } from './nebulaDepthGeometry';
+export { createNebulaFogMaterial, createNebulaLanesMaterial, NEBULA_FOG_CACHE_KEY, NEBULA_LANES_CACHE_KEY } from './shaders/nebulaDepthShaders';
 export { buildStarFieldGeometry, STAR_FIELD_ATTRIBUTES, STAR_KIND } from './starFieldGeometry';
 export { createStarFieldMaterial, STAR_FIELD_CACHE_KEY } from './shaders/starFieldShaders';

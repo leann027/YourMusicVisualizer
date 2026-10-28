@@ -11,6 +11,9 @@ import { computeNebulaFieldTargets, DEFAULT_STELLAR_BRIGHTNESS } from './nebulaF
 import { createStarFieldMaterial } from './shaders/starFieldShaders';
 import { parseNebulaTune } from './nebulaTune';
 
+/** After the dust lanes (renderOrder 1, B2): lanes darken the gas, never the stars. */
+export const STAR_FIELD_RENDER_ORDER = 2;
+
 // Same easing as the gas field, so stars and gas dim together
 const FOCUS_EASE = 0.07;
 const ARTIST_EASE = 0.09;
@@ -94,6 +97,13 @@ export const StarField: React.FC = () => {
   });
 
   return (
-    <points ref={pointsRef} geometry={stars.geometry} material={material} frustumCulled={false} name="nebula-star-field" />
+    <points
+      ref={pointsRef}
+      geometry={stars.geometry}
+      material={material}
+      frustumCulled={false}
+      renderOrder={STAR_FIELD_RENDER_ORDER}
+      name="nebula-star-field"
+    />
   );
 };
