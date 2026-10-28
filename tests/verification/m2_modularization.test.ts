@@ -456,8 +456,8 @@ assert(pulsarFrameErrors === 0, 'StarPlaybackPulsar frame animation math survive
 // -----------------------------------------------------------------------------
 console.log('\n--- Suite 5: Re-Exports & Store State Flow ---');
 
-// StarNodeMesh re-exports
-import * as StarNodeMeshExports from '../../src/components/canvas/StarNodeMesh';
+// star/ and galaxy/ module exports (the root re-export files were removed in the reorganisation)
+import * as StarNodeMeshExports from '../../src/components/canvas/star';
 const expectedStarExports = [
   'StarNodeMesh',
   'StarCoreMesh',
@@ -484,12 +484,11 @@ const expectedStarExports = [
 for (const exp of expectedStarExports) {
   assert(
     exp in StarNodeMeshExports && (StarNodeMeshExports as Record<string, unknown>)[exp] !== undefined,
-    `StarNodeMesh.tsx correctly re-exports ${exp}`
+    `star/index.ts exports ${exp}`
   );
 }
 
-// GalacticDustDisc re-exports
-import * as GalacticDustDiscExports from '../../src/components/canvas/GalacticDustDisc';
+import * as GalacticDustDiscExports from '../../src/components/canvas/galaxy';
 const expectedDustExports = [
   'GalacticDustDisc',
   'SupermassiveBlackHole',
@@ -503,7 +502,7 @@ const expectedDustExports = [
 for (const exp of expectedDustExports) {
   assert(
     exp in GalacticDustDiscExports && (GalacticDustDiscExports as Record<string, unknown>)[exp] !== undefined,
-    `GalacticDustDisc.tsx correctly re-exports ${exp}`
+    `galaxy/index.ts exports ${exp}`
   );
 }
 

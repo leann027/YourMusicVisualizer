@@ -1,12 +1,5 @@
 import * as THREE from 'three';
 
-export interface NebulaUniforms {
-  uBrightness: { value: number };
-  uTime: { value: number };
-  uHighShimmer: { value: number };
-  uSubBass: { value: number };
-}
-
 export interface NebulaMaterialOptions {
   isInner: boolean;
   genreId: string;

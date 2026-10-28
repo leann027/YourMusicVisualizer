@@ -2,8 +2,8 @@
 
 import React, { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
-import { SongNode } from '../../types/music';
-import { useGalaxyStore } from '../../store/useGalaxyStore';
+import { SongNode } from '../../../types/music';
+import { useGalaxyStore } from '../../../store/useGalaxyStore';
 
 interface DistantSongsCloudProps {
   songs: SongNode[];

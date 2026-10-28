@@ -1,7 +1,8 @@
 import { RawLibraryPayload } from '../../../src/lib/importers/libraryImporter';
 
-// Edge case for the classic layout (M5.1): one artist whose tracks land in two genres,
-// which makes the importer emit two ArtistNodes with the same id.
+// Edge case for the classic layout (M5.1): one artist whose tracks carry tags of two genres.
+// Before A3 the importer emitted two ArtistNodes with the same id; since the dynamic
+// classification the artist belongs to one nebula and the other style shows up as bridges.
 export const SPLIT_ARTIST_PAYLOAD: RawLibraryPayload = {
   profileName: 'Split Artist Fixture',
   source: 'spotify',

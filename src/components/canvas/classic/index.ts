@@ -1,11 +1,11 @@
 'use client';
 
+// Classic renderer (rendererMode 'classic'): per-sector nebula clusters and the distant songs cloud.
+
 import React from 'react';
 import { MusicGalaxyData, GenreNode } from '../../../types/music';
 import { useGalaxyStore } from '../../../store/useGalaxyStore';
 import { SectorNebulaCluster } from './SectorNebulaCluster';
-
-export type GalaxyData = MusicGalaxyData;
 
 export interface NebulaClustersProps {
   data?: MusicGalaxyData;
@@ -39,3 +39,4 @@ export { SectorNebulaCluster } from './SectorNebulaCluster';
 export type { SectorNebulaClusterProps } from './SectorNebulaCluster';
 export * from './nebulaGeometry';
 export * from './shaders/nebulaShaders';
+export { DistantSongsCloud } from './DistantSongsCloud';
