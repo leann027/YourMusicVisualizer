@@ -15,14 +15,18 @@ export const SPLIT_ARTIST_PAYLOAD: RawLibraryPayload = {
   ],
 };
 
-// Secondary genre resolution (M5.2): valid cross-genre, same-as-primary and unknown genre.
+// Secondary genre resolution: since A3 bridges emerge from song tags. A song tagged with both
+// styles bridges; one tagged only with its own style, or with a style no nebula has, does not.
 export const SECONDARY_GENRE_PAYLOAD: RawLibraryPayload = {
   profileName: 'Secondary Genre Fixture',
   source: 'spotify',
   tracks: [
-    { title: 'Bridge Song', artist: 'Crosser', genre: 'techno minimal', secondaryGenre: 'jazz fusion' },
-    { title: 'Home Song', artist: 'Crosser', genre: 'techno minimal', secondaryGenre: 'techno minimal' },
-    { title: 'Lost Song', artist: 'Crosser', genre: 'techno minimal', secondaryGenre: 'polka espacial' },
+    { title: 'Bridge Song', artist: 'Crosser', genre: 'techno minimal', trackTags: [{ name: 'techno minimal', weight: 100 }, { name: 'jazz fusion', weight: 100 }] },
+    { title: 'Home Song', artist: 'Crosser', genre: 'techno minimal', trackTags: [{ name: 'techno minimal', weight: 100 }] },
+    { title: 'Lost Song', artist: 'Crosser', genre: 'techno minimal', trackTags: [{ name: 'polka espacial', weight: 100 }] },
     { title: 'Plain Song', artist: 'Quartet Nine', genre: 'jazz fusion' },
+    { title: 'Second Jazz', artist: 'Quartet Nine', genre: 'jazz fusion' },
+    { title: 'Third Jazz', artist: 'Quartet Nine', genre: 'jazz fusion' }, // 3 songs: not a tiny group
+    { title: 'Second Techno', artist: 'Crosser', genre: 'techno minimal' },
   ],
 };

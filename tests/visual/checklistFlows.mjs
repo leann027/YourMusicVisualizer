@@ -154,7 +154,7 @@ if (renderer === 'nebula') {
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: /ART ROCK/i }).first().click();
   await page.waitForTimeout(SETTLE_MS);
-  const clashChip = page.getByRole('button', { name: /Ver choque con POST-ROCK/i });
+  const clashChip = page.getByRole('button', { name: /Ver choque con .*POST-ROCK/i });
   check(await clashChip.isVisible().catch(() => false), 'Genre card lists "Choca con" collisions');
   await clashChip.click();
   await page.waitForTimeout(SETTLE_MS);

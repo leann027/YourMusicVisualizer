@@ -331,6 +331,7 @@ const SUBGENRE_TAXONOMY_DICTIONARY: Record<string, NormalizedSubgenre> = {
   // Rock Nacional, Latino & Tropical
   'rock nacional': { macro: 'LATINO_TROPICAL', subgenre: 'Rock Nacional' },
   'rock argentino': { macro: 'LATINO_TROPICAL', subgenre: 'Rock Nacional' },
+  'argentine rock': { macro: 'LATINO_TROPICAL', subgenre: 'Rock Nacional' }, // Spotify genre name
   'rock en espanol': { macro: 'LATINO_TROPICAL', subgenre: 'Rock Latino' },
   'rock uruguayo': { macro: 'LATINO_TROPICAL', subgenre: 'Rock Rioplatense' },
   'latin rock': { macro: 'LATINO_TROPICAL', subgenre: 'Rock Latino' },
@@ -554,6 +555,11 @@ export interface TfIdfEdge {
  * - Strongly rewards specific, distinctive subgenres (e.g. "shoegaze", "french touch", "math rock").
  * - Returns top connections above threshold, capping links per node to avoid visual clutter.
  */
+/** Smooth inverse document frequency: ln(1 + N / (1 + DF)). */
+export function smoothIdf(documentCount: number, documentFrequency: number): number {
+  return Math.log(1 + documentCount / (1 + documentFrequency));
+}
+
 export function computeTfIdfLinks(
   entities: TfIdfEntity[],
   options: {
@@ -591,7 +597,7 @@ export function computeTfIdfLinks(
   // 2. Compute smooth IDF: ln(1 + N / (1 + DF))
   const idfMap = new Map<string, number>();
   for (const [tag, df] of dfMap.entries()) {
-    const idf = Math.log(1 + n / (1 + df));
+    const idf = smoothIdf(n, df);
     idfMap.set(tag, idf);
   }
 

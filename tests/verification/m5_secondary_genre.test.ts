@@ -57,8 +57,8 @@ const byTitle = (title: string) => synthetic.songs.find((s) => s.title === title
 const jazz = synthetic.genres.find((g) => g.name === 'JAZZ FUSION');
 assert(Boolean(jazz), 'synthetic: JAZZ FUSION genre exists');
 assert(byTitle('Bridge Song')?.secondaryGenreId === jazz?.id, 'synthetic: cross-genre secondary resolves to genre id', `got ${byTitle('Bridge Song')?.secondaryGenreId}`);
-assert(byTitle('Home Song')?.secondaryGenreId === undefined, 'synthetic: secondary equal to primary is dropped');
-assert(byTitle('Lost Song')?.secondaryGenreId === undefined, 'synthetic: unknown secondary genre is dropped');
+assert(byTitle('Home Song')?.secondaryGenreId === undefined, 'synthetic: song tagged only with its own style is no bridge');
+assert(byTitle('Lost Song')?.secondaryGenreId === undefined, 'synthetic: song tagged with a style no nebula has is no bridge');
 assert(
   byTitle('Plain Song') !== undefined && byTitle('Plain Song')!.secondaryGenreId !== byTitle('Plain Song')!.genreId,
   'synthetic: song without explicit secondary never points to its own genre'

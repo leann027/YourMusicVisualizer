@@ -58,11 +58,13 @@ assert(idle.playingGid === -1, 'nothing playing: playingGid -1');
 assert(Math.abs(idle.gain - Math.sqrt(32200 / particleCount)) < 1e-9 && idle.gain > 1, 'default brightness: gain compensates the smaller field (√(32200/n))', idle.gain.toFixed(3));
 
 // 3. Genre focus
-const genre = layout.data.genres[4];
+// a genre with at least 3 artists (the dynamic classification decides how many each has)
+const genre = layout.data.genres.find((g) => layout.data.artists.filter((a) => a.genreId === g.id).length >= 3)!;
+const genreGid = layout.data.genres.indexOf(genre);
 const sector = computeNebulaFieldTargets({ ...base, selectedSectorId: genre.id, selectedNode: genre, cameraMode: 'sector' });
-assert(sector.focusGid === 4 && sector.focusAmt === 1, 'sector selected: focus on its gid', JSON.stringify(sector));
+assert(sector.focusGid === genreGid && sector.focusAmt === 1, 'sector selected: focus on its gid', JSON.stringify(sector));
 const galaxyView = computeNebulaFieldTargets({ ...base, selectedSectorId: genre.id, cameraMode: 'galaxy' });
-assert(galaxyView.focusGid === 4 && galaxyView.focusAmt === 0, 'galaxy view keeps gid but fades focus out');
+assert(galaxyView.focusGid === genreGid && galaxyView.focusAmt === 0, 'galaxy view keeps gid but fades focus out');
 
 // 4. Artist focus matches the dust aid of the geometry
 const artist = layout.data.artists.filter((a) => a.genreId === genre.id)[2];

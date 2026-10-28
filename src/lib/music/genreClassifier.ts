@@ -628,7 +628,8 @@ export function deriveSisterConstellation(genreTitle: string): string {
 export function classifyUniversalMusic(
   artistName: string,
   rawGenreText?: string,
-  trackTitle?: string
+  trackTitle?: string,
+  options: { randomFallback?: boolean } = {}
 ): GenreClassification {
   const a = (artistName || '').trim().toLowerCase();
   const g = (rawGenreText || '').trim().toLowerCase();
@@ -859,6 +860,8 @@ export function classifyUniversalMusic(
   // 5. Safe Universal Distribution Fallback:
   // Distributes unfamiliar artists evenly across UNIVERSAL global genres.
   if (!matchedGenre) {
+    // dynamic classification asks for no guess: unknown stays unknown (empty genre)
+    if (options.randomFallback === false) return { genre: '', secondaryGenre: '', rawGenre: rawGenreText || '' };
     const idx = hashStr(a || 'music') % UNIVERSAL_FALLBACK_GENRES.length;
     matchedGenre = UNIVERSAL_FALLBACK_GENRES[idx];
   }
