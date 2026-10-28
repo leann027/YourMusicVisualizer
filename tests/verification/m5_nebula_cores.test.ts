@@ -88,7 +88,13 @@ assert(nebulaRadius(10, 40) < nebulaRadius(30, 40), 'radius: grows with song cou
 
 // ---------- edge cases ----------
 const one: MusicGalaxyData = { ...GALAXY_PRESET_50, genres: GALAXY_PRESET_50.genres.slice(0, 1) };
-assert(JSON.stringify(computeNebulaCores(one, [])[0].center) === '[0,0,0]', 'edge: single genre sits at origin');
+const oneCore = computeNebulaCores(one, [])[0];
+// C1b: a single nebula sits beside the black hole instead of on top of it
+assert(
+  Math.abs(Math.hypot(...oneCore.center) - oneCore.radius) >= BLACK_HOLE_CLEARANCE,
+  'edge: single genre sits beside the black hole (clearance kept)',
+  JSON.stringify(oneCore.center)
+);
 assert(computeNebulaCores({ ...GALAXY_PRESET_50, genres: [] }, []).length === 0, 'edge: no genres → no cores');
 
 // ---------- presets ----------
