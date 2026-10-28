@@ -136,7 +136,7 @@ function classifyPayload(tracks: RawLibraryTrackInput[]): {
       const artistTags = items.find((t) => t.artistTags?.length)?.artistTags;
       let profile = artistTagProfile({ spotifyGenres, artistTags, trackTags: items.map(songTags) });
       if (profile.length === 0) {
-        const guess = classifyUniversalMusic(name, undefined, items[0].title, { randomFallback: false }).genre;
+        const guess = classifyUniversalMusic(name, undefined, items[0].title).genre;
         profile = artistTagProfile({ fallbackGenre: guess || undefined });
       }
       return { id: name, songCount: items.length, profile };
