@@ -3,11 +3,12 @@
 import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { Stars } from '@react-three/drei';
+import { Stars, Stats } from '@react-three/drei';
 import { useGalaxyStore } from '../../store/useGalaxyStore';
 import { StarNodeMesh } from './StarNodeMesh';
 import { NebulaClusters } from './NebulaClusters';
 import { BridgeThreads, CollisionMarkers, NebulaCollisions, NebulaDepth, NebulaField, StarField } from './nebulaV3';
+import { fpsMeterRequested } from './nebulaV3/nebulaTune';
 import { DistantSongsCloud } from './DistantSongsCloud';
 import { GalacticDustDisc } from './GalacticDustDisc';
 import { ConstellationLinks } from './ConstellationLinks';
@@ -24,6 +25,9 @@ export const GalaxyScene: React.FC = () => {
   const playingTrackId = useGalaxyStore((s) => s.playingTrackId);
   const linksVisible = useGalaxyStore((s) => s.linksVisible);
   const rendererMode = useGalaxyStore((s) => s.rendererMode);
+
+  // ?fps frame-rate meter for calibration on real GPUs (development and Vercel previews, B3)
+  const showFps = useMemo(() => fpsMeterRequested(), []);
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -157,6 +161,8 @@ export const GalaxyScene: React.FC = () => {
 
       {/* Deferred UnrealBloomPass Post-Processing modulated by Web Audio FFT */}
       <PostProcessingPipeline />
+
+      {showFps && <Stats className="ymv-fps-meter" />}
     </>
   );
 };
