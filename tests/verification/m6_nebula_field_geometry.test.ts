@@ -172,7 +172,7 @@ const relativeGas = (r: ReturnType<typeof buildNebulaFieldGeometry>, layout: typ
   const out: number[] = [];
   for (let i = 0; i < gidArr.length; i++) {
     if (gidArr[i] !== g || kindArr[i] !== NEBULA_KIND.gas) continue;
-    out.push(+(p[i * 3] - core.center[0]).toFixed(3), +(p[i * 3 + 1] - core.center[1]).toFixed(3), +(p[i * 3 + 2] - core.center[2]).toFixed(3));
+    out.push(p[i * 3] - core.center[0], p[i * 3 + 1] - core.center[1], p[i * 3 + 2] - core.center[2]);
   }
   return out;
 };
@@ -183,7 +183,8 @@ const a = relativeGas(fullField, full, firstId);
 const b = relativeGas(reducedField, reduced, firstId);
 const prefix = Math.min(a.length, b.length);
 assert(
-  prefix > 0 && JSON.stringify(a.slice(0, prefix)) === JSON.stringify(b.slice(0, prefix)),
+  // float32 positions: compare with a tolerance, not as rounded strings
+  prefix > 0 && a.slice(0, prefix).every((v, i) => Math.abs(v - b[i]) < 1e-3),
   'stability: a nebula keeps its gas shape when another genre disappears'
 );
 
