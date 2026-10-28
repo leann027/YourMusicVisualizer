@@ -1,115 +1,65 @@
-# Project: YourMusicVisualizer
+# Project: YourMusicVisualizer (Novafy)
 
-## Architecture
-YourMusicVisualizer is an interactive 3D WebGL music universe powered by Next.js 16 (App Router), React 19, `@react-three/fiber`, `@react-three/drei`, Three.js, GSAP, and Web Audio API.
-The 3D canvas is refactored from monolithic components into single-responsibility submodules:
-- `src/components/canvas/star/`: Star core, accretion rings, features, conditional playback pulsar, LOD labels, unit geometries, star shaders.
-- `src/components/canvas/nebula/`: Classic sector nebula cluster, procedural geometry generators, cloud shaders (with pinprick sparks and volumetric gas). Used only in `rendererMode: 'classic'`.
-- `src/components/canvas/nebulaV3/`: Nebulosas v3 (default renderer since M8): single-draw-call gas field, collisions between related genres, bridge threads, collision markers, collision and overview cameras.
-- `src/lib/layout/`: Pure spatial layouts (`classicLayout`, `genreRelations`, `nebulaLayout`, `collisionModel`); `src/lib/math/`: deterministic PRNG and noise.
-- `src/lib/music/`: dynamic genre classification by tags (`tagModel`, `dynamicGenres`, `lastfmTags`); `genreClassifier` is only a weak prior. `src/lib/spotify/spotifyPayload.ts`: Spotify + Last.fm → importer input.
-- `src/components/canvas/nebulaV3/`: also `StarField` (luminous stars, one draw call) and `NebulaDepth` (fog, emission knots, dust lanes); look overrides on Vercel previews via `nebulaTune.ts`.
-- `src/components/canvas/galaxy/`: Supermassive black hole, spiral stardust points, stardust geometry, relativistic shaders.
-- `src/components/canvas/hooks/`: Flight dynamic hooks (`useWarpSequence`, `useArcFlight`, `useOrbitalTracking`, `usePerformanceMonitor`).
-- `src/components/canvas/GalaxyScene.tsx`: Top-level composition scene mounting galaxy elements conditionally.
+Interactive 3D music universe: a listener's library (Spotify liked songs, JSON, or curated presets) becomes a cosmos of genre nebulae, artist and song stars, collisions between related genres and bridge songs. Next.js 16 (App Router), React 19, `@react-three/fiber` + `drei`, Three 0.186, Zustand, GSAP, Web Audio API. Full reference in Spanish: `docs/arquitectura.md`.
 
-## Feature Inventory
-| # | Feature | Description | Milestone | Source |
-|---|---------|-------------|-----------|--------|
-| 1 | Constellation Lines Default Disabled | Set `linksVisible: false` by default in `useGalaxyStore.ts` and conditionally mount `{linksVisible && <ConstellationLinks />}` in `GalaxyScene.tsx` | M1 | Survey (Explorer 1 & 2) |
-| 2 | Nebula Micro-Flash Pinprick Sparks | Fix micro-flashes in nebula shaders to be tiny, sharp optical pinpricks (`exp(-dist*dist*160.0)`) eliminating circular stamp discs and vertex size inflation | M1 | Survey (Explorer 1 & 2) |
-| 3 | Volumetric Nebulae Opacity Restoration | Recalibrate proximity fade to `smoothstep(3.5, 12.0, vCamDist)` and raise base brightness to 0.12–0.24, restoring rich, deep luminous gas clouds | M1 | Survey (Explorer 1 & 2) |
-| 4 | NebulaClusters Modularization | Split `NebulaClusters.tsx` into `SectorNebulaCluster`, `nebulaGeometry.ts`, `shaders/nebulaShaders.ts`, and index root coordinator | M1 | Survey (Explorer 2) |
-| 5 | StarNodeMesh Modularization | Split `StarNodeMesh.tsx` into `StarCoreMesh`, `StarAccretionRings`, `StarFeatures`, `StarPlaybackPulsar`, `StarLabel`, `starGeometries.ts`, `shaders/starShaders.ts`, and index coordinator | M2 | Survey (Explorer 2) |
-| 6 | GalacticDustDisc Modularization | Split `GalacticDustDisc.tsx` into `SupermassiveBlackHole`, `SpiralStardustPoints`, `spiralStardustGeometry.ts`, `shaders/blackHoleShaders.ts`, `shaders/spiralDustShaders.ts`, and index coordinator | M2 | Survey (Explorer 2) |
-| 7 | CameraFlightController Modularization | Extract hooks (`useWarpSequence`, `useArcFlight`, `useOrbitalTracking`, `usePerformanceMonitor`) into `src/components/canvas/hooks/` | M2 | Survey (Explorer 2) |
-| 8 | React 19 Purity & 0 Lint/Build Errors | Ensure strict React 19 hook purity, customProgramCacheKey on materials, 0 ESLint warnings (`npx eslint . --max-warnings 0`), and 0 build errors (`npm run build`) | M2 | Survey (Explorer 2) |
-| 9 | Graphify Structural Relationship Validation | Run `graphify update .` to verify clean module extraction, low coupling, and no broken dependency paths | M3 | Survey (Explorer 3) |
-| 10 | Playwright Automated Visual Validation | Run automated Playwright visual capture script on `http://localhost:3000` verifying Galaxy Overview, Sector Focus, and Active Playback screenshots | M3 | Survey (Explorer 3) |
+## Data flow
+
+```
+Spotify (spotifyClient) ──► /api/enrich-tracks (Last.fm tags) ──► spotifyPayload ─┐
+JSON import (DataSourceModal) ────────────────────────────────────────────────────┤
+Curated presets (data/galaxyPresets: curated tags) ───────────────────────────────┤
+                                                                                   ▼
+        importers/libraryImporter  ── classifyLibrary (music/dynamicGenres + tagModel)
+             │  genres, artists, songs, links, bridges (secondaryGenreId); classic positions
+             ▼
+        store/useGalaxyStore: baseData ──► layoutForMode(rendererMode)
+             │                     classic → layout/classicLayout   nebula → layout/nebulaLayout
+             ▼
+        canvas/GalaxyScene ── classic/ (per-sector clusters)   or   nebulaV3/ (gas, depth, stars, collisions)
+                           └─ star/ (interactive nodes) · galaxy/ (black hole, stardust) · hooks/ (camera)
+        hud/ reads the store (cards, search, collisions, spectrum dock)
+```
+
+## Module map
+
+| Path | Role |
+|---|---|
+| `src/app/` | Shell (`page.tsx`, `layout.tsx`), OAuth `callback/`, API routes `api/enrich-tracks` (raw Last.fm tags) and `api/track-preview` (audio proxy) |
+| `src/lib/music/` | `tagModel` (canonical tags, weighted profiles), `dynamicGenres` (tag clustering, naming, bridges), `tfidf`, `lastfmTags`, `taxonomy` (HUD subgenre labels), `genreClassifier` (keyword prior only) |
+| `src/lib/importers/libraryImporter.ts` | Raw tracks → `MusicGalaxyData` (classification, buckets, affinity, links) |
+| `src/lib/spotify/` | `spotifyClient` (PKCE, queue, retries, artist cache), `spotifyPayload` (pure: Spotify + Last.fm → importer input) |
+| `src/lib/layout/` | Pure layouts: `classicLayout`, `nebulaLayout` (cores, compaction, black hole void, nodes, bridges), `genreRelations`, `collisionModel` |
+| `src/lib/math/`, `src/lib/audio/` | Deterministic PRNG and noise; `WebAudioEngine` (64-band FFT, streaming) |
+| `src/store/useGalaxyStore.ts` | Single Zustand store: data per renderer mode, selection, camera mode, collisions, playback, perf |
+| `src/components/canvas/nebulaV3/` | Default renderer: `NebulaField` (gas), `NebulaDepth` (fog, knots, dust lanes), `StarField` (luminous stars), `NebulaCollisions`, `BridgeThreads`, `CollisionMarkers`, overview / collision cameras, `nebulaTune` (preview-only look overrides) |
+| `src/components/canvas/classic/` | Classic renderer (`rendererMode: 'classic'`): per-sector nebula clusters, `DistantSongsCloud` |
+| `src/components/canvas/star/` | `StarNodeMesh`: hit sphere, label, playback pulsar, bridge ring (classic also draws core, corona, rings, features) |
+| `src/components/canvas/galaxy/`, `hooks/` | Black hole and spiral stardust; warp-in, arc flights, orbital tracking, perf monitor |
+| `src/components/hud/` | Glass HUD: data source modal, artist card, collision card and row, search, telemetry, FFT dock |
+| `tests/` | `npm run test` runs every `tests/verification/*.test.ts`; visual scripts in `tests/visual/` (see `tests/README.md`) |
+
+## Invariants
+
+- `nebula` is the default renderer; `classic` stays selectable and must keep its look (`npm run test:visual` baseline).
+- Classification is dynamic: nebula count and names come from tags; artists without data go to `OTRAS ÓRBITAS`, never to a random genre.
+- Layouts are pure and deterministic (seeded by ids); the black hole always sits in ≥ 3.3 u of free space.
+- Interactive nodes are never animated in a shader: stars, hit spheres and the camera share `node.position`.
+- Every custom material has a constant `customProgramCacheKey`; per-frame state goes through uniforms.
+- Look overrides (`?nebulaTune`, `?clashTune`, `?starTune`, `?fogTune`, `?fps`) work in development and Vercel previews only.
 
 ## Milestones
-| # | Name | Scope | Dependencies | Status |
-|---|------|-------|-------------|--------|
-| M1 | Visual Refinements & Nebula Modularization | Features 1, 2, 3, 4: Disable constellation lines by default, fix micro-flashes to pinprick sparks, restore volumetric nebulae, and modularize `NebulaClusters` into `src/components/canvas/nebula/` | None | DONE |
-| M2 | Canvas Core Modularization & React 19 Purity | Features 5, 6, 7, 8: Modularize `StarNodeMesh`, `GalacticDustDisc`, and `CameraFlightController` into clean submodules; verify React 19 purity, customProgramCacheKeys, 0 lint warnings, and 0 build errors | M1 | DONE |
-| M3 | Automated Structural & Visual Verification | Features 9, 10: Run Graphify AST update and relationship analysis; run Playwright test suite capturing Galaxy Overview, Sector Focus, and Active Playback at `http://localhost:3000`; publish `TEST_READY.md` | M2 | DONE |
-| M4 | Nebulosas v3 · Safety net | `rendererMode` flag (`?renderer=`), classic visual baseline and Playwright harness (`test:visual`, `test:visual:flows`) | M3 | DONE |
-| M5 | Nebulosas v3 · Decoupled layout & genre relations | `classicLayout` extracted (fixture-identical), `secondaryGenreId`, curated preset bridges, `computeGenreRelations`, `nebulaLayout` (cores, nodes, bridge songs), layout per mode in the store | M4 | DONE |
-| M6 | Nebulosas v3 · Gas field | Single-draw-call gas field (geometry, shaders, `NebulaField`), calibrated look, nebula bloom, adaptive density | M5 | DONE (phone FPS check pending) |
-| M7 | Nebulosas v3 · Collisions | Collision particles, bridge threads and rings, collision selection and camera, collision HUD (card, "Choca con", ∩ n markers, links toggle), tide boost for playing bridge songs | M6 | DONE |
-| M8 | Nebulosas v3 · Polish & default | Black hole kept in a void, nebula overview framing (galaxy view and warp-in), genre label LOD and marker placement, `nebula` as default with a Nebulosas / Clásico selector remembered per viewer | M7 | DONE |
-| A1–A4 | Dynamic genres | Tag model, tag clustering with naming and bridges, importer + curated preset tags, Spotify + Last.fm raw tags (no hash fallback) | M8 | DONE |
-| C1 | Compact cosmos | Compaction phase in the nebula layout (overview camera ~30% closer); C1b black hole void for 1–2 nebula cosmos | A3 | DONE |
-| B1–B3 | Stars & nebula depth | Luminous `StarField` (690 → 98 draw calls), `NebulaDepth` fog / knots / dust lanes, look overrides and `?fps` on Vercel previews | C1 | DONE (GPU / phone calibration pending) |
 
-## Interface Contracts
-### `src/components/canvas/nebula/`
-- `NebulaClusters` (root export):
-  - Props: `{ data?: MusicGalaxyData; stellarBrightness?: number }`
-  - Internal components:
-    - `SectorNebulaCluster`: Renders individual sector ionized gas clouds and starbursts.
-    - `nebulaGeometry.ts`: `generateSectorNebulaGeometry(options)` returning inner & outer buffer geometries.
-    - `shaders/nebulaShaders.ts`: `createNebulaMaterial(isInner, baseColor)` with pinprick spark GLSL and volumetric falloff.
+| # | Name | Scope | Status |
+|---|------|-------|--------|
+| M1–M3 | Canvas modularization & verification | Split nebula, star, galaxy and camera code into submodules; React 19 purity; lint/build at zero; Playwright captures | DONE |
+| M4 | Nebulosas v3 · Safety net | `rendererMode` flag, classic visual baseline, Playwright harness | DONE |
+| M5 | Nebulosas v3 · Layout & relations | `classicLayout` extracted, `secondaryGenreId`, `computeGenreRelations`, `nebulaLayout`, layout per mode in the store | DONE |
+| M6 | Nebulosas v3 · Gas field | Single-draw-call gas field, calibrated look, nebula bloom, adaptive density | DONE |
+| M7 | Nebulosas v3 · Collisions | Collision particles, bridge threads and rings, collision camera and HUD, tide boost | DONE |
+| M8 | Nebulosas v3 · Polish & default | Black hole void, overview framing, label LOD, `nebula` as default with a per-viewer selector | DONE |
+| A1–A4 | Dynamic genres | Tag model, tag clustering with naming and bridges, importer + curated preset tags, Spotify + Last.fm raw tags (no hash fallback) | DONE |
+| C1 | Compact cosmos | Compaction phase (overview camera ~30% closer); C1b black hole void for 1–2 nebula cosmos | DONE |
+| B1–B3 | Stars & nebula depth | Luminous `StarField` (690 → 100 draw calls with B2), `NebulaDepth`, look overrides and `?fps` on previews | DONE (GPU / phone calibration pending) |
+| R | Reorganization | Dead code and template files removed, `canvas/classic/`, suite runner, docs and rules refreshed | DONE |
 
-### `src/components/canvas/star/`
-- `StarNodeMesh` (root export):
-  - Props: `{ node: GalaxyNode; position: [number, number, number]; onSelect: (node: GalaxyNode) => void }`
-  - Internal components:
-    - `StarCoreMesh`: Hit sphere, core sphere with limb darkening.
-    - `StarAccretionRings`: Primary & secondary rings, equatorial dust.
-    - `StarFeatures`: Polar jets, diffraction cross, micro-satellites.
-    - `StarPlaybackPulsar`: Conditionally mounted during active audio playback to handle acoustic waves and revolving sparks.
-    - `StarLabel`: SDF WebGL Billboard text with intelligent LOD.
-    - `starGeometries.ts`: Shared static unit geometries.
-    - `shaders/starShaders.ts`: Shaders with `customProgramCacheKey`.
-
-### `src/components/canvas/galaxy/`
-- `GalacticDustDisc` (root export):
-  - Props: `{ stellarBrightness?: number }`
-  - Internal components:
-    - `SupermassiveBlackHole`: Central event horizon, photon ring, relativistic lensing arches.
-    - `SpiralStardustPoints`: 5,600 procedural stardust particles across bulge, arms, and halo.
-    - `spiralStardustGeometry.ts`: Procedural particle buffer generator.
-    - `shaders/blackHoleShaders.ts`: Accretion disk and lensing shaders.
-    - `shaders/spiralDustShaders.ts`: Stardust injection shaders.
-
-### `src/components/canvas/hooks/`
-- `useWarpSequence`: Initial hyperspace camera entrance transition.
-- `useArcFlight`: Parabolic arc flights to selected stars/sectors.
-- `useOrbitalTracking`: Following selected stars as galaxy rotates.
-- `usePerformanceMonitor`: Frame-rate and camera telemetry monitoring.
-
-### `src/store/useGalaxyStore.ts`
-- `linksVisible`: Defaults to `false`.
-- `toggleLinksVisible`: Toggles `linksVisible` boolean.
-
-## Code Layout
-- `src/components/canvas/nebula/`:
-  - `SectorNebulaCluster.tsx`
-  - `nebulaGeometry.ts`
-  - `shaders/nebulaShaders.ts`
-  - `index.ts` (re-exports `NebulaClusters`)
-- `src/components/canvas/star/`:
-  - `StarCoreMesh.tsx`
-  - `StarAccretionRings.tsx`
-  - `StarFeatures.tsx`
-  - `StarPlaybackPulsar.tsx`
-  - `StarLabel.tsx`
-  - `starGeometries.ts`
-  - `shaders/starShaders.ts`
-  - `index.ts` (re-exports `StarNodeMesh`)
-- `src/components/canvas/galaxy/`:
-  - `SupermassiveBlackHole.tsx`
-  - `SpiralStardustPoints.tsx`
-  - `spiralStardustGeometry.ts`
-  - `shaders/blackHoleShaders.ts`
-  - `shaders/spiralDustShaders.ts`
-  - `index.ts` (re-exports `GalacticDustDisc`)
-- `src/components/canvas/hooks/`:
-  - `useWarpSequence.ts`
-  - `useArcFlight.ts`
-  - `useOrbitalTracking.ts`
-  - `usePerformanceMonitor.ts`
-- `src/store/`: `useGalaxyStore.ts`
-- `src/components/canvas/GalaxyScene.tsx`
-- `.agents/teamwork/`: Agent coordination metadata
+History: `docs/historial/MIGRATION_NEBULOSAS.md` (M4–M8 plan) and git log.

@@ -115,18 +115,15 @@ El stack ha sido analizado e inspeccionado de manera empírica a través de los 
 
 ```
 YourMusicVisualizer/
-├── .agents/                      # Metadatos del equipo de subagentes (solo lectura para la app)
 ├── .github/                      # Automatización de integración continua y despliegue
 │   └── workflows/
 ├── .impeccable/                  # Artefactos y configuración de diseño UI Impeccable
-├── .playwright-cli/              # Capturas y logs de auditorías visuales E2E
 ├── docs/                         # Documentación de arquitectura y guías del sistema
 │   ├── arquitectura.md
-│   ├── MIGRATION_NEBULOSAS.md    # Plan de migración a Nebulosas v3 (milestones M4–M8)
+│   ├── historial/
+│   │   └── MIGRATION_NEBULOSAS.md # Plan cerrado de la migración a Nebulosas v3 (M4–M8)
 │   └── reference/
 │       └── nebulosas-v3.html     # Referencia visual (Three r128) que se porta, no se copia
-├── graphify-out/                 # Análisis visual del grafo de dependencias del código
-├── public/                       # Recursos estáticos servidos en la raíz HTTP
 ├── src/                          # Código fuente de la aplicación (Next.js 16 + R3F)
 │   ├── app/                      # Enrutamiento App Router, layouts y Route Handlers API
 │   │   ├── api/
@@ -135,10 +132,10 @@ YourMusicVisualizer/
 │   │   └── callback/
 │   ├── components/               # Componentes de interfaz de usuario y renderizado 3D
 │   │   ├── canvas/               # Escena WebGL Three.js, shaders y controladores 3D
+│   │   │   ├── classic/          # Renderer clásico: cúmulos de gas por sector y nube de canciones lejanas
 │   │   │   ├── galaxy/           # Núcleo galáctico, agujero negro y disco de polvo
 │   │   │   ├── hooks/            # Controladores cinemáticos y telemetría de cámara
-│   │   │   ├── nebula/           # Cúmulos volumétricos de gas interestelar (renderer clásico)
-│   │   │   ├── nebulaV3/         # Campo de gas Nebulosas v3: 1 draw call, solo con rendererMode 'nebula'
+│   │   │   ├── nebulaV3/         # Renderer por defecto: gas, profundidad, estrellas luminosas, choques y cámaras
 │   │   │   └── star/             # Nodos celestes, anillos, pulsars acústicos y shaders
 │   │   └── hud/                  # Interfaz perimetral 2D estilo cristal (Glassmorphism Dock)
 │   ├── data/                     # Presets cósmicos precalculados estáticos
@@ -147,16 +144,17 @@ YourMusicVisualizer/
 │   │   ├── importers/            # Ingesta de pistas y construcción del grafo (sin posiciones desde M5.1)
 │   │   ├── layout/               # Layouts espaciales puros: clásico, relaciones entre géneros y Nebulosas v3
 │   │   ├── math/                 # PRNG determinista compartido por el código nuevo (mulberry32, gauss, Fibonacci)
-│   │   ├── music/                # Clasificador universal de géneros y taxonomía cósmica
-│   │   └── spotify/              # Cliente de red Spotify PKCE y cola de rate limiting
+│   │   ├── music/                # Clasificación dinámica por tags, TF-IDF, tags de Last.fm y etiquetas de subgénero
+│   │   └── spotify/              # Cliente Spotify PKCE (cola y reintentos) y armado puro del payload
 │   ├── store/                    # Almacén de estado global reactivo (Zustand)
 │   └── types/                    # Definiciones e interfaces TypeScript de dominio
 ├── test-results/                 # Evidencias visuales de pruebas end-to-end (ignorado por git)
 │   └── visual/                   # Baseline y corridas del arnés visual (baseline-classic/, latest-classic/)
-└── tests/                        # Suites de verificación y validación matemática
-    ├── verification/             # Aserciones tsx ejecutadas por `npm test` y CI
-    │   └── fixtures/             # Snapshot de posiciones clásicas y payloads sintéticos (M5)
-    └── visual/                   # Arnés Playwright de capturas y comparación (fuera de CI)
+└── tests/                        # Suites de verificación (ver tests/README.md)
+    ├── run-verification.ts       # Runner de `npm run test`: corre todas las suites y lista los fallos
+    ├── verification/             # Suites `assert` por prefijo (m2_…m8_, dg_), también en CI
+    │   └── fixtures/             # Posiciones clásicas, payloads y bibliotecas sintéticas
+    └── visual/                   # Arnés Playwright de capturas, flujos y shaders (fuera de CI)
 ```
 
 ### 3.2 Detalle y Responsabilidad por Carpeta
@@ -167,8 +165,8 @@ YourMusicVisualizer/
 - `tsconfig.json`: Configuración del compilador TypeScript y resolución de rutas alias `@/*`.
 - `eslint.config.mjs`: Reglas de linting plano para ESLint 9.
 - `.env.example` y `.env.local`: Especificación de variables de entorno públicas requeridas para Spotify OAuth.
-- `README.md`, `PRODUCT.md`, `PROJECT.md`, `DESIGN.md`, `TEST_READY.md`, `AGENTS.md`: Documentos de diseño, visión de producto, reglas de agentes y reportes de validación.
-- `CLAUDE.md`: Reglas de trabajo para la migración a Nebulosas v3 (importa `AGENTS.md` y `PROJECT.md`).
+- `README.md`, `PRODUCT.md`, `PROJECT.md`, `DESIGN.md`, `AGENTS.md`: Presentación, visión de producto, mapa de módulos e hitos (`PROJECT.md`), diseño y contexto para agentes.
+- `CLAUDE.md`: Reglas de trabajo vigentes (importa `AGENTS.md` y `PROJECT.md`).
 
 #### `src/app/` — Enrutamiento y Cascarón de Aplicación (Next.js App Router)
 - `layout.tsx`: Server Component raíz (`RootLayout`). Inyecta las tipografías locales optimizadas `Syne` y `JetBrains Mono` vía variables CSS, define metadatos HTML, aplica fondo base `#050508` y monta el componente `<Analytics />` de Vercel.
@@ -184,11 +182,10 @@ YourMusicVisualizer/
 
 #### `src/components/canvas/` — Motor Gráfico 3D (React Three Fiber & Three.js)
 - `MusicVisualizerCanvas.tsx`: Contenedor `<Canvas>` de `@react-three/fiber`. Configura cámara con posición inicial `[12, 46, 295]`, `fov: 52`, control de densidad de píxeles `dpr: [1, 1.5]`, antialias y modo de alto rendimiento de WebGL.
-- `GalaxyScene.tsx`: Orquestador jerárquico de la escena 3D. Controla la rotación continua del cosmos a `0.007 rad/s` en el eje Y (respetando `prefers-reduced-motion`) y aplica Level of Detail (LOD): delega estrellas distantes a un único draw call de GPU (`DistantSongsCloud`) si la biblioteca supera las 60 canciones, montando mallas interactivas solo para el sector activo.
+- `GalaxyScene.tsx`: Orquestador jerárquico de la escena 3D. Controla la rotación continua del cosmos a `0.007 rad/s` en el eje Y (respetando `prefers-reduced-motion`) y aplica Level of Detail (LOD): monta mallas interactivas de canciones solo para el sector activo cuando la biblioteca supera las 60 canciones. En modo nebula todas las estrellas se dibujan con `nebulaV3/StarField`; en clásico, las canciones lejanas van en un draw call (`classic/DistantSongsCloud`).
 - `CameraFlightController.tsx`: Controlador desacoplado que integra los 4 hooks cinemáticos sobre `CameraControls` de `@react-three/drei`.
 - `ConstellationLinks.tsx`: Filamentos geométricos inter-estelares calculados por similitud TF-IDF y relaciones de afinidad, con modulación lumínica según el espectro FFT.
-- `DistantSongsCloud.tsx`: Sistema de partículas masivo en GPU que renderiza miles de pistas lejanas en 1 solo draw call.
-- `GalacticDustDisc.tsx`, `NebulaClusters.tsx`, `StarNodeMesh.tsx`: Módulos barril (reexportadores) hacia sus submódulos especializados.
+- `classic/`: Renderer clásico (`rendererMode: 'classic'`): `NebulaClusters` / `SectorNebulaCluster` (gas por sector) y `DistantSongsCloud` (canciones lejanas en 1 draw call). `GalaxyScene` importa directo de `classic/`, `galaxy/`, `star/` y `nebulaV3/`.
 - `WarpTunnelMesh.tsx`: Cilindro procedural de estelas de luz estelar utilizado durante el salto hiperespacial inicial.
 - `PostProcessingPipeline.tsx`: Canal de efectos de post-procesado con `UnrealBloomPass`, calibrando dinámicamente la intensidad del resplandor con los sub-graves de audio y atenuándolo por proximidad a estrellas grandes (anti-glare). Desde M6.4 los objetivos salen de `bloomTargets.ts` (`computeBloomTargets`, pura): en `classic` son exactamente los valores previos (strength 0.07/0.08, threshold 0.92) y en `nebula` strength 0.06 y threshold 0.95.
 
@@ -234,7 +231,8 @@ YourMusicVisualizer/
 - `music/dynamicGenres.ts` (A2): `classifyLibrary` agrupa la biblioteca por tags (TF-IDF, semillas por tag dominante, fusión aglomerativa con coseno ≥ 0.3, tope blando de 30), absorbe grupos chicos, nombra cada nebulosa con sus 2 tags más distintivos y detecta canciones puente (coseno ≥ 0.2 con otro grupo). Artistas sin datos → `OTRAS ÓRBITAS`, nunca al azar.
 - `music/lastfmTags.ts` (A4): parseo puro de `getTopTags` y limpieza de títulos.
 - `music/genreClassifier.ts`: Clasificador por palabras clave y artistas conocidos. Desde A3 es solo un prior débil del importer para artistas sin tags; desde A4 no tiene fallback por hash (sin coincidencia → género vacío).
-- `music/taxonomy.ts`: Definición de 12 macro-géneros canónicos, normalización de etiquetas musicales y cálculo de enlaces inter-estelares TF-IDF.
+- `music/taxonomy.ts`: Diccionario de subgéneros para las etiquetas del HUD (`normalizeMusicalTag`).
+- `music/tfidf.ts`: `smoothIdf` y `computeTfIdfLinks` (enlaces de estilo del importer; IDF compartido con `dynamicGenres`).
 - `spotify/spotifyPayload.ts` (A4): conversión pura de canciones guardadas + enriquecimiento en entradas del importer (`spotifyGenres`, `artistTags`, `trackTags`); no decide géneros.
 - `spotify/spotifyClient.ts`: Cliente de red para la API de Spotify: autenticación PKCE, cola de peticiones con control de concurrencia (`RequestQueue`), reintentos automáticos ante errores HTTP 429 con retroceso exponencial y jitter (`fetchWithRetry`), y caché persistente de artistas en `localStorage`.
 
@@ -245,12 +243,10 @@ YourMusicVisualizer/
 - `music.ts`: Interfaces y contratos TypeScript: `GenreNode`, `ArtistNode`, `SongNode` (desde M5.2 con `secondaryGenreId?`), `MusicLink` (desde M7.2 con el tipo `'bridge'`, que solo aparece en `NebulaLayoutResult.bridgeLinks`, nunca en `data.links`), `MusicGalaxyData`, clases espectrales estelares y funciones puras para el cálculo de radios y métricas visuales.
 
 #### Directorios Complementarios
-- `public/`: Recursos gráficos estáticos (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`).
-- `tests/` y `tests/verification/`: Suites de validación matemática y de shaders ejecutadas con `tsx` (`milestone2.test.ts`, `milestone2_challenger.test.ts` y `m4_renderer_mode.test.ts`).
+- `tests/`: `run-verification.ts` corre todas las suites de `tests/verification/` (prefijos `m2_`…`m8_` por hito y `dg_` para clasificación dinámica y visual); `tests/README.md` las describe junto con los scripts visuales.
 - `tests/visual/`: Arnés de regresión visual con Playwright. `captureScenes.mjs` captura Galaxy Overview, Sector Focus y Active Playback por renderer y preset (con `prefers-reduced-motion` para saltar el warp y frenar la rotación, y verificando `rendererMode` en la escena vía `__THREE_DEVTOOLS__`); `compareScenes.mjs` compara contra el baseline con umbrales por escena.
 - `.github/workflows/`: Pipelines de integración continua (`ci.yml`), releases automáticos (`release.yml`) y auditoría de seguridad (`security.yml`).
-- `.playwright-cli/` y `test-results/`: Capturas y logs generados durante verificaciones visuales automatizadas.
-- `graphify-out/`: Diagramas de dependencias y reportes generados por la herramienta Graphify.
+- `test-results/` (ignorado por git): capturas de las verificaciones visuales; `visual/baseline-classic/` es el baseline de `npm run test:visual` y no se borra.
 
 ---
 
@@ -472,11 +468,11 @@ Los comandos declarados en `package.json` son:
 | `npm run build` | `next build` | Compila la aplicación para producción utilizando Turbopack y valida tipado estricto con TypeScript. |
 | `npm run start` | `next start` | Inicia el servidor Node.js en modo producción utilizando los artefactos generados en `.next`. |
 | `npm run lint` | `eslint` | Ejecuta ESLint 9 con Flat Config (`eslint.config.mjs`) validando reglas de Next.js y TypeScript. |
-| `npm test` | `tsx tests/verification/...` | Ejecuta las 763 aserciones de pruebas automatizadas (matemáticas, geometrías, shaders, flag `rendererMode`, layouts, relaciones, store, gas v3, bloom, densidad adaptativa, choques, hilos puente, cámara de choque, HUD de choques y mareas, encuadre general, etiquetas y preferencia de render) con `tsx`. |
+| `npm run test` | `tsx tests/run-verification.ts` | Corre todas las suites de `tests/verification/` (29, unas 960 aserciones: matemáticas, geometrías, shaders, layouts, store, choques, clasificación dinámica, estrellas y profundidad) y al final lista todas las que fallaron. `npm run test -- dg_ m7_` corre solo las que coinciden. Es el mismo comando que usa CI. |
 | `npm run test:visual:baseline` | `node tests/visual/captureScenes.mjs ...` | Captura el baseline visual del renderer clásico (presets 50 y 300) en `test-results/visual/baseline-classic/`. Requiere `npm run dev` corriendo. |
 | `npm run test:visual` | `captureScenes.mjs` + `compareScenes.mjs` | Recaptura las 6 escenas y las compara con el baseline (≈4 min con WebGL por software). No corre en CI. |
 | `npm run test:visual:flows` | `checklistFlows.mjs` | Recorre la parte automatizable de la checklist de no-regresión (drawer, Próxima, buscador, ficha, filtros, bloom, pulso FFT, presets) en `classic` y `nebula`. Requiere `npm run dev`. |
-| `npm run test:visual:shaders` | `tsx tests/visual/compileShaders.ts` | Compila el material del gas v3 en Chromium (WebGL2/SwiftShader) y renderiza un cuadro del preset 50. Detecta errores de GLSL que Node no puede ver. |
+| `npm run test:visual:shaders` | `tsx tests/visual/compileShaders.ts` | Compila los seis programas de Nebulosas (gas, choques, hilos, estrellas, niebla y carriles) en Chromium (WebGL2/SwiftShader), renderiza un cuadro del preset 50 y comprueba foco, filtro y oscurecimiento de los carriles. Detecta errores de GLSL que Node no puede ver. |
 | `node tests/visual/calibrateGas.mjs` | Playwright + `?nebulaTune` | Genera una lámina 3×3 de tamaño × alpha del gas en el preset 300 para recalibrar `NEBULA_GAS_LOOK`. Requiere `npm run dev`. |
 | `npm run test:visual:clash` | `tsx tests/visual/calibrateClash.ts` | Lámina 3×3 de tamaño × alpha de los choques (render fuera de la app con densidad completa) con el % de píxeles que aportan, para recalibrar `NEBULA_CLASH_LOOK`. |
 
@@ -495,7 +491,7 @@ cp .env.example .env.local
 
 # 4. Validar calidad de código y suites de pruebas
 npm run lint
-npm test
+npm run test
 
 # 5. Iniciar entorno de desarrollo local con Turbopack
 npm run dev
@@ -510,18 +506,18 @@ npm run dev
 
 ### 7.1 Inventario de Código Sin Pruebas Automatizadas
 
-El arnés actual de pruebas en `tests/verification/` (`milestone2.test.ts` y `milestone2_challenger.test.ts`) ejecutaba 205 aserciones al inicio de la migración (222 tras M4, 426 tras M5, 548 tras M6, 680 tras M7 y 763 tras M8, con las suites `m4_*` a `m8_*`) centradas en validaciones matemáticas de geometrías, determinismo de shaders y fórmulas de cinemática de cámara.
+El arnés de `tests/verification/` (29 suites, unas 960 aserciones; `npm run test` las corre todas con `tests/run-verification.ts`) creció de 205 aserciones al inicio de la migración a 763 tras M8 y a unas 960 con la clasificación dinámica y las mejoras visuales (`dg_*`). Cubre matemáticas, geometrías, shaders, layouts, store, choques, clasificación por tags, el endpoint de Last.fm con `fetch` simulado y el armado del payload de Spotify.
 
 **Sin embargo, la totalidad de los módulos de integración, audio, red, estado global y componentes de interfaz carece de pruebas automatizadas:**
 
 | Módulo / Capa del Sistema | Archivos Principales | Líneas | Riesgo y Factores de Fragilidad |
 |---|---|---|---|
 | **Motor Web Audio** | `src/lib/audio/WebAudioEngine.ts` | 463 | **CRÍTICO.** Cero pruebas sobre desbloqueo de autoplay por interacción del usuario, ciclo de vida del `AudioContext`, manejo de decodificación errónea de MP3 o desvinculación de nodos en desuso. |
-| **Cliente de Red Spotify** | `src/lib/spotify/spotifyClient.ts` | 822 | **CRÍTICO.** Cero pruebas con mocks de red (`fetch`). Cambios en la respuesta de Spotify o en la cola `RequestQueue` pueden quebrar la sincronización de bibliotecas sin alerta del compilador. |
+| **Cliente de Red Spotify** | `src/lib/spotify/spotifyClient.ts` | ~750 | **ALTO (mitigado en A4).** El armado del payload salió a `spotifyPayload.ts` y tiene tests; la parte de red (PKCE, `RequestQueue`, paginación) sigue sin tests con mocks. |
 | **Importador de Datos 3D** | `src/lib/importers/libraryImporter.ts` | ~600 | **MEDIO (mitigado en M5).** Las posiciones viven en `classicLayout.ts`, cubierto por fixture (presets, payload de streaming y artista dividido en dos géneros). Siguen sin tests la clasificación, los links y los casos de IDs repetidos (`artistId`/`songId` iguales en dos géneros). |
-| **Clasificador de Géneros** | `src/lib/music/genreClassifier.ts` | 873 | **ALTO.** Diccionario masivo sin tests de regresión; modificar una clave fonética o regex puede alterar la constelación de decenas de artistas sin advertencia. |
-| **Taxonomía Musical** | `src/lib/music/taxonomy.ts` | 701 | **MEDIO-ALTO.** Funciones matemáticas complejas como `computeTfIdfLinks` y `resolveTrackTaxonomy` carecen de suites unitarias automatizadas. |
-| **Route Handlers API** | `src/app/api/track-preview/route.ts`<br>`src/app/api/enrich-tracks/route.ts` | 523 | **ALTO.** Sin pruebas de integración para el proxy de audio (timeouts de Deezer/iTunes, cabeceras CORS) ni para el enriquecimiento mediante Last.fm. |
+| **Clasificador de Géneros** | `src/lib/music/genreClassifier.ts` | ~840 | **BAJO (desde A3).** Solo es un prior débil para artistas sin tags; la clasificación real (`tagModel`, `dynamicGenres`) tiene suites con bibliotecas sintéticas y verdad de terreno. |
+| **Taxonomía y TF-IDF** | `src/lib/music/taxonomy.ts`<br>`src/lib/music/tfidf.ts` | ~320 + 174 | **MEDIO.** `taxonomy.ts` quedó como diccionario de etiquetas del HUD; `computeTfIdfLinks` sigue sin suite propia (se cubre indirectamente por el importer). |
+| **Route Handlers API** | `src/app/api/track-preview/route.ts`<br>`src/app/api/enrich-tracks/route.ts` | ~400 | **MEDIO.** `enrich-tracks` tiene tests con `fetch` simulado desde A4 (tags separados, una consulta por artista, timeouts); el proxy de audio sigue sin tests. |
 | **Componentes HUD 2D** | `src/components/hud/*` (5 componentes) | 2,391 | **ALTO.** Cero pruebas de renderizado con React Testing Library; búsqueda estelar, navegación por teclado y controles de audio no están testeados. |
 | **Componentes Canvas 3D** | `src/components/canvas/*` (GalaxyScene, StarNodeMesh, etc.) | 2,800+ | **MEDIO-ALTO.** Eventos de puntero (clic vs arrastre de cámara, hover de estrellas) no disponen de tests automatizados en CI. |
 | **Pruebas E2E en CI** | `tests/visual/*.mjs` | N/A | **MEDIO (mitigado en M4).** Existe `npm run test:visual` con baseline y umbrales calibrados, pero corre a mano: no está en `ci.yml` y el baseline vive en `test-results/` (ignorado por git), por lo que es local a cada máquina. La escena Active Playback es solo un chequeo de humo porque depende del audio en vivo. |
@@ -536,7 +532,7 @@ Se identificaron **13 archivos que superan las 250 líneas** (11 de ellos supera
 |---|---|---|---|---|
 | 1 | `src/lib/music/genreClassifier.ts` | **873** | Diccionario estático gigante de géneros, artistas y reglas de coincidencia regex fonética. | Complejidad de mantenimiento; propenso a colisiones entre patrones de texto y propenso a errores humanos al agregar artistas. |
 | 2 | `src/lib/spotify/spotifyClient.ts` | **822** | Autenticación PKCE, cola de peticiones `RequestQueue`, reintentos HTTP 429 (`fetchWithRetry`), paginación y caché persistente de artistas. | Violación de Responsabilidad Única (SRP); acopla criptografía, cliente HTTP y cuotas de almacenamiento en un único archivo. |
-| 3 | `src/lib/music/taxonomy.ts` | **701** | Definición de 12 macro-sectores, mapeo de colores, normalización de tags y cálculo TF-IDF. | Archivo monolítico; cualquier alteración en las coordenadas de sector afecta a todo el plano galáctico. |
+| 3 | `src/lib/music/taxonomy.ts` | **319** | Diccionario de subgéneros para etiquetas del HUD (desde la reorganización; el TF-IDF pasó a `tfidf.ts` y el resolvedor de macro-géneros se eliminó). | Bajo. |
 | 4 | `src/components/hud/ArtistSleeveCard.tsx` | **681** | Tarjeta de vinilo 3D, biografía de artista, lista de pistas, controles de audio y saltos de cámara. | Sobrecarga de responsabilidades en un solo componente React; combina lógica de audio, eventos y animaciones DOM. |
 | 5 | `src/lib/importers/libraryImporter.ts` | **640** | Conversión de payloads a `MusicGalaxyData`, algoritmos de clustering, afinidad y órbitas doradas. | Elevada densidad matemática sin cobertura de tests unitarios; riesgo de efectos colaterales ante cambios de fórmulas. |
 | 6 | `src/data/galaxyPresets.ts` | **631** | Definición estática de tres grafos cósmicos precalculados (50, 150 y 300 pistas). | Archivo de datos voluminoso incluido en el bundle inicial si no se carga de manera diferida. |
@@ -570,14 +566,14 @@ Se detectaron 5 casos claros de código duplicado que deberían refactorizarse e
 1. **Generador Pseudoaleatorio `createPRNG` Idéntico:**
    - La misma función generadora basada en el algoritmo congruencial de Park-Miller se encuentra copiada y pegada textualmente en tres archivos distintos:
      - `src/components/canvas/galaxy/spiralStardustGeometry.ts` (L3-10)
-     - `src/components/canvas/nebula/nebulaGeometry.ts` (L11-18)
+     - `src/components/canvas/classic/nebulaGeometry.ts` (L11-18)
      - `src/components/canvas/WarpTunnelMesh.tsx` (L8-15)
    - *Recomendación:* Extraer a una función utilitaria compartida en `src/lib/math/prng.ts`.
    - *Estado (M5.4a):* `src/lib/math/prng.ts` existe y lo usa todo el código nuevo; las tres copias clásicas se quedan hasta M8 por la regla de no tocar el renderer clásico.
 2. **Normalización y Limpieza de Nombres de Canciones (`cleanQueryText` vs `cleanTrackTitle`):**
    - La expresión regular para eliminar sufijos como `(Remastered)`, `[Live Version]`, `(Deluxe Edition)`, comillas y guiones está duplicada casi de forma idéntica en:
      - `src/app/api/track-preview/route.ts` (L24-34)
-     - `src/app/api/enrich-tracks/route.ts` (L43-50)
+     - `src/lib/music/lastfmTags.ts` (`cleanTrackTitle`, desde A4)
    - *Recomendación:* Consolidar en `src/lib/utils/stringCleaners.ts`.
 3. **Algoritmo de Selección Fallback para Reproducción de Pistas:**
    - Al seleccionar un artista o constelación, el sistema selecciona una canción candidata (priorizando aquellas con preview disponible o al azar). Esta lógica exacta está repetida textualmente en cuatro componentes:
@@ -595,6 +591,7 @@ Se detectaron 5 casos claros de código duplicado que deberían refactorizarse e
    - `src/lib/music/taxonomy.ts` define 12 macro-géneros canónicos (`MACRO_GENRES`) con coordenadas y colores definidos (p.ej. `ROCK` en `[-26, 6, -18]` con `#F43F5E`).
    - `src/lib/importers/libraryImporter.ts` define una lista paralela `SECTOR_PALETTE` de 21 posiciones y colores (donde el sector 1 está en `[-24, 6, -18]` con color turquesa y el carmesí en la posición 10).
    - *Recomendación:* Unificar ambas definiciones en una sola fuente de verdad dentro de `taxonomy.ts`.
+   - *Estado (reorganización):* resuelto. Los géneros salen de la clasificación dinámica y `MACRO_GENRES` se eliminó; `SECTOR_PALETTE` (más tonos por ángulo dorado) es la única paleta.
 
 ---
 
@@ -603,7 +600,7 @@ Se detectaron 5 casos claros de código duplicado que deberían refactorizarse e
 1. **Instanciación Repetida de Geometrías Invisibles por Cada Estrella:**
    - En `src/components/canvas/star/StarCoreMesh.tsx` (L49-50): cada nodo estelar crea una nueva instancia de `<sphereGeometry args={[1, 8, 8]} />` inline para la esfera de colisión del raycaster. Con bibliotecas de 500 a 3,000 canciones, esto satura la memoria GPU con geometrías idénticas en lugar de reutilizar una instancia estática como las provistas en `starGeometries.ts`.
 2. **Recompilación de Materiales durante el Ajuste de Brillo Estelar:**
-   - En `src/components/canvas/DistantSongsCloud.tsx` (L87): el hook `useMemo` del material `PointsMaterial` incluye `stellarBrightness` como dependencia. Cuando el usuario desplaza el control deslizante de brillo en el HUD, el material se destruye (`dispose()`) y se recompila en cada cuadro (60 veces por segundo), provocando caídas de FPS (*jank*) en el hilo principal. La propiedad `material.opacity` debería actualizarse directamente sin recrear el material.
+   - En `src/components/canvas/classic/DistantSongsCloud.tsx` (L87, solo modo clásico): el hook `useMemo` del material `PointsMaterial` incluye `stellarBrightness` como dependencia. Cuando el usuario desplaza el control deslizante de brillo en el HUD, el material se destruye (`dispose()`) y se recompila en cada cuadro (60 veces por segundo), provocando caídas de FPS (*jank*) en el hilo principal. La propiedad `material.opacity` debería actualizarse directamente sin recrear el material.
 3. **Liberación del Motor Web Audio (`WebAudioEngine`):**
    - `webAudioEngine` está instanciado como singleton global. Aunque implementa un método `dispose()`, este método no es invocado en ningún efecto de limpieza (`useEffect`) de React, manteniendo nodos y listeners vinculados indefinidamente en memoria RAM.
 4. **Almacenamiento de Tokens en Texto Plano y Falta de Refresh Token:**
@@ -612,8 +609,10 @@ Se detectaron 5 casos claros de código duplicado que deberían refactorizarse e
    - Los metadatos de los artistas se guardan individualmente bajo claves `ymv_cache_artist_<id>`. Los navegadores imponen un límite rígido de ~5 MB para `localStorage`. Al importar 1,000 o 3,000 canciones con cientos de artistas, la cuota puede desbordarse. La función de poda `pruneOldEntries()` no utiliza una política LRU (*Least Recently Used*), sino que borra de manera aleatoria el primer 25% de claves devueltas por el navegador.
 6. **El importer modifica el payload que recibe (detectado en M5.2b):**
    - `buildMusicGalaxyFromPayload` escribe `rawTrack.secondaryGenre` con el valor del clasificador en cada tema que no lo trae. Quien reutilice el payload (presets, tests) ve datos que no puso. Los tests de M5 leen los valores curados desde `ARTIST_DATABASE` por este motivo.
+   - *Estado (A3):* resuelto; los géneros secundarios viven en un mapa local y el payload ya no se modifica.
 7. **Vocabularios distintos en el clasificador (detectado en M5.2):**
    - Los géneros principales usan nombres específicos (p. ej. `TRIP-HOP & BRISTOL DUB`) y los secundarios un vocabulario amplio (`ELECTRÓNICA, HOUSE & TECHNO`, `POP INTERNACIONAL & SYNTH-POP`…) que casi nunca existe como nebulosa; varios parecen valores por defecto. Con datos reales, `secondaryGenreId` aporta poca señal y las relaciones dependen sobre todo de colaboraciones y TF-IDF. Queda pendiente derivar las relaciones de forma más dinámica a partir de las canciones del usuario.
+   - *Estado (A3):* resuelto; nombres y puentes salen de los mismos tags (`dynamicGenres`).
 8. **Modo nebula: pendientes tras M7 (detectado en M5.5, actualizado en M6.4 y M7):**
    - Resuelto en M6: el gas v3 reemplaza a `NebulaClusters` en modo nebula, ya no satura el bloom y vuelven a verse el agujero negro y el disco espiral.
    - Resuelto en M7: choques visibles y navegables (universo → choque → canción puente → reproducir verificado con Playwright).
@@ -647,8 +646,8 @@ Durante la auditoría técnica exhaustiva del código fuente y los archivos de c
    En el archivo `README.md` (L67) se hace referencia a la ruta `src/components/ui/`, mientras que en el código fuente actual y en el sistema de archivos físico la carpeta se denomina `src/components/hud/`. ¿Se confirma que `src/components/hud/` es la denominación canónica y definitiva para actualizar la documentación histórica del README?
 
 6. `PREGUNTA:` **Estandarización Futura del Arnés de Pruebas Automatizadas:**  
-   El comando `npm test` en `package.json` invoca dos scripts de aserciones personalizadas ejecutadas con `tsx` (`tests/verification/milestone2.test.ts` y `tests/verification/milestone2_challenger.test.ts`). ¿Existe la intención a mediano plazo de migrar hacia un test runner formal estandarizado (como **Vitest** o **Jest** con mocks para WebGL y Web Audio API) para incorporar pruebas unitarias de componentes React y hooks cinemáticos?
+   `npm run test` corre `tests/run-verification.ts`, que ejecuta las 29 suites `assert` de `tests/verification/` (cada una en su proceso) y lista todas las que fallan. ¿Existe la intención a mediano plazo de migrar hacia un test runner formal (como **Vitest** o **Jest** con mocks para WebGL y Web Audio API) para sumar pruebas de componentes?
 
 7. `PREGUNTA:` **Incorporación Formal de la Suite de Pruebas Visuales E2E con Playwright:**  
-   En el repositorio existen artefactos y capturas generadas por scripts de Playwright (`test-results/` y `.playwright-cli/`). ¿Se planea incorporar un comando oficial `npm run test:e2e` en `package.json` y agregar la ejecución de pruebas visuales end-to-end dentro del pipeline de integración continua de GitHub Actions (`.github/workflows/ci.yml`)?  
+   En el repositorio existen artefactos y capturas generadas por scripts de Playwright (`test-results/`). ¿Se planea incorporar un comando oficial `npm run test:e2e` en `package.json` y agregar la ejecución de pruebas visuales end-to-end dentro del pipeline de integración continua de GitHub Actions (`.github/workflows/ci.yml`)?  
    **Respuesta parcial (M4.3):** se incorporó `npm run test:visual` (más `test:visual:baseline`) con `playwright` y `pngjs` como devDependencies exactas. Por decisión del plan de migración queda **fuera de CI** y se corre a mano en cada sub-paso. Sigue abierto si se sube a CI y dónde versionar el baseline.
