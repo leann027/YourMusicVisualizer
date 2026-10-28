@@ -16,9 +16,12 @@ export const UNCLASSIFIED_GENRE = 'OTRAS ÓRBITAS';
 
 /** Seeds whose centroids are at least this similar (cosine) merge into one nebula. */
 export const MERGE_THRESHOLD = 0.3;
-/** Groups with fewer songs join the most similar group, if they share anything. */
+/** Groups with fewer songs, or a single artist, join the most similar group if they share anything. */
 export const MIN_GROUP_SONGS = 3;
+export const MIN_GROUP_ARTISTS = 2;
 const SMALL_GROUP_MIN_SIMILARITY = 0.05;
+/** A single artist with its own catalogue joins another group only if it is clearly similar. */
+export const SINGLE_ARTIST_MIN_SIMILARITY = 0.15;
 /** Beyond this many nebulae the least distinct ones keep merging. */
 export const SOFT_MAX_GENRES = 30;
 /** A song becomes a bridge when its tags are at least this similar to another group (calibrated on synthetic libraries: all bridges, no false ones). */
@@ -166,16 +169,18 @@ export function classifyLibrary(input: { artists: LibraryArtist[]; songs: Librar
     groups = assigned.filter((m) => m.length > 0).map(makeGroup);
   }
 
-  // 5. Tiny groups join the most similar one if they share anything
+  // 5. Tiny groups (few songs or a single artist) join the most similar one if they share anything
   for (let changed = true; changed; ) {
     changed = false;
     const order = groups.map((g, i) => ({ g, i })).sort((x, y) => x.g.songs - y.g.songs || x.i - y.i);
     for (const { g, i } of order) {
-      if (g.songs >= MIN_GROUP_SONGS || groups.length < 2) continue;
+      const fewSongs = g.songs < MIN_GROUP_SONGS;
+      if ((!fewSongs && g.members.length >= MIN_GROUP_ARTISTS) || groups.length < 2) continue;
       let target = -1;
-      let bestSim = SMALL_GROUP_MIN_SIMILARITY;
+      let bestSim = fewSongs ? SMALL_GROUP_MIN_SIMILARITY : SINGLE_ARTIST_MIN_SIMILARITY;
       groups.forEach((h, j) => {
-        if (j === i) return;
+        // a lone artist with its own catalogue only joins an established (multi-artist) nebula
+        if (j === i || (!fewSongs && h.members.length < MIN_GROUP_ARTISTS)) return;
         const s = cosine(g.centroid, h.centroid);
         if (s >= bestSim) {
           bestSim = s;

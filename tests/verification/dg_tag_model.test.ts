@@ -25,10 +25,12 @@ console.log('================================================================');
 // 1. Canonical tags
 const pp = ['Post Punk', 'post-punk', 'POST_PUNK', '  post   punk '].map(canonicalTag);
 assert(new Set(pp).size === 1 && pp[0] === 'post-punk', 'spelling variants collapse to one tag', JSON.stringify(pp));
-assert(canonicalTag('dreampop') === 'dream pop' && canonicalTag('Dream Pop') === 'dream pop', 'dictionary synonyms (dreampop → dream pop)');
+assert(canonicalTag('dreampop') === 'dream pop' && canonicalTag('Dream Pop') === 'dream pop' && canonicalTag('dream-pop') === 'dream pop', 'joined/hyphenated spellings (dreampop → dream pop)');
 assert(canonicalTag('retrowave') === canonicalTag('synthwave'), 'retrowave and synthwave share a canonical tag', `${canonicalTag('retrowave')}`);
 assert(canonicalTag('Chamamé') === 'chamamé' && canonicalTag('Vallenato Moderno') === 'vallenato moderno', 'unknown genres are kept, accents included (new nebulae can emerge)', `${canonicalTag('Chamamé')}`);
-assert(canonicalTag('Cumbia Villera') === 'cumbia', 'dictionary synonyms collapse on purpose (cumbia villera → cumbia)');
+assert(canonicalTag('Cumbia Villera') === 'cumbia villera' && canonicalTag('future bass') !== canonicalTag('dubstep'), 'distinct genres stay distinct (cumbia villera, future bass ≠ dubstep)');
+assert(canonicalTag('argentine rock') === 'rock nacional' && canonicalTag('Rock Argentino') === 'rock nacional', 'true synonyms collapse (argentine rock → rock nacional)');
+assert(canonicalTag('Trip Hop') === 'trip-hop' && canonicalTag('NEO SOUL') === 'neo-soul' && canonicalTag('jpop') === 'j-pop', 'preferred spellings (trip-hop, neo-soul, j-pop)');
 assert(canonicalTag('City Pop') !== null && canonicalTag('math rock') !== null, 'niche genres kept');
 assert(canonicalTag('R&B') === 'r&b' || canonicalTag('R&B') !== null, 'r&b survives cleaning', `${canonicalTag('R&B')}`);
 for (const noise of ['seen live', 'Favorites', 'female vocalists', 'awesome', '80s', '2010', '1990s', 'spotify', 'x', '']) {

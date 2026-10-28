@@ -370,11 +370,6 @@ const SUBGENRE_TAXONOMY_DICTIONARY: Record<string, NormalizedSubgenre> = {
 /**
  * Normalizes an arbitrary incoming tag into its 2-Level representation.
  */
-/** Exact synonym lookup in the subgenre dictionary (no substring heuristics); key must be lowercase. */
-export function lookupSubgenreSynonym(cleanTag: string): NormalizedSubgenre | null {
-  return SUBGENRE_TAXONOMY_DICTIONARY[cleanTag] ?? null;
-}
-
 export function normalizeMusicalTag(rawTag: string): NormalizedSubgenre | null {
   if (!rawTag) return null;
   const clean = rawTag

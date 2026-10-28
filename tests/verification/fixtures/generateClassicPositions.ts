@@ -1,6 +1,7 @@
-// Snapshot of the classic layout positions, generated BEFORE extracting it to
-// src/lib/layout/classicLayout.ts (M5.1). The m5_classic_layout test compares against it.
-// Only regenerate when the classic layout is meant to change:
+// Snapshot of the classic layout positions. First generated before extracting the layout to
+// src/lib/layout/classicLayout.ts (M5.1, refactor proven position-identical); regenerated in A3
+// because the dynamic classification intentionally changes the presets' genres.
+// Only regenerate when the classic layout or the classification is meant to change:
 //   npx tsx tests/verification/fixtures/generateClassicPositions.ts
 import fs from 'node:fs';
 import path from 'node:path';

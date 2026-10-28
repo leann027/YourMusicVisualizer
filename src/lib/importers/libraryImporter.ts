@@ -8,6 +8,8 @@ import {
   SongNode,
 } from '../../types/music';
 import { classifyUniversalMusic } from '../music/genreClassifier';
+import { artistTagProfile, RawTag, songTagProfile } from '../music/tagModel';
+import { classifyLibrary, UNCLASSIFIED_GENRE } from '../music/dynamicGenres';
 import { computeTfIdfLinks, normalizeMusicalTag } from '../music/taxonomy';
 import { applyClassicLayout, classicSectorCenter } from '../layout/classicLayout';
 
@@ -26,6 +28,9 @@ export interface RawLibraryTrackInput {
   subgenre?: string;
   tags?: string[];
   secondaryGenre?: string;
+  spotifyGenres?: string[]; // artist genres from Spotify
+  artistTags?: RawTag[]; // Last.fm artist tags (count 0..100)
+  trackTags?: RawTag[]; // Last.fm tags of this song
   collaborators?: string[];
   album?: string;
   durationSec?: number;
@@ -83,10 +88,70 @@ export function getDynamicSectorPlacement(
   // Positions come from the classic layout module; colors stay with the importer palette
   const center = classicSectorCenter(index, totalCount);
 
-  const paletteColor = SECTOR_PALETTE[index % SECTOR_PALETTE.length].color;
-  const paletteBg = SECTOR_PALETTE[index % SECTOR_PALETTE.length].bg;
+  if (index < SECTOR_PALETTE.length) {
+    return { color: SECTOR_PALETTE[index].color, bg: SECTOR_PALETTE[index].bg, center };
+  }
+  // dynamic libraries can exceed the palette: extra hues spread by the golden angle
+  const hue = ((index - SECTOR_PALETTE.length) * 0.381966 + 0.07) % 1;
+  return { color: hslToHex(hue, 0.78, 0.6), bg: hslToHex(hue, 0.55, 0.08), center };
+}
 
-  return { color: paletteColor, bg: paletteBg, center };
+function hslToHex(h: number, s: number, l: number): string {
+  const f = (n: number) => {
+    const k = (n + h * 12) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const c = l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+    return Math.round(c * 255).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+}
+
+/**
+ * Dynamic classification of a whole payload (A3): one weighted tag profile per artist (Spotify
+ * genres, the track's `genre`, Last.fm artist and song tags, legacy `tags`), clustered with
+ * classifyLibrary. Artists without tags fall back to the keyword classifier (never a random
+ * genre) and otherwise to OTRAS ÓRBITAS. Returns genre per artist name and bridge genre per track.
+ */
+function classifyPayload(tracks: RawLibraryTrackInput[]): {
+  artistGenre: Map<string, string>;
+  trackSecondaryGenre: Map<RawLibraryTrackInput, string>;
+} {
+  const byArtist = new Map<string, RawLibraryTrackInput[]>();
+  for (const t of tracks) {
+    if (!t.title || !t.artist) continue;
+    const name = t.artist.trim();
+    if (!byArtist.has(name)) byArtist.set(name, []);
+    byArtist.get(name)!.push(t);
+  }
+  const songTags = (t: RawLibraryTrackInput): RawTag[] =>
+    t.trackTags ?? (t.tags ?? []).map((name) => ({ name, weight: 60 }));
+  const artistNames = [...byArtist.keys()];
+  const songKey = new Map<RawLibraryTrackInput, string>();
+  tracks.forEach((t, i) => songKey.set(t, `t${i}`));
+
+  const classification = classifyLibrary({
+    artists: artistNames.map((name) => {
+      const items = byArtist.get(name)!;
+      const spotifyGenres = [...new Set(items.flatMap((t) => [...(t.spotifyGenres ?? []), ...(t.genre ? [t.genre] : [])]))];
+      const artistTags = items.find((t) => t.artistTags?.length)?.artistTags;
+      let profile = artistTagProfile({ spotifyGenres, artistTags, trackTags: items.map(songTags) });
+      if (profile.length === 0) {
+        const guess = classifyUniversalMusic(name, undefined, items[0].title, { randomFallback: false }).genre;
+        profile = artistTagProfile({ fallbackGenre: guess || undefined });
+      }
+      return { id: name, songCount: items.length, profile };
+    }),
+    songs: [...byArtist.entries()].flatMap(([name, items]) =>
+      items.map((t) => ({ id: songKey.get(t)!, artistId: name, profile: songTagProfile(songTags(t)) }))
+    ),
+  });
+
+  const trackSecondaryGenre = new Map<RawLibraryTrackInput, string>();
+  for (const [t, key] of songKey) {
+    const bridge = classification.songSecondaryGenre.get(key);
+    if (bridge) trackSecondaryGenre.set(t, bridge);
+  }
+  return { artistGenre: classification.artistGenre, trackSecondaryGenre };
 }
 
 function hashString(str: string): number {
@@ -300,24 +365,13 @@ export function buildMusicGalaxyFromPayload(
     }
   >();
 
+  const dynamic = classifyPayload(payload.tracks);
+
   for (const rawTrack of payload.tracks) {
     if (!rawTrack.title || !rawTrack.artist) continue;
 
-    // Use instant 0ms universal music classification for accurate genre clustering
-    const classification = classifyUniversalMusic(
-      rawTrack.artist,
-      rawTrack.genre,
-      rawTrack.title
-    );
-    const genreName = (
-      rawTrack.genre && rawTrack.genre !== 'CONSTELACIÓN INDEPENDIENTE'
-        ? rawTrack.genre
-        : classification.genre
-    ).trim().toUpperCase();
-
-    if (!rawTrack.secondaryGenre) {
-      rawTrack.secondaryGenre = classification.secondaryGenre;
-    }
+    // dynamic classification: the whole library decides the nebulae (A3)
+    const genreName = dynamic.artistGenre.get(rawTrack.artist.trim()) ?? UNCLASSIFIED_GENRE;
 
     if (!genreBuckets.has(genreName)) {
       genreBuckets.set(genreName, {
@@ -403,12 +457,9 @@ export function buildMusicGalaxyFromPayload(
       const firstTrackWithArtistUrl = trackItems.find(
         (t) => t.artistSpotifyUrl || t.spotifyUrl
       );
-      const firstTrackWithSecGenre = trackItems.find((t) => t.secondaryGenre);
-      if (firstTrackWithSecGenre?.secondaryGenre) {
-        artistSecondaryGenreMap.set(
-          artistId,
-          firstTrackWithSecGenre.secondaryGenre.toUpperCase()
-        );
+      const firstBridge = trackItems.find((t) => dynamic.trackSecondaryGenre.has(t));
+      if (firstBridge) {
+        artistSecondaryGenreMap.set(artistId, dynamic.trackSecondaryGenre.get(firstBridge)!.toUpperCase());
       }
 
       const artistNode: ArtistNode = {
@@ -491,8 +542,9 @@ export function buildMusicGalaxyFromPayload(
           tags: songTags,
         };
         songs.push(songNode);
-        if (t.secondaryGenre) {
-          songSecondaryGenres.push({ song: songNode, genreName: t.secondaryGenre.toUpperCase() });
+        const bridgeGenre = dynamic.trackSecondaryGenre.get(t);
+        if (bridgeGenre) {
+          songSecondaryGenres.push({ song: songNode, genreName: bridgeGenre.toUpperCase() });
         }
 
         links.push({

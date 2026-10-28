@@ -71,18 +71,18 @@ assert(s.rendererMode === 'nebula' && s.baseData === GALAXY_PRESET_300, 'store: 
 assert(s.data === layoutForMode(GALAXY_PRESET_300, 'nebula'), 'store: preset 300 rendered with nebula layout');
 assert(s.data.artists.includes(s.selectedNode as never), 'store: default selection comes from the laid-out data');
 
-// 5. Custom data (Spotify / JSON) also gets the layout, split artists remap by genre
+// 5. Custom data (Spotify / JSON) also gets the layout and the selection remaps by id
 const custom = buildMusicGalaxyFromPayload(SPLIT_ARTIST_PAYLOAD);
 store.getState().loadCustomGalaxyData(custom, 'Split fixture');
 s = store.getState();
 assert(s.baseData === custom && s.data !== custom, 'store: custom data laid out in nebula mode');
-const secondCopy = s.data.artists.filter((a) => a.id === 'artist-nova-split')[1];
-store.getState().selectNode(secondCopy);
+const nova = s.data.artists.find((a) => a.id === 'artist-nova-split')!;
+store.getState().selectNode(nova);
 store.getState().setRendererMode('classic');
 s = store.getState();
 assert(
-  s.selectedNode?.type === 'artist' && s.selectedNode.genreId === secondCopy.genreId,
-  'store: artist split across genres remaps to the same genre copy'
+  s.selectedNode?.type === 'artist' && s.selectedNode.id === nova.id && s.selectedNode.genreId === nova.genreId,
+  'store: selected artist remaps to the classic dataset'
 );
 assert(s.data === custom, 'store: back to classic restores the imported dataset');
 

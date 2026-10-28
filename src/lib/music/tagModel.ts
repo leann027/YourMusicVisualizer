@@ -1,12 +1,11 @@
-import { lookupSubgenreSynonym } from './taxonomy';
-
 /**
  * Tag model for dynamic genre classification (A1).
  *
  * Turns Spotify genres and Last.fm tags into canonical, weighted tag profiles per artist and
- * per song. Known synonyms collapse through the subgenre dictionary ("dreampop" → "dream pop");
- * unknown tags are kept, so new genres can emerge from the user's library; Last.fm noise tags
- * that are not genres are dropped.
+ * per song. Only spelling variants ("post punk" / "post-punk" / "postpunk") and true synonyms
+ * ("retrowave" = "synthwave") collapse — distinct genres stay distinct so the classifier can
+ * tell them apart (the fixed-taxonomy dictionary lumps e.g. future bass with dubstep). Unknown
+ * tags are kept, so new genres can emerge; Last.fm noise tags that are not genres are dropped.
  */
 
 export interface WeightedTag {
@@ -31,6 +30,29 @@ const NOISE_TAGS = new Set([
 
 const DECADE_OR_YEAR = /^(\d{2}s|\d{4}s?|(19|20)\d{2})$/;
 
+/** Preferred spelling for genres usually written with hyphens or joined (keyed without spaces/hyphens). */
+const PREFERRED_SPELLING: Record<string, string> = {
+  postpunk: 'post-punk', postrock: 'post-rock', posthardcore: 'post-hardcore', postmetal: 'post-metal',
+  triphop: 'trip-hop', neosoul: 'neo-soul', neopsychedelia: 'neo-psychedelia', jpop: 'j-pop', jrock: 'j-rock',
+  kpop: 'k-pop', krock: 'k-rock', lofi: 'lo-fi', hiphop: 'hip hop', dreampop: 'dream pop', synthpop: 'synthpop',
+  electropop: 'electropop', nujazz: 'nu jazz', newwave: 'new wave', citypop: 'city pop', drumandbass: 'drum and bass',
+  dnb: 'drum and bass', rnb: 'r&b', randb: 'r&b', idm: 'idm', edm: 'edm', ebm: 'ebm',
+};
+
+/** True synonyms: different words, same genre. */
+const SYNONYMS: Record<string, string> = {
+  retrowave: 'synthwave',
+  outrun: 'synthwave',
+  'rock argentino': 'rock nacional',
+  'argentine rock': 'rock nacional',
+  'rock nacional argentino': 'rock nacional',
+  'rock en espanol': 'rock en español',
+  'rhythm and blues': 'r&b',
+  electronica: 'electronic',
+  'hip-hop': 'hip hop',
+  'dance music': 'dance',
+};
+
 /** Canonical form of a raw genre/tag, or null when it is noise. */
 export function canonicalTag(raw: string): string | null {
   if (!raw) return null;
@@ -38,15 +60,15 @@ export function canonicalTag(raw: string): string | null {
     .toLowerCase()
     .replace(/[_]+/g, ' ')
     .replace(/[^\p{L}\p{N}&'\s-]/gu, ' ')
-    .replace(/\s*-\s*/g, ' ')
+    .replace(/\s*-\s*/g, '-')
     .replace(/\s+/g, ' ')
     .trim();
   if (clean.length < 2 || clean.length > 40) return null;
-  if (NOISE_TAGS.has(clean) || DECADE_OR_YEAR.test(clean.replace(/\s/g, ''))) return null;
-
-  // dictionary synonyms: try spaced and hyphenated spellings ("post punk" / "post-punk")
-  const synonym = lookupSubgenreSynonym(clean) ?? lookupSubgenreSynonym(clean.replace(/ /g, '-'));
-  return synonym ? synonym.subgenre.toLowerCase() : clean;
+  const spaced = clean.replace(/-/g, ' ');
+  if (NOISE_TAGS.has(spaced) || DECADE_OR_YEAR.test(spaced.replace(/\s/g, ''))) return null;
+  const preferred = PREFERRED_SPELLING[clean.replace(/[\s-]/g, '')];
+  if (preferred) return preferred;
+  return SYNONYMS[spaced] ?? SYNONYMS[clean] ?? spaced;
 }
 
 /** Sums weights by canonical tag, normalises the strongest to 1, sorts by weight then name. */

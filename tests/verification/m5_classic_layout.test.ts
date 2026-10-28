@@ -62,7 +62,7 @@ console.log('================================================================');
 for (const [name, data] of Object.entries(datasets)) {
   // 1. Importer output matches the pre-refactor snapshot exactly
   const diff = firstDifference(fixture[name], snapshotPositions(data));
-  assert(diff === null, `${name}: positions identical to pre-refactor fixture`, diff ?? '');
+  assert(diff === null, `${name}: positions identical to the classic layout fixture`, diff ?? '');
 
   // 2. No NaN / Infinity
   assert(allFinite(data), `${name}: all positions finite`);
@@ -91,13 +91,14 @@ assert(
   'preset150: layout from zeroed positions reproduces fixture'
 );
 
-// 5. Split-artist edge case: same artist id in two genres keeps two distinct placements
+// 5. Artist with songs in two styles: since the dynamic classification (A3) an artist belongs to
+// one nebula, so no duplicated artist ids (the old per-track split produced two copies)
 const split = datasets.splitArtist;
 const novaNodes = split.artists.filter((a) => a.id === 'artist-nova-split');
-assert(novaNodes.length === 2, 'splitArtist: artist appears in two genres', `got ${novaNodes.length}`);
+assert(novaNodes.length === 1, 'splitArtist: artist placed once (no duplicated ids)', `got ${novaNodes.length}`);
 assert(
-  novaNodes.length === 2 && JSON.stringify(novaNodes[0].position) !== JSON.stringify(novaNodes[1].position),
-  'splitArtist: each genre copy has its own position'
+  new Set(split.artists.map((a) => `${a.genreId}/${a.id}`)).size === split.artists.length && new Set(split.songs.map((s) => s.id)).size === split.songs.length,
+  'splitArtist: artist and song ids are unique'
 );
 
 console.log('\n================================================================');
