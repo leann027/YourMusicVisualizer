@@ -43,7 +43,8 @@ let s = store.getState();
 assert(s.rendererMode === 'classic', 'store: starts in classic');
 assert(s.data === GALAXY_PRESET_50 && s.baseData === GALAXY_PRESET_50, 'store: classic data is the preset object itself');
 
-// 3. Switching to nebula: new positions, selection remapped by id, one camera reframe
+// 3. Switching to nebula: new positions, selection remapped by id, one camera reframe (after the warp-in)
+store.getState().finishWarp();
 store.getState().selectNode(GALAXY_PRESET_50.songs[7]);
 const selectedId = store.getState().selectedNode!.id;
 const flightBefore = store.getState().flightVersion;

@@ -344,8 +344,8 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
         hoveredNode: remapNode(state.hoveredNode, data),
         selectedCollision: rendererMode === 'classic' ? null : state.selectedCollision,
         cameraMode: leavingCollision ? 'galaxy' : state.cameraMode,
-        // reframe the selection at its new position
-        flightVersion: state.flightVersion + 1,
+        // reframe the selection at its new position (not during the warp-in: it flies there itself)
+        flightVersion: state.isWarpActive ? state.flightVersion : state.flightVersion + 1,
       };
     });
   },
