@@ -6,6 +6,7 @@ import {
   GALAXY_PRESET_300,
 } from '../data/galaxyPresets';
 import { getNebulaLayout } from '../lib/layout/nebulaLayout';
+import { DEFAULT_RENDERER_MODE } from '../lib/rendererPreference';
 
 export type CameraViewMode = 'galaxy' | 'sector' | 'artist' | 'song' | 'collision';
 
@@ -108,13 +109,17 @@ interface GalaxyState {
   setNebulaGenreLabelIds: (ids: string[] | null) => void;
 }
 
+// Nebulosas v3 is the default renderer since M8.4 (classic stays available from the HUD)
+const INITIAL_RENDERER: RendererMode = DEFAULT_RENDERER_MODE;
+const INITIAL_DATA = layoutForMode(GALAXY_PRESET_50, INITIAL_RENDERER);
+
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   baseData: GALAXY_PRESET_50,
-  data: GALAXY_PRESET_50,
+  data: INITIAL_DATA,
   dataSourceLabel: 'Cosmos Íntimo (50 Pistas)',
   activePresetScale: 50,
   spotifyUser: null,
-  selectedNode: GALAXY_PRESET_50.artists[0] || null,
+  selectedNode: INITIAL_DATA.artists[0] || null,
   hoveredNode: null,
   selectedSectorId: GALAXY_PRESET_50.genres[0]?.id || null,
   cameraMode: 'galaxy',
@@ -138,7 +143,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   },
   isWarpActive: true,
   hasWarpCompleted: false,
-  rendererMode: 'classic',
+  rendererMode: INITIAL_RENDERER,
   nebulaFieldDensity: 'full',
   selectedCollision: null,
   nebulaGenreLabelIds: null,

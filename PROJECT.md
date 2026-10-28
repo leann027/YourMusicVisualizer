@@ -4,7 +4,9 @@
 YourMusicVisualizer is an interactive 3D WebGL music universe powered by Next.js 16 (App Router), React 19, `@react-three/fiber`, `@react-three/drei`, Three.js, GSAP, and Web Audio API.
 The 3D canvas is refactored from monolithic components into single-responsibility submodules:
 - `src/components/canvas/star/`: Star core, accretion rings, features, conditional playback pulsar, LOD labels, unit geometries, star shaders.
-- `src/components/canvas/nebula/`: Sector nebula cluster, procedural geometry generators, cloud shaders (with pinprick sparks and volumetric gas).
+- `src/components/canvas/nebula/`: Classic sector nebula cluster, procedural geometry generators, cloud shaders (with pinprick sparks and volumetric gas). Used only in `rendererMode: 'classic'`.
+- `src/components/canvas/nebulaV3/`: Nebulosas v3 (default renderer since M8): single-draw-call gas field, collisions between related genres, bridge threads, collision markers, collision and overview cameras.
+- `src/lib/layout/`: Pure spatial layouts (`classicLayout`, `genreRelations`, `nebulaLayout`, `collisionModel`); `src/lib/math/`: deterministic PRNG and noise.
 - `src/components/canvas/galaxy/`: Supermassive black hole, spiral stardust points, stardust geometry, relativistic shaders.
 - `src/components/canvas/hooks/`: Flight dynamic hooks (`useWarpSequence`, `useArcFlight`, `useOrbitalTracking`, `usePerformanceMonitor`).
 - `src/components/canvas/GalaxyScene.tsx`: Top-level composition scene mounting galaxy elements conditionally.
@@ -29,6 +31,11 @@ The 3D canvas is refactored from monolithic components into single-responsibilit
 | M1 | Visual Refinements & Nebula Modularization | Features 1, 2, 3, 4: Disable constellation lines by default, fix micro-flashes to pinprick sparks, restore volumetric nebulae, and modularize `NebulaClusters` into `src/components/canvas/nebula/` | None | DONE |
 | M2 | Canvas Core Modularization & React 19 Purity | Features 5, 6, 7, 8: Modularize `StarNodeMesh`, `GalacticDustDisc`, and `CameraFlightController` into clean submodules; verify React 19 purity, customProgramCacheKeys, 0 lint warnings, and 0 build errors | M1 | DONE |
 | M3 | Automated Structural & Visual Verification | Features 9, 10: Run Graphify AST update and relationship analysis; run Playwright test suite capturing Galaxy Overview, Sector Focus, and Active Playback at `http://localhost:3000`; publish `TEST_READY.md` | M2 | DONE |
+| M4 | Nebulosas v3 · Safety net | `rendererMode` flag (`?renderer=`), classic visual baseline and Playwright harness (`test:visual`, `test:visual:flows`) | M3 | DONE |
+| M5 | Nebulosas v3 · Decoupled layout & genre relations | `classicLayout` extracted (fixture-identical), `secondaryGenreId`, curated preset bridges, `computeGenreRelations`, `nebulaLayout` (cores, nodes, bridge songs), layout per mode in the store | M4 | DONE |
+| M6 | Nebulosas v3 · Gas field | Single-draw-call gas field (geometry, shaders, `NebulaField`), calibrated look, nebula bloom, adaptive density | M5 | DONE (phone FPS check pending) |
+| M7 | Nebulosas v3 · Collisions | Collision particles, bridge threads and rings, collision selection and camera, collision HUD (card, "Choca con", ∩ n markers, links toggle), tide boost for playing bridge songs | M6 | DONE |
+| M8 | Nebulosas v3 · Polish & default | Black hole kept in a void, nebula overview framing (galaxy view and warp-in), genre label LOD and marker placement, `nebula` as default with a Nebulosas / Clásico selector remembered per viewer | M7 | DONE |
 
 ## Interface Contracts
 ### `src/components/canvas/nebula/`

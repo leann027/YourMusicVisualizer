@@ -8,6 +8,7 @@ import {
   getStoredAccessToken,
 } from '../lib/spotify/spotifyClient';
 import { parseRendererParam, useGalaxyStore } from '../store/useGalaxyStore';
+import { readStoredRenderer, resolveInitialRenderer } from '../lib/rendererPreference';
 
 // Dynamic import for 3D Canvas to disable SSR cleanly
 const MusicVisualizerCanvas = dynamic(
@@ -36,10 +37,11 @@ export default function HomePage() {
     (window as unknown as { __galaxyStore?: typeof useGalaxyStore }).__galaxyStore = useGalaxyStore;
   }, []);
 
-  // Read ?renderer=classic|nebula once on mount (window avoids a Suspense boundary for useSearchParams)
+  // Renderer on mount: ?renderer=classic|nebula, else the HUD preference, else nebula (M8.4).
+  // window avoids a Suspense boundary for useSearchParams.
   useEffect(() => {
-    const mode = parseRendererParam(new URLSearchParams(window.location.search).get('renderer'));
-    if (mode) setRendererMode(mode);
+    const param = parseRendererParam(new URLSearchParams(window.location.search).get('renderer'));
+    setRendererMode(resolveInitialRenderer(param, readStoredRenderer()));
   }, [setRendererMode]);
 
   // Auto-restore active Spotify session if token is still valid in localStorage

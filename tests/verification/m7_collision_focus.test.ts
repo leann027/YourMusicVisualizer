@@ -89,6 +89,7 @@ assert(sectorTargets.focusGid2 === -1, 'outside collision mode there is no secon
 
 // ---------- 4. store transitions ----------
 const store = useGalaxyStore;
+store.getState().setRendererMode('classic'); // nebula is the default since M8.4
 store.getState().selectCollision({ a: relation.a, b: relation.b });
 assert(store.getState().selectedCollision === null, 'classic mode: selectCollision is ignored');
 store.getState().setRendererMode('nebula');
