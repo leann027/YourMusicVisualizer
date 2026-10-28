@@ -25,26 +25,44 @@ Sigue el formato de milestones de `PROJECT.md` (continúa desde M3).
 | Filtro de afinidad | `minAffinityFilter` se aplica en star, nebula, links y song cloud | El campo de partículas nuevo necesita `aAffinity` + `uMinAffinity` |
 | Tests | Scripts `tsx` con `assert` propio en `tests/verification/` | Los tests nuevos siguen ese patrón y se suman al script `test` de `package.json` |
 
+## Estado (2026-10-28)
+
+M4–M8 implementados en `feat/nebulosas-v3`, un sub-paso por rama con lint/test/build en verde, baseline clásico intacto y checklist automatizada en los dos modos (`npm run test:visual:flows`: 18 checks en `classic`, 29 en `nebula`). Detalle técnico en `docs/arquitectura.md`.
+
+Desvíos respecto del plan, todos acordados en su momento:
+- **M5.2b** (nuevo): `secondaryGenre` curado en los presets; los secundarios del clasificador usan otro vocabulario y casi no resolvían relaciones.
+- **M5.3**: `GenreRelation` suma `strength` (canciones + 0.5·influencias + tags) para que bibliotecas reales sin secundarios curados también tengan choques.
+- **M5.4**: órbitas de canciones compactas (0.9–2.0 u) para respetar `S` 5–9 u.
+- **M7.1b** (nuevo): choques al 15% del presupuesto y aspecto calibrado; con el 8% no se veían.
+- **M7.2**: hilos puente en un componente propio (`BridgeThreads`), no en `ConstellationLinks`.
+- **M7.4**: el interruptor de hilos va en "Filtros & Brillo" (en el dock partía la barra en dos filas a 1400 px).
+- **M7.5**: desfase de fase por choque en lugar de escalar `uTime` (evita saltos).
+- **M8.1**: traslación rígida a un hueco en lugar de una cavidad por repulsión (la cavidad rompía garantías de M5 en el preset 300).
+
+Pendiente de validar en hardware real: FPS del preset 300 en celular (criterio ≥ 50), aspecto del gas y los choques en GPU (se calibró sobre render por software), warp-in completo (con WebGL por software no termina por el *lag smoothing* de GSAP) y el flujo de Spotify (OAuth).
+
+Versión siguiente (no hecho, según M8): borrar `src/components/canvas/nebula/` y la rama `classic` si se decide retirar el modo clásico. `classicLayout` sigue siendo la fuente de `baseData`; el layout nebula no depende de sus posiciones, así que también puede retirarse junto con el modo clásico.
+
 ## Inventario de funcionalidades (checklist de no-regresión)
 
 Correr esta lista al cerrar cada milestone, en los dos modos.
 
-- [ ] Warp-in de entrada (`WarpTunnelMesh`, `useWarpSequence`) y skip
-- [ ] Vuelos en arco al seleccionar género / artista / canción (`useArcFlight`)
-- [ ] Seguimiento orbital del nodo seleccionado mientras rota la galaxia (`useOrbitalTracking`)
-- [ ] Drawer de Constelaciones → `selectSector`
-- [ ] Próxima → `flyToNeighborSector`
-- [ ] Ficha del artista (`ArtistSleeveCard`) y colapso
-- [ ] Buscador (`StellarSearchBar`) → `selectNode`
-- [ ] Filtros & Brillo → `minAffinityFilter`, `stellarBrightness`
-- [ ] Bloom ON/OFF
-- [ ] Pulso FFT: dock de espectro, pulsar de la estrella que suena, respiración de nebulosas
-- [ ] Presets 50p / 150p / 300p
-- [ ] Conectar Spotify / Datos (`DataSourceModal`, callback OAuth, `/api/enrich-tracks`, `/api/track-preview`)
-- [ ] Líneas de constelación (`linksVisible`)
-- [ ] Labels con LOD (`StarLabel`)
-- [ ] Telemetría de rendimiento (`usePerformanceMonitor`)
-- [ ] `prefers-reduced-motion`
+- [~] Warp-in de entrada (`WarpTunnelMesh`, `useWarpSequence`) y skip — skip y `prefers-reduced-motion` verificados; animación completa pendiente en GPU real
+- [x] Vuelos en arco al seleccionar género / artista / canción (`useArcFlight`) — también al choque (M7.3)
+- [x] Seguimiento orbital del nodo seleccionado mientras rota la galaxia (`useOrbitalTracking`) — y del punto de contacto (M7.3)
+- [x] Drawer de Constelaciones → `selectSector`
+- [x] Próxima → `flyToNeighborSector`
+- [x] Ficha del artista (`ArtistSleeveCard`) y colapso
+- [x] Buscador (`StellarSearchBar`) → `selectNode`
+- [x] Filtros & Brillo → `minAffinityFilter`, `stellarBrightness`
+- [x] Bloom ON/OFF
+- [x] Pulso FFT: dock de espectro, pulsar de la estrella que suena, respiración de nebulosas — más mareas de canciones puente (M7.5)
+- [x] Presets 50p / 150p / 300p
+- [ ] Conectar Spotify / Datos (`DataSourceModal`, callback OAuth, `/api/enrich-tracks`, `/api/track-preview`) — sin cambios de código; prueba manual pendiente
+- [x] Líneas de constelación (`linksVisible`) — el control no existía en la UI; agregado en M7.4
+- [x] Labels con LOD (`StarLabel`) — máximo 5 géneros en la vista general nebula (M8.3)
+- [x] Telemetría de rendimiento (`usePerformanceMonitor`) — además degrada el gas a 20k si FPS < 40 (M6.4)
+- [x] `prefers-reduced-motion`
 
 ---
 
