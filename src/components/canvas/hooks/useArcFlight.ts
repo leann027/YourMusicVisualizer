@@ -7,6 +7,7 @@ import type CameraControlsImpl from 'camera-controls';
 import { useGalaxyStore } from '../../../store/useGalaxyStore';
 import { getNebulaLayout } from '../../../lib/layout/nebulaLayout';
 import { collisionCameraPose, findCollision } from '../nebulaV3/collisionCamera';
+import { cameraAspect, overviewPoseFor } from '../nebulaV3/overviewCamera';
 
 export interface UseArcFlightOptions {
   controlsRef: React.RefObject<CameraControlsImpl | null>;
@@ -98,8 +99,12 @@ export function useArcFlight({
       endTarget.copy(pose.target);
       endEye.copy(pose.eye);
     } else if (cameraMode === 'galaxy' || cameraMode === 'collision' || !selectedNode) {
-      endTarget.set(0, 0, 0);
-      endEye.set(0, 18, 52);
+      // classic [0, 18, 52] or the nebula overview that fits every nebula (M8.2)
+      const { rendererMode, baseData } = useGalaxyStore.getState();
+      const cores = rendererMode === 'nebula' ? getNebulaLayout(baseData).cores : null;
+      const pose = overviewPoseFor(rendererMode, cores, cameraAspect(controls.camera));
+      endTarget.set(...pose.target);
+      endEye.set(...pose.eye);
     } else {
       const localPos = new THREE.Vector3(...selectedNode.position);
       const worldPos = galaxyContainerRef?.current

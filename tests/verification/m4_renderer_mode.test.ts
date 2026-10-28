@@ -31,6 +31,14 @@ assert(
   `got ${store.getState().rendererMode}`
 );
 
+// Test 1b: during the warp-in a mode switch does not start a camera flight (M8.2)
+assert(store.getState().isWarpActive, 'store starts with the warp-in active');
+const warpFlight = store.getState().flightVersion;
+store.getState().setRendererMode('nebula');
+assert(store.getState().flightVersion === warpFlight, 'mode switch during the warp-in starts no flight');
+store.getState().setRendererMode('classic');
+store.getState().finishWarp();
+
 // Test 2: switching modes keeps the selection and camera mode.
 // Since M5.5 the mode swaps `data` for the nebula layout and reframes the camera (see m5_store_layout).
 const before = store.getState();
