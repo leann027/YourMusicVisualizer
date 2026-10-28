@@ -1,4 +1,4 @@
-// Automatable part of the no-regression checklist (docs/MIGRATION_NEBULOSAS.md), per renderer.
+// Automatable part of the no-regression checklist (docs/historial/MIGRATION_NEBULOSAS.md), per renderer.
 // Usage: node tests/visual/checklistFlows.mjs --renderer classic|nebula   (needs `npm run dev`)
 import { chromium } from 'playwright';
 import { PNG } from 'pngjs';

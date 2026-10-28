@@ -8,8 +8,8 @@ Novafy es una aplicación web interactiva para oyentes de música que transforma
 - **Integración Musical:** Spotify Web API (OAuth 2.0 PKCE en cliente, scope `user-library-read`, análisis de hasta 500 *Saved Tracks* y previews de audio on-demand)
 - **Motor Gráfico 3D:** Three.js a través de `@react-three/fiber` y `@react-three/drei`
 - **Post-procesado (Glow/Bloom):** `UnrealBloomPass` (`three/examples/jsm/postprocessing`)
-- **Efectos Volumétricos:** `NebulaClusters` (polvo cósmico y gas nebular con rotación y turbulencia procedural)
-- **Motor de Físicas de Grafo:** Distribución galáctica espiral determinista con derivas orbitales en tiempo real
+- **Renderer de Nebulosas (por defecto):** `nebulaV3/` (gas en un draw call, profundidad, estrellas luminosas, choques entre géneros); el renderer clásico vive en `canvas/classic/`
+- **Clasificación y Layout:** géneros dinámicos por tags (Spotify + Last.fm) y layouts puros deterministas (`lib/music/`, `lib/layout/`)
 - **Animación de Cámara:** `camera-controls` + `GSAP` (trayectorias parabólicas en arco y secuencia de entrada hiperespacial)
 - **Estado y Audio:** `Zustand` + **Web Audio API** (análisis FFT reactivo de 64 bandas sobre streaming de previews de audio)
 
@@ -19,14 +19,8 @@ Novafy es una aplicación web interactiva para oyentes de música que transforma
 - Offline / Sync: Ninguno (MVP enfocado en cliente web)
 - Multi-idioma / Multi-moneda: Ninguno
 
-## Backlog Actual (Cinemática, Dinámica de Fluidos y Rediseño de UI)
-1. [x] Cinemática de entrada hiperespacial ("Warp-in") hacia el interior de la galaxia al cargar la página con trazas estelares en GPU (`WarpTunnelMesh`) y fade-in de HUD.
-2. [x] Dinamismo continuo: movimiento orgánico de humo cósmico en nebulosas, ondas de marea gravitacional acústicas (FFT) en el disco de polvo y rotación orbital suave.
-3. [x] Etiquetas de texto WebGL Billboard SDF nativas, LOD inteligente por distancia/cámara y selección directa sin colisiones DOM.
-4. [x] Rediseño de interfaz minimalista: cápsula flotante de cristal ("Glassmorphism Dock") perimetral con drawer de constelaciones y control de Client ID.
-5. [x] Vuelos de cámara cinemáticos en arco parabólico (`power3.inOut` / `power4.out`) y paneo orbital al seleccionar constelaciones y artistas.
-
-<!-- BEGIN:nextjs-agent-rules -->
+## Estado y Backlog
+Hitos cerrados y pendientes en `PROJECT.md` (tabla de hitos). Pendiente manual: calibrar estrellas y niebla y medir FPS en GPU real y celular (`?starTune`, `?fogTune`, `?fps`), y probar el login real de Spotify.
 
 ## This is NOT the Next.js you know
 
