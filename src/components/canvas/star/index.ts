@@ -54,6 +54,10 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
   const stellarBrightness = useGalaxyStore((s) => s.stellarBrightness);
   const rendererMode = useGalaxyStore((s) => s.rendererMode);
   const baseData = useGalaxyStore((s) => s.baseData);
+  // nebula galaxy view shows only the 5 nearest genre labels (M8.3); classic has no limit
+  const genreLabelAllowed = useGalaxyStore(
+    (s) => node.type !== 'genre' || s.rendererMode !== 'nebula' || !s.nebulaGenreLabelIds || s.nebulaGenreLabelIds.includes(node.id)
+  );
   const selectNode = useGalaxyStore((s) => s.selectNode);
   const hoverNode = useGalaxyStore((s) => s.hoverNode);
   const setAudioPlayback = useGalaxyStore((s) => s.setAudioPlayback);
@@ -198,7 +202,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     const nodeSectorId = node.type === 'genre' ? node.id : node.genreId;
 
     if (cameraMode === 'galaxy') {
-      return node.type === 'genre';
+      return node.type === 'genre' && genreLabelAllowed;
     }
 
     if (cameraMode === 'sector') {
@@ -215,6 +219,7 @@ export const StarNodeMesh: React.FC<StarNodeMeshProps> = ({ node, genreColor }) 
     );
   }, [
     isFilteredOut,
+    genreLabelAllowed,
     isSelected,
     isHovered,
     isPlayingNode,
